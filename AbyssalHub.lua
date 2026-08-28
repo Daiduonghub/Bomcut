@@ -453,6 +453,81 @@ local Window = Library:CreateWindow("ABYSSAL HUB")
 local MainTab = Window:CreateTab("Main")
 local PlayerTab = Window:CreateTab("Player")
 
+-- ====================================================================
+-- TOGGLE AUTO FARM LEVEL + AUTO QUEST
+-- ====================================================================
+
+-- 1. DATABASE QUEST (Dán tạm thông số này, sau điều chỉnh lại theo game)
+local QuestDatabase = {
+    {
+        MinLevel = 1,
+        MaxLevel = 14,
+        QuestName = "BanditQuest",
+        EnemyName = "Bandit"
+    },
+    {
+        MinLevel = 15,
+        MaxLevel = 29,
+        QuestName = "MonkeyQuest",
+        EnemyName = "Monkey"
+    },
+    {
+        MinLevel = 30,
+        MaxLevel = 59,
+        QuestName = "GorillaQuest",
+        EnemyName = "Gorilla"
+    },
+    {
+        MinLevel = 60,
+        MaxLevel = 999,
+        QuestName = "PirateQuest",
+        EnemyName = "Pirate"
+    }
+}
+
+-- ====================================================================
+-- HÀM TỰ ĐỘNG NHẬN QUEST THEO LEVEL
+-- ====================================================================
+local function AutoAcceptQuest()
+    local Players = game:GetService("Players")
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local LocalPlayer = Players.LocalPlayer
+    local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
+
+    -- 1. Lấy Level hiện tại
+    local levelObj = LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Level")
+        or LocalPlayer:FindFirstChild("leaderstats") and LocalPlayer.leaderstats:FindFirstChild("Level")
+    local pLevel = levelObj and levelObj.Value or 1
+
+    -- 2. Kiểm tra xem đã nhận Quest chưa (tránh spam nhận lại)
+    local questData = LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Quest")
+        or LocalPlayer:FindFirstChild("PlayerGui"):FindFirstChild("QuestUI")
+    if questData and (questData.Value ~= "" or questData.Visible == true) then
+        return -- Đã có Quest rồi thì bỏ qua không nhận nữa
+    end
+
+    -- 3. Tìm Quest phù hợp trong QuestDatabase
+    local targetQuest = nil
+    for _, q in ipairs(QuestDatabase) do
+        if pLevel >= q.MinLevel and pLevel <= q.MaxLevel then
+            targetQuest = q
+            break
+        end
+    end
+
+    -- 4. Bắn Remote tự nhận Quest
+    if targetQuest then
+        local QuestRemote = Net:FindFirstChild("RF/StartQuest") or Net:FindFirstChild("RE/StartQuest") or Net:FindFirstChild("StartQuest")
+        if QuestRemote then
+            if QuestRemote:IsA("RemoteFunction") then
+                QuestRemote:InvokeServer(targetQuest.QuestName, 1)
+            else
+                QuestRemote:FireServer(targetQuest.QuestName, 1)
+            end
+        end
+    end
+end
+
 local AutoFarmLevelEnabled = false
 
 MainTab:CreateToggle("Auto Farm Level", false, function(state)
@@ -468,57 +543,73 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
             local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
             local RegisterAttack = Net:WaitForChild("RE/RegisterAttack")
             local RegisterHit = Net:WaitForChild("RE/RegisterHit")
+            local QuestRemote = Net:FindFirstChild("RF/StartQuest") or Net:FindFirstChild("RE/StartQuest") or Net:FindFirstChild("StartQuest")
 
-            -- Hàm lấy Level của người chơi (Cậu điều chỉnh đúng đường dẫn Data Level trong game)
+            -- Hàm lấy Level
             local function getPlayerLevel()
-                local level = LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Level")
+                local levelObj = LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Level")
                     or LocalPlayer:FindFirstChild("leaderstats") and LocalPlayer.leaderstats:FindFirstChild("Level")
-                return level and level.Value or 1
+                return levelObj and levelObj.Value or 1
             end
 
-            -- Hàm xác định quái & Quest theo Level
-            local function getTargetEnemy()
+            -- Hàm lấy Quest trong Database theo Level
+            local function getCurrentQuest()
                 local pLevel = getPlayerLevel()
-                
-                if pLevel < 15 then
-                    return "Bandit", "BanditQuest"
-                elseif pLevel < 30 then
-                    return "Monkey", "MonkeyQuest"
-                elseif pLevel < 60 then
-                    return "Gorilla", "GorillaQuest"
-                else
-                    return "Pirate", "PirateQuest"
+                for _, q in ipairs(QuestDatabase) do
+                    if pLevel >= q.MinLevel and pLevel <= q.MaxLevel then
+                        return q
+                    end
                 end
+                return QuestDatabase[1]
             end
 
+            -- Hàm kiểm tra đã có Quest chưa
+            local function hasActiveQuest()
+                local questObj = LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Quest")
+                    or LocalPlayer:FindFirstChild("PlayerGui"):FindFirstChild("QuestUI")
+                if questObj and (questObj.Value ~= "" or questObj.Visible == true) then
+                    return true
+                end
+                return false
+            end
+
+            -- Vòng lặp Farm + Nhận Quest
             while AutoFarmLevelEnabled do
                 local Character = LocalPlayer.Character
                 if Character and Character:FindFirstChild("HumanoidRootPart") then
                     local RootPart = Character.HumanoidRootPart
-                    local targetName, questName = getTargetEnemy()
+                    local currentData = getCurrentQuest()
 
-                    -- (Tùy chọn) Gửi Remote nhận Quest nếu game có hệ thống Quest
-                    -- local questRemote = ReplicatedStorage.Modules.Net:FindFirstChild("RF/StartQuest")
-                    -- if questRemote then questRemote:InvokeServer(questName) end
+                    -- 1. TỰ ĐỘNG NHẬN QUEST NẾU CHƯA CÓ
+                    if not hasActiveQuest() then
+                        if QuestRemote then
+                            if QuestRemote:IsA("RemoteFunction") then
+                                QuestRemote:InvokeServer(currentData.QuestName, 1)
+                            else
+                                QuestRemote:FireServer(currentData.QuestName, 1)
+                            end
+                        end
+                        task.wait(0.5)
+                    end
 
+                    -- 2. TÌM VÀ ĐÁNH QUÁI THEO LEVEL
                     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
                     if EnemiesFolder then
                         for _, enemy in pairs(EnemiesFolder:GetChildren()) do
                             if not AutoFarmLevelEnabled then break end
 
-                            -- Lọc đúng tên quái cần farm theo Level
-                            if enemy.Name == targetName then
+                            if enemy.Name == currentData.EnemyName then
                                 local enemyHumanoid = enemy:FindFirstChildOfClass("Humanoid")
                                 local enemyRoot = enemy:FindFirstChild("HumanoidRootPart")
 
                                 if enemyHumanoid and enemyHumanoid.Health > 0 and enemyRoot then
                                     while enemyHumanoid.Health > 0 and AutoFarmLevelEnabled do
-                                        -- Đứng im cao 8 stud trên đầu quái
+                                        -- Giữ vị trí đứng cao 8 stud & đứng im
                                         RootPart.CFrame = enemyRoot.CFrame * CFrame.new(0, 8, 0)
                                         RootPart.AssemblyLinearVelocity = Vector3.zero
                                         RootPart.AssemblyAngularVelocity = Vector3.zero
 
-                                        -- Gửi Remote đánh & gây dame
+                                        -- Đánh quái
                                         RegisterAttack:FireServer(0.5, 1)
 
                                         local hitPart = enemy:FindFirstChild("RightHand") 
