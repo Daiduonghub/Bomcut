@@ -454,38 +454,42 @@ local MainTab = Window:CreateTab("Main")
 local PlayerTab = Window:CreateTab("Player")
 
 -- ====================================================================
--- TOGGLE AUTO FARM LEVEL + AUTO QUEST + AUTO ISLAND TELEPORT
+-- TOGGLE AUTO FARM LEVEL + AUTO QUEST + AUTO ISLAND TELEPORT (FIXED)
 -- ====================================================================
 
--- 1. DATABASE QUEST (Điền CFrame tọa độ đảo để tự bay sang)
+-- 1. DATABASE QUEST (Thêm NpcCFrame để bay đến sát NPC nhận Quest)
 local QuestDatabase = {
     {
         MinLevel = 1,
         MaxLevel = 14,
         QuestName = "BanditQuest",
         EnemyName = "Bandit",
-        IslandCFrame = CFrame.new(105, 20, 200)
+        NpcCFrame = CFrame.new(105, 20, 200),     -- Tọa độ NPC nhận quest
+        IslandCFrame = CFrame.new(150, 20, 250)   -- Tọa độ bãi quái
     },
     {
         MinLevel = 15,
         MaxLevel = 29,
         QuestName = "MonkeyQuest",
         EnemyName = "Monkey",
-        IslandCFrame = CFrame.new(-300, 20, 500)
+        NpcCFrame = CFrame.new(-300, 20, 500),
+        IslandCFrame = CFrame.new(-350, 20, 550)
     },
     {
         MinLevel = 30,
         MaxLevel = 59,
         QuestName = "GorillaQuest",
         EnemyName = "Gorilla",
-        IslandCFrame = CFrame.new(-600, 20, 800)
+        NpcCFrame = CFrame.new(-600, 20, 800),
+        IslandCFrame = CFrame.new(-650, 20, 850)
     },
     {
         MinLevel = 60,
         MaxLevel = 999,
         QuestName = "PirateQuest",
         EnemyName = "Pirate",
-        IslandCFrame = CFrame.new(1200, 20, -400)
+        NpcCFrame = CFrame.new(1200, 20, -400),
+        IslandCFrame = CFrame.new(1250, 20, -350)
     }
 }
 
@@ -506,14 +510,20 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
             local RegisterHit = Net:WaitForChild("RE/RegisterHit")
             local QuestRemote = Net:FindFirstChild("RF/StartQuest") or Net:FindFirstChild("RE/StartQuest") or Net:FindFirstChild("StartQuest")
 
-            -- Hàm lấy Level
+            -- Hàm quét tìm Level chính xác (Tìm qua mọi vị trí lưu Level phổ biến)
             local function getPlayerLevel()
-                local levelObj = LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Level")
-                    or LocalPlayer:FindFirstChild("leaderstats") and LocalPlayer.leaderstats:FindFirstChild("Level")
-                return levelObj and levelObj.Value or 1
+                local levelVal = 1
+                if LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Level") then
+                    levelVal = LocalPlayer.Data.Level.Value
+                elseif LocalPlayer:FindFirstChild("leaderstats") and LocalPlayer.leaderstats:FindFirstChild("Level") then
+                    levelVal = LocalPlayer.leaderstats.Level.Value
+                elseif LocalPlayer:FindFirstChild("Stats") and LocalPlayer.Stats:FindFirstChild("Level") then
+                    levelVal = LocalPlayer.Stats.Level.Value
+                end
+                return levelVal
             end
 
-            -- Hàm lấy Quest trong Database theo Level
+            -- Lấy Quest theo Level hiện tại
             local function getCurrentQuest()
                 local pLevel = getPlayerLevel()
                 for _, q in ipairs(QuestDatabase) do
@@ -524,25 +534,31 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                 return QuestDatabase[1]
             end
 
-            -- Hàm kiểm tra đã có Quest chưa
+            -- Check xem nhân vật đã nhận Quest chưa
             local function hasActiveQuest()
                 local questObj = LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Quest")
                     or LocalPlayer:FindFirstChild("PlayerGui"):FindFirstChild("QuestUI")
-                if questObj and (questObj.Value ~= "" or questObj.Visible == true) then
-                    return true
+                if questObj then
+                    if questObj:IsA("StringValue") and questObj.Value ~= "" then return true end
+                    if questObj:IsA("GuiObject") and questObj.Visible == true then return true end
                 end
                 return false
             end
 
-            -- Vòng lặp Farm + Nhận Quest + Bay sang đảo
+            -- Vòng lặp Farm
             while AutoFarmLevelEnabled do
                 local Character = LocalPlayer.Character
                 if Character and Character:FindFirstChild("HumanoidRootPart") then
                     local RootPart = Character.HumanoidRootPart
                     local currentData = getCurrentQuest()
 
-                    -- 1. TỰ ĐỘNG NHẬN QUEST NẾU CHƯA CÓ
+                    -- 1. TỰ BAY TỚI NPC + NHẬN QUEST NẾU CHƯA CÓ
                     if not hasActiveQuest() then
+                        if currentData.NpcCFrame then
+                            RootPart.CFrame = currentData.NpcCFrame
+                            task.wait(0.3)
+                        end
+
                         if QuestRemote then
                             if QuestRemote:IsA("RemoteFunction") then
                                 QuestRemote:InvokeServer(currentData.QuestName, 1)
@@ -550,10 +566,10 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                                 QuestRemote:FireServer(currentData.QuestName, 1)
                             end
                         end
-                        task.wait(0.3)
+                        task.wait(0.5)
                     end
 
-                    -- 2. TÌM VÀ ĐÁNH QUÁI THEO LEVEL
+                    -- 2. ĐÁNH QUÁI HOẶC TỰ BAY SANG BÃI QUÁI
                     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
                     local foundEnemy = false
 
@@ -568,7 +584,7 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                                 if enemyHumanoid and enemyHumanoid.Health > 0 and enemyRoot then
                                     foundEnemy = true
                                     while enemyHumanoid.Health > 0 and AutoFarmLevelEnabled do
-                                        -- Đứng lơ lửng cao 8 stud & khóa vị trí
+                                        -- Đứng im cao 8 stud
                                         RootPart.CFrame = enemyRoot.CFrame * CFrame.new(0, 8, 0)
                                         RootPart.AssemblyLinearVelocity = Vector3.zero
                                         RootPart.AssemblyAngularVelocity = Vector3.zero
@@ -580,7 +596,13 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                                             or enemy:FindFirstChild("UpperTorso") 
                                             or enemyRoot
 
-                                        RegisterHit:FireServer(hitPart, {}, nil, "157beb64")
+                                        -- Sửa lại đúng 3 tham số chuẩn cho RegisterHit
+                                        local hitArgs = {
+                                            [1] = hitPart,
+                                            [2] = {},
+                                            [4] = "157beb64"
+                                        }
+                                        RegisterHit:FireServer(unpack(hitArgs))
 
                                         task.wait(0.15)
                                     end
@@ -589,7 +611,7 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                         end
                     end
 
-                    -- 3. NẾU KHÔNG THẤY QUÁI BÊN ĐẢO -> TỰ TELEPORT SANG TỌA ĐỘ ĐẢO
+                    -- 3. NẾU KHÔNG CÓ QUÁI XUNG QUANH -> BAY SANG TỌA ĐỘ BÃI QUÁI
                     if not foundEnemy and currentData.IslandCFrame then
                         RootPart.CFrame = currentData.IslandCFrame
                         task.wait(1)
