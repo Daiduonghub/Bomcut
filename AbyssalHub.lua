@@ -239,7 +239,7 @@ function Library:CreateWindow(hubName)
 
         local TabElements = {}
 
-        -- BUTTON
+        -- BUTTON (Đã sửa màu & bấm nhạy hơn)
         function TabElements:CreateButton(btnName, callback)
             local Button = Instance.new("TextButton")
             Button.Parent = TabPage
@@ -267,7 +267,7 @@ function Library:CreateWindow(hubName)
             end)
         end
 
-        -- TOGGLE
+        -- TOGGLE (Bấm toàn bộ ô, không bị Label che nút)
         function TabElements:CreateToggle(toggleName, default, callback)
             local toggled = default or false
 
@@ -312,7 +312,7 @@ function Library:CreateWindow(hubName)
             end)
         end
 
-        -- SLIDER
+        -- SLIDER (Sửa vuốt cảm ứng trên màn hình cảm ứng)
         function TabElements:CreateSlider(sliderName, min, max, default, callback)
             local value = default or min
 
