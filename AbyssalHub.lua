@@ -138,7 +138,7 @@ function Library:CreateWindow(hubName)
         MainFrame.Visible = not MainFrame.Visible
     end)
 
-    -- Topbar
+    -- Topbar (Đã xóa vạch dính & làm gọn chữ)
     local Topbar = Instance.new("Frame")
     Topbar.Name = "Topbar"
     Topbar.Parent = MainFrame
@@ -147,14 +147,17 @@ function Library:CreateWindow(hubName)
     Topbar.BorderSizePixel = 0
 
     local Title = Instance.new("TextLabel")
+    Title.Name = "Title"
     Title.Parent = Topbar
     Title.Position = UDim2.new(0, 15, 0, 0)
-    Title.Size = UDim2.new(0, 200, 1, 0)
+    Title.Size = UDim2.new(1, -30, 1, 0)
     Title.Text = hubName or "ABYSSAL HUB"
     Title.TextColor3 = Color3.fromRGB(0, 210, 255)
     Title.Font = Enum.Font.GothamBold
     Title.TextSize = 14
     Title.TextXAlignment = Enum.TextXAlignment.Left
+    Title.BackgroundTransparency = 1
+    Title.Active = false
 
     -- Side Tab Container
     local TabContainer = Instance.new("ScrollingFrame")
