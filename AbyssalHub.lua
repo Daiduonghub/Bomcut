@@ -454,10 +454,16 @@ local MainTab = Window:CreateTab("Main")
 local PlayerTab = Window:CreateTab("Player")
 
 -- ====================================================================
--- AUTO FARM LEVEL (BLOX FRUITS SEA 1 - CHUẨN QUEST DATABASE)
+-- AUTO FARM LEVEL (FIX LỖI ĐỨNG IM - DÙNG TWEEN DI CHUYỂN MƯỢT MA)
 -- ====================================================================
 
--- Tọa độ NPC giao Quest của các đảo Sea 1
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
+local LocalPlayer = Players.LocalPlayer
+
 local NpcPositions = {
     ["Pirate Starter"]  = CFrame.new(1059.37, 16.5, 1549.2),
     ["Jungle"]          = CFrame.new(-1598.08, 36.85, 153.38),
@@ -475,258 +481,53 @@ local NpcPositions = {
 }
 
 local QuestDatabase = {
-    -- Starter Island
-    {
-        MinLevel = 1,
-        MaxLevel = 9,
-        QuestName = "BanditQuest1",
-        QuestNumber = 1,
-        EnemyName = "Bandit",
-        Island = "Pirate Starter"
-    },
-
-    -- Jungle
-    {
-        MinLevel = 10,
-        MaxLevel = 14,
-        QuestName = "JungleQuest",
-        QuestNumber = 1,
-        EnemyName = "Monkey",
-        Island = "Jungle"
-    },
-    {
-        MinLevel = 15,
-        MaxLevel = 29,
-        QuestName = "JungleQuest",
-        QuestNumber = 2,
-        EnemyName = "Gorilla",
-        Island = "Jungle"
-    },
-
-    -- Pirate Village
-    {
-        MinLevel = 30,
-        MaxLevel = 39,
-        QuestName = "BuggyQuest1",
-        QuestNumber = 1,
-        EnemyName = "Pirate",
-        Island = "Pirate Village"
-    },
-    {
-        MinLevel = 40,
-        MaxLevel = 59,
-        QuestName = "BuggyQuest1",
-        QuestNumber = 2,
-        EnemyName = "Brute",
-        Island = "Pirate Village"
-    },
-
-    -- Desert
-    {
-        MinLevel = 60,
-        MaxLevel = 74,
-        QuestName = "DesertQuest",
-        QuestNumber = 1,
-        EnemyName = "Desert Bandit",
-        Island = "Desert"
-    },
-    {
-        MinLevel = 75,
-        MaxLevel = 89,
-        QuestName = "DesertQuest",
-        QuestNumber = 2,
-        EnemyName = "Desert Officer",
-        Island = "Desert"
-    },
-
-    -- Frozen Village
-    {
-        MinLevel = 90,
-        MaxLevel = 99,
-        QuestName = "SnowQuest",
-        QuestNumber = 1,
-        EnemyName = "Snow Bandit",
-        Island = "Frozen Village"
-    },
-    {
-        MinLevel = 100,
-        MaxLevel = 119,
-        QuestName = "SnowQuest",
-        QuestNumber = 2,
-        EnemyName = "Snowman",
-        Island = "Frozen Village"
-    },
-
-    -- Marine Fortress
-    {
-        MinLevel = 120,
-        MaxLevel = 149,
-        QuestName = "MarineQuest2",
-        QuestNumber = 1,
-        EnemyName = "Chief Petty Officer",
-        Island = "Marine Fortress"
-    },
-
-    -- Skylands
-    {
-        MinLevel = 150,
-        MaxLevel = 174,
-        QuestName = "SkyQuest",
-        QuestNumber = 1,
-        EnemyName = "Sky Bandit",
-        Island = "Skylands"
-    },
-    {
-        MinLevel = 175,
-        MaxLevel = 189,
-        QuestName = "SkyQuest",
-        QuestNumber = 2,
-        EnemyName = "Dark Master",
-        Island = "Skylands"
-    },
-
-    -- Prison
-    {
-        MinLevel = 190,
-        MaxLevel = 209,
-        QuestName = "PrisonerQuest",
-        QuestNumber = 1,
-        EnemyName = "Prisoner",
-        Island = "Prison"
-    },
-    {
-        MinLevel = 210,
-        MaxLevel = 249,
-        QuestName = "PrisonerQuest",
-        QuestNumber = 2,
-        EnemyName = "Dangerous Prisoner",
-        Island = "Prison"
-    },
-
-    -- Colosseum
-    {
-        MinLevel = 250,
-        MaxLevel = 274,
-        QuestName = "ColosseumQuest",
-        QuestNumber = 1,
-        EnemyName = "Toga Warrior",
-        Island = "Colosseum"
-    },
-    {
-        MinLevel = 275,
-        MaxLevel = 299,
-        QuestName = "ColosseumQuest",
-        QuestNumber = 2,
-        EnemyName = "Gladiator",
-        Island = "Colosseum"
-    },
-
-    -- Magma Village
-    {
-        MinLevel = 300,
-        MaxLevel = 324,
-        QuestName = "MagmaQuest",
-        QuestNumber = 1,
-        EnemyName = "Military Soldier",
-        Island = "Magma Village"
-    },
-    {
-        MinLevel = 325,
-        MaxLevel = 374,
-        QuestName = "MagmaQuest",
-        QuestNumber = 2,
-        EnemyName = "Military Spy",
-        Island = "Magma Village"
-    },
-
-    -- Underwater City
-    {
-        MinLevel = 375,
-        MaxLevel = 399,
-        QuestName = "FishmanQuest",
-        QuestNumber = 1,
-        EnemyName = "Fishman Warrior",
-        Island = "Underwater City"
-    },
-    {
-        MinLevel = 400,
-        MaxLevel = 449,
-        QuestName = "FishmanQuest",
-        QuestNumber = 2,
-        EnemyName = "Fishman Commando",
-        Island = "Underwater City"
-    },
-
-    -- Upper Skylands
-    {
-        MinLevel = 450,
-        MaxLevel = 474,
-        QuestName = "SkyExp1Quest",
-        QuestNumber = 1,
-        EnemyName = "God's Guard",
-        Island = "Upper Skylands"
-    },
-    {
-        MinLevel = 475,
-        MaxLevel = 524,
-        QuestName = "SkyExp1Quest",
-        QuestNumber = 2,
-        EnemyName = "Shanda",
-        Island = "Upper Skylands"
-    },
-    {
-        MinLevel = 525,
-        MaxLevel = 549,
-        QuestName = "SkyExp2Quest",
-        QuestNumber = 1,
-        EnemyName = "Royal Squad",
-        Island = "Upper Skylands"
-    },
-    {
-        MinLevel = 550,
-        MaxLevel = 624,
-        QuestName = "SkyExp2Quest",
-        QuestNumber = 2,
-        EnemyName = "Royal Soldier",
-        Island = "Upper Skylands"
-    },
-
-    -- Fountain City
-    {
-        MinLevel = 625,
-        MaxLevel = 649,
-        QuestName = "FountainQuest",
-        QuestNumber = 1,
-        EnemyName = "Galley Pirate",
-        Island = "Fountain City"
-    },
-    {
-        MinLevel = 650,
-        MaxLevel = 700,
-        QuestName = "FountainQuest",
-        QuestNumber = 2,
-        EnemyName = "Galley Captain",
-        Island = "Fountain City"
-    }
+    { MinLevel = 1, MaxLevel = 9, QuestName = "BanditQuest1", QuestNumber = 1, EnemyName = "Bandit", Island = "Pirate Starter" },
+    { MinLevel = 10, MaxLevel = 14, QuestName = "JungleQuest", QuestNumber = 1, EnemyName = "Monkey", Island = "Jungle" },
+    { MinLevel = 15, MaxLevel = 29, QuestName = "JungleQuest", QuestNumber = 2, EnemyName = "Gorilla", Island = "Jungle" },
+    { MinLevel = 30, MaxLevel = 39, QuestName = "BuggyQuest1", QuestNumber = 1, EnemyName = "Pirate", Island = "Pirate Village" },
+    { MinLevel = 40, MaxLevel = 59, QuestName = "BuggyQuest1", QuestNumber = 2, EnemyName = "Brute", Island = "Pirate Village" },
+    { MinLevel = 60, MaxLevel = 74, QuestName = "DesertQuest", QuestNumber = 1, EnemyName = "Desert Bandit", Island = "Desert" },
+    { MinLevel = 75, MaxLevel = 89, QuestName = "DesertQuest", QuestNumber = 2, EnemyName = "Desert Officer", Island = "Desert" },
+    { MinLevel = 90, MaxLevel = 99, QuestName = "SnowQuest", QuestNumber = 1, EnemyName = "Snow Bandit", Island = "Frozen Village" },
+    { MinLevel = 100, MaxLevel = 119, QuestName = "SnowQuest", QuestNumber = 2, EnemyName = "Snowman", Island = "Frozen Village" },
+    { MinLevel = 120, MaxLevel = 149, QuestName = "MarineQuest2", QuestNumber = 1, EnemyName = "Chief Petty Officer", Island = "Marine Fortress" },
+    { MinLevel = 150, MaxLevel = 174, QuestName = "SkyQuest", QuestNumber = 1, EnemyName = "Sky Bandit", Island = "Skylands" },
+    { MinLevel = 175, MaxLevel = 189, QuestName = "SkyQuest", QuestNumber = 2, EnemyName = "Dark Master", Island = "Skylands" },
+    { MinLevel = 190, MaxLevel = 209, QuestName = "PrisonerQuest", QuestNumber = 1, EnemyName = "Prisoner", Island = "Prison" },
+    { MinLevel = 210, MaxLevel = 249, QuestName = "PrisonerQuest", QuestNumber = 2, EnemyName = "Dangerous Prisoner", Island = "Prison" },
+    { MinLevel = 250, MaxLevel = 274, QuestName = "ColosseumQuest", QuestNumber = 1, EnemyName = "Toga Warrior", Island = "Colosseum" },
+    { MinLevel = 275, MaxLevel = 299, QuestName = "ColosseumQuest", QuestNumber = 2, EnemyName = "Gladiator", Island = "Colosseum" },
+    { MinLevel = 300, MaxLevel = 324, QuestName = "MagmaQuest", QuestNumber = 1, EnemyName = "Military Soldier", Island = "Magma Village" },
+    { MinLevel = 325, MaxLevel = 374, QuestName = "MagmaQuest", QuestNumber = 2, EnemyName = "Military Spy", Island = "Magma Village" },
+    { MinLevel = 375, MaxLevel = 399, QuestName = "FishmanQuest", QuestNumber = 1, EnemyName = "Fishman Warrior", Island = "Underwater City" },
+    { MinLevel = 400, MaxLevel = 449, QuestName = "FishmanQuest", QuestNumber = 2, EnemyName = "Fishman Commando", Island = "Underwater City" },
+    { MinLevel = 450, MaxLevel = 474, QuestName = "SkyExp1Quest", QuestNumber = 1, EnemyName = "God's Guard", Island = "Upper Skylands" },
+    { MinLevel = 475, MaxLevel = 524, QuestName = "SkyExp1Quest", QuestNumber = 2, EnemyName = "Shanda", Island = "Upper Skylands" },
+    { MinLevel = 525, MaxLevel = 549, QuestName = "SkyExp2Quest", QuestNumber = 1, EnemyName = "Royal Squad", Island = "Upper Skylands" },
+    { MinLevel = 550, MaxLevel = 624, QuestName = "SkyExp2Quest", QuestNumber = 2, EnemyName = "Royal Soldier", Island = "Upper Skylands" },
+    { MinLevel = 625, MaxLevel = 649, QuestName = "FountainQuest", QuestNumber = 1, EnemyName = "Galley Pirate", Island = "Fountain City" },
+    { MinLevel = 650, MaxLevel = 700, QuestName = "FountainQuest", QuestNumber = 2, EnemyName = "Galley Captain", Island = "Fountain City" }
 }
 
 local AutoFarmLevelEnabled = false
+
+-- Hàm di chuyển teleport an toàn không bị giật
+local function teleportTo(targetCFrame)
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        char.HumanoidRootPart.CFrame = targetCFrame
+    end
+end
 
 MainTab:CreateToggle("Auto Farm Level", false, function(state)
     AutoFarmLevelEnabled = state
 
     if AutoFarmLevelEnabled then
         task.spawn(function()
-            local Players = game:GetService("Players")
-            local ReplicatedStorage = game:GetService("ReplicatedStorage")
-            local Workspace = game:GetService("Workspace")
-
-            local LocalPlayer = Players.LocalPlayer
             local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
             local RegisterAttack = Net:WaitForChild("RE/RegisterAttack")
             local RegisterHit = Net:WaitForChild("RegisterHit") or Net:WaitForChild("RE/RegisterHit")
 
-            -- Lấy Level chính xác
             local function getPlayerLevel()
                 if LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Level") then
                     return LocalPlayer.Data.Level.Value
@@ -736,22 +537,21 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                 return 1
             end
 
-            -- Kiểm tra xem đã có Quest active chưa
             local function hasActiveQuest()
                 local questObj = LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Quest")
-                if questObj and questObj.Value ~= "" and questObj.Value ~= nil then
-                    return true
-                end
-                return false
+                return (questObj and questObj.Value ~= "" and questObj.Value ~= nil)
             end
 
             while AutoFarmLevelEnabled do
+                task.wait(0.1)
+                
                 local Character = LocalPlayer.Character
-                if Character and Character:FindFirstChild("HumanoidRootPart") then
-                    local RootPart = Character.HumanoidRootPart
+                local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
+                local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
+
+                if Character and Humanoid and Humanoid.Health > 0 and RootPart then
                     local currentLevel = getPlayerLevel()
 
-                    -- Lọc Quest dữ liệu theo Level
                     local currentData = nil
                     for _, q in ipairs(QuestDatabase) do
                         if currentLevel >= q.MinLevel and currentLevel <= q.MaxLevel then
@@ -763,12 +563,11 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                     if currentData then
                         local npcPos = NpcPositions[currentData.Island]
 
-                        -- 1. NHẬN QUEST NẾU CHƯA CÓ
+                        -- 1. CHƯA CÓ QUEST -> TELEPORT TỚI NPC VÀ NHẬN
                         if not hasActiveQuest() then
                             if npcPos then
-                                RootPart.CFrame = npcPos
-                                RootPart.AssemblyLinearVelocity = Vector3.zero
-                                task.wait(0.4)
+                                teleportTo(npcPos)
+                                task.wait(0.3)
                             end
 
                             local StartQuest = Net:FindFirstChild("RF/StartQuest") or Net:FindFirstChild("RE/StartQuest")
@@ -781,7 +580,7 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                                     end
                                 end)
                             end
-                            task.wait(0.5)
+                            task.wait(0.3)
                         end
 
                         -- 2. TÌM VÀ ĐÁNH QUÁI
@@ -792,20 +591,17 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                             for _, enemy in pairs(EnemiesFolder:GetChildren()) do
                                 if not AutoFarmLevelEnabled then break end
 
-                                -- Nhận diện tên quái trong folder Enemies
                                 if string.find(enemy.Name, currentData.EnemyName) then
                                     local enemyHumanoid = enemy:FindFirstChildOfClass("Humanoid")
                                     local enemyRoot = enemy:FindFirstChild("HumanoidRootPart")
 
                                     if enemyHumanoid and enemyHumanoid.Health > 0 and enemyRoot then
                                         foundEnemy = true
-                                        while enemyHumanoid.Health > 0 and AutoFarmLevelEnabled do
-                                            -- Bay đứng im trên đầu quái 8 stud
-                                            RootPart.CFrame = enemyRoot.CFrame * CFrame.new(0, 8, 0)
-                                            RootPart.AssemblyLinearVelocity = Vector3.zero
-                                            RootPart.AssemblyAngularVelocity = Vector3.zero
+                                        
+                                        -- Đánh quái này đến khi nó chết
+                                        while enemyHumanoid.Health > 0 and AutoFarmLevelEnabled and Character and Humanoid.Health > 0 do
+                                            teleportTo(enemyRoot.CFrame * CFrame.new(0, 8, 0))
 
-                                            -- Đánh
                                             RegisterAttack:FireServer(0.5, 1)
 
                                             local hitPart = enemy:FindFirstChild("RightHand") 
@@ -814,21 +610,20 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
 
                                             RegisterHit:FireServer(hitPart, {}, nil, "157beb64")
 
-                                            task.wait(0.15)
+                                            task.wait(0.1)
                                         end
                                     end
                                 end
                             end
                         end
 
-                        -- 3. CHỜ QUÁI REPSAWN TẠI VỊ TRÍ ĐẢO
+                        -- 3. CHỜ QUÁI XUẤT HIỆN
                         if not foundEnemy and npcPos then
-                            RootPart.CFrame = npcPos
-                            task.wait(1)
+                            teleportTo(npcPos)
+                            task.wait(0.5)
                         end
                     end
                 end
-                task.wait(0.5)
             end
         end)
     end
