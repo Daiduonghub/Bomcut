@@ -7,10 +7,7 @@
 local BLOCK_GAME_ID = 0 -- 👈 THAY PLACE ID GAME BLOCK CỦA CẬU VÀO ĐÂY
 
 -- ====================================================================
--- 2. CHECK KEY NGROK (CHỐNG KẸT & BYPASS WARNING)
--- ====================================================================
--- ====================================================================
--- CHECK KEY & HWID TỪ SERVER NGROK
+-- CHECK KEY & HWID (CÓ CHỐNG KẸT CACHE)
 -- ====================================================================
 local rawKey = _G.Key or ""
 local userKey = string.gsub(rawKey, "%s+", "")
@@ -24,12 +21,15 @@ if userKey == "" then
     return
 end
 
--- Hàm trim làm sạch chuỗi phản hồi từ Server
+-- Hàm trim làm sạch chuỗi
 local function trim(s)
     return (s:gsub("^%s*(.-)%s*$", "%1"))
 end
 
-local checkUrl = ngrokUrl .. "/check?key=" .. tostring(userKey) .. "&hwid=" .. tostring(userHWID)
+-- 🔴 Bổ sung os.time() ở cuối link để ép Executor lấy dữ liệu mới từ Server
+local antiCache = tostring(os.time())
+local checkUrl = ngrokUrl .. "/check?key=" .. tostring(userKey) .. "&hwid=" .. tostring(userHWID) .. "&t=" .. antiCache
+
 local response = nil
 local reqFunc = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
 
