@@ -453,18 +453,12 @@ local Window = Library:CreateWindow("ABYSSAL HUB")
 local MainTab = Window:CreateTab("Main")
 local PlayerTab = Window:CreateTab("Player")
 
--- ====================================================================
--- TOGGLE AUTO FARM DÙNG TRONG UI LIBRARY
--- ====================================================================
+local AutoFarmLevelEnabled = false
 
--- Biến điều khiển trạng thái Farm
-local AutoFarmEnabled = false
+MainTab:CreateToggle("Auto Farm Level", false, function(state)
+    AutoFarmLevelEnabled = state
 
-MainTab:CreateToggle("Auto Farm Bandit", false, function(state)
-    AutoFarmEnabled = state
-
-    -- Nếu bật Toggle thì chạy vòng lặp Farm
-    if AutoFarmEnabled then
+    if AutoFarmLevelEnabled then
         task.spawn(function()
             local Players = game:GetService("Players")
             local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -475,36 +469,66 @@ MainTab:CreateToggle("Auto Farm Bandit", false, function(state)
             local RegisterAttack = Net:WaitForChild("RE/RegisterAttack")
             local RegisterHit = Net:WaitForChild("RE/RegisterHit")
 
-            while AutoFarmEnabled do
+            -- Hàm lấy Level của người chơi (Cậu điều chỉnh đúng đường dẫn Data Level trong game)
+            local function getPlayerLevel()
+                local level = LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Level")
+                    or LocalPlayer:FindFirstChild("leaderstats") and LocalPlayer.leaderstats:FindFirstChild("Level")
+                return level and level.Value or 1
+            end
+
+            -- Hàm xác định quái & Quest theo Level
+            local function getTargetEnemy()
+                local pLevel = getPlayerLevel()
+                
+                if pLevel < 15 then
+                    return "Bandit", "BanditQuest"
+                elseif pLevel < 30 then
+                    return "Monkey", "MonkeyQuest"
+                elseif pLevel < 60 then
+                    return "Gorilla", "GorillaQuest"
+                else
+                    return "Pirate", "PirateQuest"
+                end
+            end
+
+            while AutoFarmLevelEnabled do
                 local Character = LocalPlayer.Character
                 if Character and Character:FindFirstChild("HumanoidRootPart") then
                     local RootPart = Character.HumanoidRootPart
-                    local EnemiesFolder = Workspace:FindFirstChild("Enemies")
+                    local targetName, questName = getTargetEnemy()
 
+                    -- (Tùy chọn) Gửi Remote nhận Quest nếu game có hệ thống Quest
+                    -- local questRemote = ReplicatedStorage.Modules.Net:FindFirstChild("RF/StartQuest")
+                    -- if questRemote then questRemote:InvokeServer(questName) end
+
+                    local EnemiesFolder = Workspace:FindFirstChild("Enemies")
                     if EnemiesFolder then
                         for _, enemy in pairs(EnemiesFolder:GetChildren()) do
-                            if not AutoFarmEnabled then break end
+                            if not AutoFarmLevelEnabled then break end
 
-                            local enemyHumanoid = enemy:FindFirstChildOfClass("Humanoid")
-                            local enemyRoot = enemy:FindFirstChild("HumanoidRootPart")
+                            -- Lọc đúng tên quái cần farm theo Level
+                            if enemy.Name == targetName then
+                                local enemyHumanoid = enemy:FindFirstChildOfClass("Humanoid")
+                                local enemyRoot = enemy:FindFirstChild("HumanoidRootPart")
 
-                            if enemyHumanoid and enemyHumanoid.Health > 0 and enemyRoot then
-                                while enemyHumanoid.Health > 0 and AutoFarmEnabled do
-                                    -- Đứng cao 8 stud và đứng im
-                                    RootPart.CFrame = enemyRoot.CFrame * CFrame.new(0, 8, 0)
-                                    RootPart.AssemblyLinearVelocity = Vector3.zero
-                                    RootPart.AssemblyAngularVelocity = Vector3.zero
+                                if enemyHumanoid and enemyHumanoid.Health > 0 and enemyRoot then
+                                    while enemyHumanoid.Health > 0 and AutoFarmLevelEnabled do
+                                        -- Đứng im cao 8 stud trên đầu quái
+                                        RootPart.CFrame = enemyRoot.CFrame * CFrame.new(0, 8, 0)
+                                        RootPart.AssemblyLinearVelocity = Vector3.zero
+                                        RootPart.AssemblyAngularVelocity = Vector3.zero
 
-                                    -- Gửi Remote đánh
-                                    RegisterAttack:FireServer(0.5, 1)
+                                        -- Gửi Remote đánh & gây dame
+                                        RegisterAttack:FireServer(0.5, 1)
 
-                                    local hitPart = enemy:FindFirstChild("RightHand") 
-                                        or enemy:FindFirstChild("UpperTorso") 
-                                        or enemyRoot
+                                        local hitPart = enemy:FindFirstChild("RightHand") 
+                                            or enemy:FindFirstChild("UpperTorso") 
+                                            or enemyRoot
 
-                                    RegisterHit:FireServer(hitPart, {}, nil, "157beb64")
+                                        RegisterHit:FireServer(hitPart, {}, nil, "157beb64")
 
-                                    task.wait(0.15)
+                                        task.wait(0.15)
+                                    end
                                 end
                             end
                         end
