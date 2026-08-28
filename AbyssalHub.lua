@@ -454,79 +454,40 @@ local MainTab = Window:CreateTab("Main")
 local PlayerTab = Window:CreateTab("Player")
 
 -- ====================================================================
--- TOGGLE AUTO FARM LEVEL + AUTO QUEST
+-- TOGGLE AUTO FARM LEVEL + AUTO QUEST + AUTO ISLAND TELEPORT
 -- ====================================================================
 
--- 1. DATABASE QUEST (Dán tạm thông số này, sau điều chỉnh lại theo game)
+-- 1. DATABASE QUEST (Điền CFrame tọa độ đảo để tự bay sang)
 local QuestDatabase = {
     {
         MinLevel = 1,
         MaxLevel = 14,
         QuestName = "BanditQuest",
-        EnemyName = "Bandit"
+        EnemyName = "Bandit",
+        IslandCFrame = CFrame.new(105, 20, 200)
     },
     {
         MinLevel = 15,
         MaxLevel = 29,
         QuestName = "MonkeyQuest",
-        EnemyName = "Monkey"
+        EnemyName = "Monkey",
+        IslandCFrame = CFrame.new(-300, 20, 500)
     },
     {
         MinLevel = 30,
         MaxLevel = 59,
         QuestName = "GorillaQuest",
-        EnemyName = "Gorilla"
+        EnemyName = "Gorilla",
+        IslandCFrame = CFrame.new(-600, 20, 800)
     },
     {
         MinLevel = 60,
         MaxLevel = 999,
         QuestName = "PirateQuest",
-        EnemyName = "Pirate"
+        EnemyName = "Pirate",
+        IslandCFrame = CFrame.new(1200, 20, -400)
     }
 }
-
--- ====================================================================
--- HÀM TỰ ĐỘNG NHẬN QUEST THEO LEVEL
--- ====================================================================
-local function AutoAcceptQuest()
-    local Players = game:GetService("Players")
-    local ReplicatedStorage = game:GetService("ReplicatedStorage")
-    local LocalPlayer = Players.LocalPlayer
-    local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
-
-    -- 1. Lấy Level hiện tại
-    local levelObj = LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Level")
-        or LocalPlayer:FindFirstChild("leaderstats") and LocalPlayer.leaderstats:FindFirstChild("Level")
-    local pLevel = levelObj and levelObj.Value or 1
-
-    -- 2. Kiểm tra xem đã nhận Quest chưa (tránh spam nhận lại)
-    local questData = LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Quest")
-        or LocalPlayer:FindFirstChild("PlayerGui"):FindFirstChild("QuestUI")
-    if questData and (questData.Value ~= "" or questData.Visible == true) then
-        return -- Đã có Quest rồi thì bỏ qua không nhận nữa
-    end
-
-    -- 3. Tìm Quest phù hợp trong QuestDatabase
-    local targetQuest = nil
-    for _, q in ipairs(QuestDatabase) do
-        if pLevel >= q.MinLevel and pLevel <= q.MaxLevel then
-            targetQuest = q
-            break
-        end
-    end
-
-    -- 4. Bắn Remote tự nhận Quest
-    if targetQuest then
-        local QuestRemote = Net:FindFirstChild("RF/StartQuest") or Net:FindFirstChild("RE/StartQuest") or Net:FindFirstChild("StartQuest")
-        if QuestRemote then
-            if QuestRemote:IsA("RemoteFunction") then
-                QuestRemote:InvokeServer(targetQuest.QuestName, 1)
-            else
-                QuestRemote:FireServer(targetQuest.QuestName, 1)
-            end
-        end
-    end
-end
 
 local AutoFarmLevelEnabled = false
 
@@ -573,7 +534,7 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                 return false
             end
 
-            -- Vòng lặp Farm + Nhận Quest
+            -- Vòng lặp Farm + Nhận Quest + Bay sang đảo
             while AutoFarmLevelEnabled do
                 local Character = LocalPlayer.Character
                 if Character and Character:FindFirstChild("HumanoidRootPart") then
@@ -589,11 +550,13 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                                 QuestRemote:FireServer(currentData.QuestName, 1)
                             end
                         end
-                        task.wait(0.5)
+                        task.wait(0.3)
                     end
 
                     -- 2. TÌM VÀ ĐÁNH QUÁI THEO LEVEL
                     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
+                    local foundEnemy = false
+
                     if EnemiesFolder then
                         for _, enemy in pairs(EnemiesFolder:GetChildren()) do
                             if not AutoFarmLevelEnabled then break end
@@ -603,8 +566,9 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                                 local enemyRoot = enemy:FindFirstChild("HumanoidRootPart")
 
                                 if enemyHumanoid and enemyHumanoid.Health > 0 and enemyRoot then
+                                    foundEnemy = true
                                     while enemyHumanoid.Health > 0 and AutoFarmLevelEnabled do
-                                        -- Giữ vị trí đứng cao 8 stud & đứng im
+                                        -- Đứng lơ lửng cao 8 stud & khóa vị trí
                                         RootPart.CFrame = enemyRoot.CFrame * CFrame.new(0, 8, 0)
                                         RootPart.AssemblyLinearVelocity = Vector3.zero
                                         RootPart.AssemblyAngularVelocity = Vector3.zero
@@ -623,6 +587,12 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                                 end
                             end
                         end
+                    end
+
+                    -- 3. NẾU KHÔNG THẤY QUÁI BÊN ĐẢO -> TỰ TELEPORT SANG TỌA ĐỘ ĐẢO
+                    if not foundEnemy and currentData.IslandCFrame then
+                        RootPart.CFrame = currentData.IslandCFrame
+                        task.wait(1)
                     end
                 end
                 task.wait(0.5)
