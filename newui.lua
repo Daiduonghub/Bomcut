@@ -9,14 +9,24 @@ local BLOCK_GAME_ID = 0 -- 👈 THAY PLACE ID GAME BLOCK CỦA CẬU VÀO ĐÂY
 -- ====================================================================
 -- 2. CHECK KEY NGROK (CHỐNG KẸT & BYPASS WARNING)
 -- ====================================================================
+-- ====================================================================
+-- CHECK KEY & HWID TỪ SERVER NGROK
+-- ====================================================================
 local rawKey = _G.Key or ""
 local userKey = string.gsub(rawKey, "%s+", "")
 local userHWID = game:GetService("RbxAnalyticsService"):GetClientId()
+
+-- Link Ngrok Server của cậu
 local ngrokUrl = "https://nonsuppositively-unmasticatory-drew.ngrok-free.dev"
 
 if userKey == "" then
     game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\n❌ Chưa nhập Key! Hãy gán _G.Key trước khi chạy.")
     return
+end
+
+-- Hàm trim làm sạch chuỗi phản hồi từ Server
+local function trim(s)
+    return (s:gsub("^%s*(.-)%s*$", "%1"))
 end
 
 local checkUrl = ngrokUrl .. "/check?key=" .. tostring(userKey) .. "&hwid=" .. tostring(userHWID)
@@ -45,20 +55,22 @@ if not response then
     return
 end
 
-local cleanResponse = string.upper(string.gsub(response, "%s+", ""))
+-- Chuẩn hóa dữ liệu trả về
+local cleanResponse = string.upper(trim(response))
 
-if string.find(cleanResponse, "SUCCESS") then
-    print("-> Abyssal Key Verified!")
-elseif string.find(cleanResponse, "INVALID_KEY") then
-    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\n❌ Key không tồn tại!") return
-elseif string.find(cleanResponse, "EXPIRED") then
-    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\n⏳ Key đã hết hạn!") return
-elseif string.find(cleanResponse, "HWID_MISMATCH") then
-    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\n⚠️ Key dùng ở máy khác!") return
-elseif string.find(cleanResponse, "BLACKLISTED") then
-    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\n🚫 Tài khoản đã bị khóa!") return
+-- Xử lý phản hồi từ API
+if cleanResponse == "SUCCESS" then
+    print("-> Abyssal Key Verified Successfully!")
+elseif cleanResponse == "BLACKLISTED" then
+    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\n🚫 Tài khoản/HWID của bạn đã bị BLACKLIST!")
+elseif cleanResponse == "HWID_MISMATCH" then
+    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\n⚠️ Key này đang được dùng ở thiết bị khác!")
+elseif cleanResponse == "EXPIRED" then
+    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\n⏳ Key của bạn đã hết hạn!")
+elseif cleanResponse == "INVALID_KEY" then
+    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\n❌ Key không tồn tại!")
 else
-    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\n⚠️ Lỗi kết nối trung gian Ngrok!") return
+    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\n⚠️ Phản hồi không xác định: " .. cleanResponse)
 end
 
 -- ====================================================================
