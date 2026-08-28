@@ -58,8 +58,6 @@ else
 end
 
 local Library = {}
-Library.Flags = {}
-
 local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
@@ -70,15 +68,16 @@ function Library:CreateWindow(hubName)
     ScreenGui.Parent = CoreGui
     ScreenGui.ResetOnSpawn = false
 
+    -- Nút Toggle UI (Góc trái)
     local ToggleUIButton = Instance.new("TextButton")
     ToggleUIButton.Name = "ToggleUIButton"
     ToggleUIButton.Parent = ScreenGui
     ToggleUIButton.Position = UDim2.new(0.02, 0, 0.2, 0)
-    ToggleUIButton.Size = UDim2.new(0, 45, 0, 45)
-    ToggleUIButton.BackgroundColor3 = Color3.fromRGB(15, 23, 42)
+    ToggleUIButton.Size = UDim2.new(0, 42, 0, 42)
+    ToggleUIButton.BackgroundColor3 = Color3.fromRGB(15, 20, 28)
     ToggleUIButton.Text = "AH"
-    ToggleUIButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    ToggleUIButton.TextSize = 16
+    ToggleUIButton.TextColor3 = Color3.fromRGB(0, 210, 255)
+    ToggleUIButton.TextSize = 15
     ToggleUIButton.Font = Enum.Font.GothamBold
 
     local ToggleUICorner = Instance.new("UICorner")
@@ -86,17 +85,17 @@ function Library:CreateWindow(hubName)
     ToggleUICorner.Parent = ToggleUIButton
 
     local ToggleUIStroke = Instance.new("UIStroke")
-    ToggleUIStroke.Color = Color3.fromRGB(56, 189, 248)
+    ToggleUIStroke.Color = Color3.fromRGB(0, 210, 255)
     ToggleUIStroke.Thickness = 1.5
     ToggleUIStroke.Parent = ToggleUIButton
 
-    -- Khung chính
+    -- Khung chính UI
     local MainFrame = Instance.new("Frame")
     MainFrame.Name = "MainFrame"
     MainFrame.Parent = ScreenGui
     MainFrame.Position = UDim2.new(0.3, 0, 0.25, 0)
-    MainFrame.Size = UDim2.new(0, 520, 0, 350)
-    MainFrame.BackgroundColor3 = Color3.fromRGB(15, 23, 42)
+    MainFrame.Size = UDim2.new(0, 500, 0, 320)
+    MainFrame.BackgroundColor3 = Color3.fromRGB(13, 17, 23)
     MainFrame.BorderSizePixel = 0
     MainFrame.ClipsDescendants = true
 
@@ -109,17 +108,17 @@ function Library:CreateWindow(hubName)
     MainStroke.Thickness = 1
     MainStroke.Parent = MainFrame
 
-    -- Kéo thả UI (Drag System)
+    -- Kéo thả UI
     local dragging, dragInput, dragStart, startPos
     MainFrame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             dragStart = input.Position
             startPos = MainFrame.Position
         end
     end)
     MainFrame.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement then
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
             dragInput = input
         end
     end)
@@ -130,12 +129,11 @@ function Library:CreateWindow(hubName)
         end
     end)
     UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = false
         end
     end)
 
-    -- Nút bấm bật/tắt UI
     ToggleUIButton.MouseButton1Click:Connect(function()
         MainFrame.Visible = not MainFrame.Visible
     end)
@@ -144,8 +142,8 @@ function Library:CreateWindow(hubName)
     local Topbar = Instance.new("Frame")
     Topbar.Name = "Topbar"
     Topbar.Parent = MainFrame
-    Topbar.Size = UDim2.new(1, 0, 0, 40)
-    Topbar.BackgroundColor3 = Color3.fromRGB(30, 41, 59)
+    Topbar.Size = UDim2.new(1, 0, 0, 38)
+    Topbar.BackgroundColor3 = Color3.fromRGB(21, 27, 36)
     Topbar.BorderSizePixel = 0
 
     local Title = Instance.new("TextLabel")
@@ -153,49 +151,47 @@ function Library:CreateWindow(hubName)
     Title.Position = UDim2.new(0, 15, 0, 0)
     Title.Size = UDim2.new(0, 200, 1, 0)
     Title.Text = hubName or "ABYSSAL HUB"
-    Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Title.TextColor3 = Color3.fromRGB(0, 210, 255)
     Title.Font = Enum.Font.GothamBold
     Title.TextSize = 14
     Title.TextXAlignment = Enum.TextXAlignment.Left
 
-    -- Container Tab (Bên trái)
+    -- Side Tab Container
     local TabContainer = Instance.new("ScrollingFrame")
     TabContainer.Name = "TabContainer"
     TabContainer.Parent = MainFrame
-    TabContainer.Position = UDim2.new(0, 0, 0, 40)
-    TabContainer.Size = UDim2.new(0, 130, 1, -40)
-    TabContainer.BackgroundColor3 = Color3.fromRGB(15, 23, 42)
+    TabContainer.Position = UDim2.new(0, 0, 0, 38)
+    TabContainer.Size = UDim2.new(0, 125, 1, -38)
+    TabContainer.BackgroundColor3 = Color3.fromRGB(17, 22, 30)
     TabContainer.BorderSizePixel = 0
-    TabContainer.ScrollBarThickness = 2
+    TabContainer.ScrollBarThickness = 0
 
     local TabList = Instance.new("UIListLayout")
     TabList.Parent = TabContainer
     TabList.SortOrder = Enum.SortOrder.LayoutOrder
-    TabList.Padding = UDim.new(0, 5)
+    TabList.Padding = UDim.new(0, 4)
 
-    -- Container Nội dung (Bên phải)
     local ContentContainer = Instance.new("Frame")
     ContentContainer.Name = "ContentContainer"
     ContentContainer.Parent = MainFrame
-    ContentContainer.Position = UDim2.new(0, 135, 0, 45)
-    ContentContainer.Size = UDim2.new(1, -140, 1, -50)
+    ContentContainer.Position = UDim2.new(0, 130, 0, 42)
+    ContentContainer.Size = UDim2.new(1, -135, 1, -46)
     ContentContainer.BackgroundTransparency = 1
 
     local Window = {}
     local firstTab = true
 
-    -- Function CreateTab
     function Window:CreateTab(tabName)
         local TabButton = Instance.new("TextButton")
         TabButton.Name = tabName .. "Tab"
         TabButton.Parent = TabContainer
-        TabButton.Size = UDim2.new(1, -10, 0, 32)
-        TabButton.Position = UDim2.new(0, 5, 0, 0)
-        TabButton.BackgroundColor3 = Color3.fromRGB(30, 41, 59)
+        TabButton.Size = UDim2.new(1, -8, 0, 32)
+        TabButton.Position = UDim2.new(0, 4, 0, 0)
+        TabButton.BackgroundColor3 = Color3.fromRGB(21, 27, 36)
         TabButton.Text = tabName
-        TabButton.TextColor3 = Color3.fromRGB(148, 163, 184)
+        TabButton.TextColor3 = Color3.fromRGB(140, 155, 175)
         TabButton.Font = Enum.Font.GothamMedium
-        TabButton.TextSize = 13
+        TabButton.TextSize = 12
 
         local TabBtnCorner = Instance.new("UICorner")
         TabBtnCorner.CornerRadius = UDim.new(0, 6)
@@ -207,7 +203,8 @@ function Library:CreateWindow(hubName)
         TabPage.Size = UDim2.new(1, 0, 1, 0)
         TabPage.BackgroundTransparency = 1
         TabPage.Visible = false
-        TabPage.ScrollBarThickness = 3
+        TabPage.ScrollBarThickness = 2
+        TabPage.ScrollBarImageColor3 = Color3.fromRGB(0, 210, 255)
 
         local PageList = Instance.new("UIListLayout")
         PageList.Parent = TabPage
@@ -221,8 +218,8 @@ function Library:CreateWindow(hubName)
         if firstTab then
             firstTab = false
             TabPage.Visible = true
-            TabButton.BackgroundColor3 = Color3.fromRGB(56, 189, 248)
-            TabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+            TabButton.BackgroundColor3 = Color3.fromRGB(0, 210, 255)
+            TabButton.TextColor3 = Color3.fromRGB(13, 17, 23)
         end
 
         TabButton.MouseButton1Click:Connect(function()
@@ -231,91 +228,98 @@ function Library:CreateWindow(hubName)
             end
             for _, btn in pairs(TabContainer:GetChildren()) do
                 if btn:IsA("TextButton") then
-                    btn.BackgroundColor3 = Color3.fromRGB(30, 41, 59)
-                    btn.TextColor3 = Color3.fromRGB(148, 163, 184)
+                    btn.BackgroundColor3 = Color3.fromRGB(21, 27, 36)
+                    btn.TextColor3 = Color3.fromRGB(140, 155, 175)
                 end
             end
             TabPage.Visible = true
-            TabButton.BackgroundColor3 = Color3.fromRGB(56, 189, 248)
-            TabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+            TabButton.BackgroundColor3 = Color3.fromRGB(0, 210, 255)
+            TabButton.TextColor3 = Color3.fromRGB(13, 17, 23)
         end)
 
         local TabElements = {}
 
-        -- CreateButton
+        -- BUTTON
         function TabElements:CreateButton(btnName, callback)
             local Button = Instance.new("TextButton")
             Button.Parent = TabPage
-            Button.Size = UDim2.new(1, -6, 0, 35)
-            Button.BackgroundColor3 = Color3.fromRGB(30, 41, 59)
+            Button.Size = UDim2.new(1, -6, 0, 36)
+            Button.BackgroundColor3 = Color3.fromRGB(21, 27, 36)
             Button.Text = btnName
-            Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+            Button.TextColor3 = Color3.fromRGB(240, 240, 240)
             Button.Font = Enum.Font.GothamMedium
-            Button.TextSize = 13
+            Button.TextSize = 12
 
             local Corner = Instance.new("UICorner")
             Corner.CornerRadius = UDim.new(0, 6)
             Corner.Parent = Button
 
+            local Stroke = Instance.new("UIStroke")
+            Stroke.Color = Color3.fromRGB(35, 45, 60)
+            Stroke.Thickness = 1
+            Stroke.Parent = Button
+
             Button.MouseButton1Click:Connect(function()
-                TweenService:Create(Button, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(56, 189, 248)}):Play()
-                task.wait(0.1)
-                TweenService:Create(Button, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(30, 41, 59)}):Play()
+                TweenService:Create(Button, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(0, 210, 255), TextColor3 = Color3.fromRGB(13, 17, 23)}):Play()
+                task.wait(0.12)
+                TweenService:Create(Button, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(21, 27, 36), TextColor3 = Color3.fromRGB(240, 240, 240)}):Play()
                 pcall(callback)
             end)
         end
 
-        -- CreateToggle
+        -- TOGGLE
         function TabElements:CreateToggle(toggleName, default, callback)
             local toggled = default or false
 
-            local ToggleFrame = Instance.new("Frame")
-            ToggleFrame.Parent = TabPage
-            ToggleFrame.Size = UDim2.new(1, -6, 0, 35)
-            ToggleFrame.BackgroundColor3 = Color3.fromRGB(30, 41, 59)
+            local ToggleBtn = Instance.new("TextButton")
+            ToggleBtn.Parent = TabPage
+            ToggleBtn.Size = UDim2.new(1, -6, 0, 36)
+            ToggleBtn.BackgroundColor3 = Color3.fromRGB(21, 27, 36)
+            ToggleBtn.Text = ""
 
             local Corner = Instance.new("UICorner")
             Corner.CornerRadius = UDim.new(0, 6)
-            Corner.Parent = ToggleFrame
+            Corner.Parent = ToggleBtn
 
             local Label = Instance.new("TextLabel")
-            Label.Parent = ToggleFrame
+            Label.Parent = ToggleBtn
             Label.Position = UDim2.new(0, 10, 0, 0)
             Label.Size = UDim2.new(0.7, 0, 1, 0)
             Label.Text = toggleName
-            Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+            Label.TextColor3 = Color3.fromRGB(240, 240, 240)
             Label.Font = Enum.Font.GothamMedium
-            Label.TextSize = 13
+            Label.TextSize = 12
             Label.TextXAlignment = Enum.TextXAlignment.Left
+            Label.BackgroundTransparency = 1
+            Label.Active = false
 
-            local Switch = Instance.new("TextButton")
-            Switch.Parent = ToggleFrame
-            Switch.Position = UDim2.new(1, -40, 0.5, -10)
-            Switch.Size = UDim2.new(0, 30, 0, 20)
-            Switch.BackgroundColor3 = toggled and Color3.fromRGB(56, 189, 248) or Color3.fromRGB(15, 23, 42)
-            Switch.Text = ""
+            local Switch = Instance.new("Frame")
+            Switch.Parent = ToggleBtn
+            Switch.Position = UDim2.new(1, -38, 0.5, -9)
+            Switch.Size = UDim2.new(0, 28, 0, 18)
+            Switch.BackgroundColor3 = toggled and Color3.fromRGB(0, 210, 255) or Color3.fromRGB(13, 17, 23)
 
             local SwitchCorner = Instance.new("UICorner")
-            SwitchCorner.CornerRadius = UDim.new(0, 5)
+            SwitchCorner.CornerRadius = UDim.new(0, 4)
             SwitchCorner.Parent = Switch
 
-            Switch.MouseButton1Click:Connect(function()
+            ToggleBtn.MouseButton1Click:Connect(function()
                 toggled = not toggled
                 TweenService:Create(Switch, TweenInfo.new(0.15), {
-                    BackgroundColor3 = toggled and Color3.fromRGB(56, 189, 248) or Color3.fromRGB(15, 23, 42)
+                    BackgroundColor3 = toggled and Color3.fromRGB(0, 210, 255) or Color3.fromRGB(13, 17, 23)
                 }):Play()
                 pcall(callback, toggled)
             end)
         end
 
-        -- CreateSlider
+        -- SLIDER
         function TabElements:CreateSlider(sliderName, min, max, default, callback)
             local value = default or min
 
             local SliderFrame = Instance.new("Frame")
             SliderFrame.Parent = TabPage
-            SliderFrame.Size = UDim2.new(1, -6, 0, 45)
-            SliderFrame.BackgroundColor3 = Color3.fromRGB(30, 41, 59)
+            SliderFrame.Size = UDim2.new(1, -6, 0, 42)
+            SliderFrame.BackgroundColor3 = Color3.fromRGB(21, 27, 36)
 
             local Corner = Instance.new("UICorner")
             Corner.CornerRadius = UDim.new(0, 6)
@@ -323,42 +327,44 @@ function Library:CreateWindow(hubName)
 
             local Label = Instance.new("TextLabel")
             Label.Parent = SliderFrame
-            Label.Position = UDim2.new(0, 10, 0, 5)
-            Label.Size = UDim2.new(0.6, 0, 0, 15)
+            Label.Position = UDim2.new(0, 10, 0, 4)
+            Label.Size = UDim2.new(0.6, 0, 0, 16)
             Label.Text = sliderName
-            Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+            Label.TextColor3 = Color3.fromRGB(240, 240, 240)
             Label.Font = Enum.Font.GothamMedium
             Label.TextSize = 12
             Label.TextXAlignment = Enum.TextXAlignment.Left
+            Label.BackgroundTransparency = 1
 
             local ValueLabel = Instance.new("TextLabel")
             ValueLabel.Parent = SliderFrame
-            ValueLabel.Position = UDim2.new(1, -50, 0, 5)
-            ValueLabel.Size = UDim2.new(0, 40, 0, 15)
+            ValueLabel.Position = UDim2.new(1, -50, 0, 4)
+            ValueLabel.Size = UDim2.new(0, 40, 0, 16)
             ValueLabel.Text = tostring(value)
-            ValueLabel.TextColor3 = Color3.fromRGB(148, 163, 184)
-            ValueLabel.Font = Enum.Font.GothamMedium
+            ValueLabel.TextColor3 = Color3.fromRGB(0, 210, 255)
+            ValueLabel.Font = Enum.Font.GothamBold
             ValueLabel.TextSize = 12
+            ValueLabel.BackgroundTransparency = 1
 
             local SlideBack = Instance.new("TextButton")
             SlideBack.Parent = SliderFrame
-            SlideBack.Position = UDim2.new(0, 10, 0, 28)
-            SlideBack.Size = UDim2.new(1, -20, 0, 8)
-            SlideBack.BackgroundColor3 = Color3.fromRGB(15, 23, 42)
+            SlideBack.Position = UDim2.new(0, 10, 0, 26)
+            SlideBack.Size = UDim2.new(1, -20, 0, 6)
+            SlideBack.BackgroundColor3 = Color3.fromRGB(13, 17, 23)
             SlideBack.Text = ""
 
             local BackCorner = Instance.new("UICorner")
-            BackCorner.CornerRadius = UDim.new(0, 4)
+            BackCorner.CornerRadius = UDim.new(0, 3)
             BackCorner.Parent = SlideBack
 
             local SlideBar = Instance.new("Frame")
             SlideBar.Parent = SlideBack
             SlideBar.Size = UDim2.new((value - min) / (max - min), 0, 1, 0)
-            SlideBar.BackgroundColor3 = Color3.fromRGB(56, 189, 248)
+            SlideBar.BackgroundColor3 = Color3.fromRGB(0, 210, 255)
             SlideBar.BorderSizePixel = 0
 
             local BarCorner = Instance.new("UICorner")
-            BarCorner.CornerRadius = UDim.new(0, 4)
+            BarCorner.CornerRadius = UDim.new(0, 3)
             BarCorner.Parent = SlideBar
 
             local isSliding = false
@@ -371,29 +377,29 @@ function Library:CreateWindow(hubName)
             end
 
             SlideBack.InputBegan:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                     isSliding = true
                     update(input)
                 end
             end)
             UserInputService.InputChanged:Connect(function(input)
-                if isSliding and input.UserInputType == Enum.UserInputType.MouseMovement then
+                if isSliding and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
                     update(input)
                 end
             end)
             UserInputService.InputEnded:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                     isSliding = false
                 end
             end)
         end
 
-        -- CreateBox
+        -- BOX
         function TabElements:CreateBox(boxName, placeholder, callback)
             local BoxFrame = Instance.new("Frame")
             BoxFrame.Parent = TabPage
-            BoxFrame.Size = UDim2.new(1, -6, 0, 35)
-            BoxFrame.BackgroundColor3 = Color3.fromRGB(30, 41, 59)
+            BoxFrame.Size = UDim2.new(1, -6, 0, 36)
+            BoxFrame.BackgroundColor3 = Color3.fromRGB(21, 27, 36)
 
             local Corner = Instance.new("UICorner")
             Corner.CornerRadius = UDim.new(0, 6)
@@ -404,27 +410,28 @@ function Library:CreateWindow(hubName)
             Label.Position = UDim2.new(0, 10, 0, 0)
             Label.Size = UDim2.new(0.5, 0, 1, 0)
             Label.Text = boxName
-            Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+            Label.TextColor3 = Color3.fromRGB(240, 240, 240)
             Label.Font = Enum.Font.GothamMedium
-            Label.TextSize = 13
+            Label.TextSize = 12
             Label.TextXAlignment = Enum.TextXAlignment.Left
+            Label.BackgroundTransparency = 1
 
             local TextBox = Instance.new("TextBox")
             TextBox.Parent = BoxFrame
-            TextBox.Position = UDim2.new(1, -130, 0.5, -12)
-            TextBox.Size = UDim2.new(0, 120, 0, 24)
-            TextBox.BackgroundColor3 = Color3.fromRGB(15, 23, 42)
+            TextBox.Position = UDim2.new(1, -125, 0.5, -11)
+            TextBox.Size = UDim2.new(0, 115, 0, 22)
+            TextBox.BackgroundColor3 = Color3.fromRGB(13, 17, 23)
             TextBox.PlaceholderText = placeholder or "Nhập..."
             TextBox.Text = ""
-            TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+            TextBox.TextColor3 = Color3.fromRGB(0, 210, 255)
             TextBox.Font = Enum.Font.Gotham
-            TextBox.TextSize = 12
+            TextBox.TextSize = 11
 
             local BoxCorner = Instance.new("UICorner")
             BoxCorner.CornerRadius = UDim.new(0, 4)
             BoxCorner.Parent = TextBox
 
-            TextBox.FocusLost:Connect(function(enterPressed)
+            TextBox.FocusLost:Connect(function()
                 pcall(callback, TextBox.Text)
             end)
         end
@@ -435,13 +442,16 @@ function Library:CreateWindow(hubName)
     return Window
 end
 
+-- ====================================================================
+-- DEMO CHẠY THỬ
+-- ====================================================================
 local Window = Library:CreateWindow("ABYSSAL HUB")
 
 local MainTab = Window:CreateTab("Main")
 local PlayerTab = Window:CreateTab("Player")
 
 MainTab:CreateButton("Auto Farm", function()
-    print("Auto Farm Activated!")
+    print("Auto Farm Active!")
 end)
 
 MainTab:CreateToggle("Fast Attack", false, function(state)
