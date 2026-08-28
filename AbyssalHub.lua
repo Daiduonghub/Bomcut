@@ -454,10 +454,9 @@ local MainTab = Window:CreateTab("Main")
 local PlayerTab = Window:CreateTab("Player")
 
 -- ====================================================================
--- AUTO FARM LEVEL (FIX LỖI ĐỨNG IM - DÙNG TWEEN DI CHUYỂN MƯỢT MA)
+-- AUTO FARM LEVEL (TỰ ĐỘNG COPY LOG LỖI VÀO CLIPBOARD)
 -- ====================================================================
 
-local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
@@ -511,11 +510,11 @@ local QuestDatabase = {
 
 local AutoFarmLevelEnabled = false
 
--- Hàm di chuyển teleport an toàn không bị giật
-local function teleportTo(targetCFrame)
-    local char = LocalPlayer.Character
-    if char and char:FindFirstChild("HumanoidRootPart") then
-        char.HumanoidRootPart.CFrame = targetCFrame
+local function copyToClipboard(text)
+    if setclipboard then
+        setclipboard(text)
+    elseif toclipboard then
+        toclipboard(text)
     end
 end
 
@@ -524,104 +523,79 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
 
     if AutoFarmLevelEnabled then
         task.spawn(function()
-            local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
-            local RegisterAttack = Net:WaitForChild("RE/RegisterAttack")
-            local RegisterHit = Net:WaitForChild("RegisterHit") or Net:WaitForChild("RE/RegisterHit")
+            local logs = {}
+            table.insert(logs, "--- DEBUG LOG AUTO FARM ---")
 
-            local function getPlayerLevel()
-                if LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Level") then
-                    return LocalPlayer.Data.Level.Value
-                elseif LocalPlayer:FindFirstChild("leaderstats") and LocalPlayer.leaderstats:FindFirstChild("Level") then
-                    return LocalPlayer.leaderstats.Level.Value
-                end
-                return 1
+            -- 1. Check Character
+            local Character = LocalPlayer.Character
+            local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
+            table.insert(logs, "Character Exist: " .. tostring(Character ~= nil))
+            table.insert(logs, "RootPart Exist: " .. tostring(RootPart ~= nil))
+
+            -- 2. Check Net Remote
+            local Net = ReplicatedStorage:FindFirstChild("Modules") and ReplicatedStorage.Modules:FindFirstChild("Net")
+            table.insert(logs, "Net Folder Exist: " .. tostring(Net ~= nil))
+
+            -- 3. Check Level
+            local lvl = nil
+            if LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Level") then
+                lvl = LocalPlayer.Data.Level.Value
+                table.insert(logs, "Read Level from: Data.Level = " .. tostring(lvl))
+            elseif LocalPlayer:FindFirstChild("leaderstats") and LocalPlayer.leaderstats:FindFirstChild("Level") then
+                lvl = LocalPlayer.leaderstats.Level.Value
+                table.insert(logs, "Read Level from: leaderstats.Level = " .. tostring(lvl))
+            else
+                table.insert(logs, "ERROR: Cannot read Level!")
             end
 
-            local function hasActiveQuest()
-                local questObj = LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Quest")
-                return (questObj and questObj.Value ~= "" and questObj.Value ~= nil)
-            end
-
-            while AutoFarmLevelEnabled do
-                task.wait(0.1)
-                
-                local Character = LocalPlayer.Character
-                local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
-                local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
-
-                if Character and Humanoid and Humanoid.Health > 0 and RootPart then
-                    local currentLevel = getPlayerLevel()
-
-                    local currentData = nil
-                    for _, q in ipairs(QuestDatabase) do
-                        if currentLevel >= q.MinLevel and currentLevel <= q.MaxLevel then
-                            currentData = q
-                            break
-                        end
+            -- 4. Check Quest Data Match
+            local currentData = nil
+            if lvl then
+                for _, q in ipairs(QuestDatabase) do
+                    if lvl >= q.MinLevel and lvl <= q.MaxLevel then
+                        currentData = q
+                        break
                     end
+                end
+            end
 
-                    if currentData then
-                        local npcPos = NpcPositions[currentData.Island]
+            if currentData then
+                table.insert(logs, "Matched Quest: " .. currentData.QuestName .. " (Island: " .. currentData.Island .. ")")
+                table.insert(logs, "Target Enemy: " .. currentData.EnemyName)
+            else
+                table.insert(logs, "ERROR: No Quest Data matched for Level " .. tostring(lvl))
+            end
 
-                        -- 1. CHƯA CÓ QUEST -> TELEPORT TỚI NPC VÀ NHẬN
-                        if not hasActiveQuest() then
-                            if npcPos then
-                                teleportTo(npcPos)
-                                task.wait(0.3)
-                            end
+            -- 5. Check Enemies Folder
+            local EnemiesFolder = Workspace:FindFirstChild("Enemies")
+            table.insert(logs, "Enemies Folder Exist: " .. tostring(EnemiesFolder ~= nil))
+            if EnemiesFolder and currentData then
+                local foundCount = 0
+                for _, enemy in pairs(EnemiesFolder:GetChildren()) do
+                    if string.find(enemy.Name, currentData.EnemyName) then
+                        foundCount = foundCount + 1
+                    end
+                end
+                table.insert(logs, "Enemies Found in Map: " .. tostring(foundCount))
+            end
 
-                            local StartQuest = Net:FindFirstChild("RF/StartQuest") or Net:FindFirstChild("RE/StartQuest")
-                            if StartQuest then
-                                pcall(function()
-                                    if StartQuest:IsA("RemoteFunction") then
-                                        StartQuest:InvokeServer(currentData.QuestName, currentData.QuestNumber)
-                                    else
-                                        StartQuest:FireServer(currentData.QuestName, currentData.QuestNumber)
-                                    end
-                                end)
-                            end
-                            task.wait(0.3)
-                        end
+            -- Tự động copy log ra Clipboard
+            local fullLog = table.concat(logs, "\n")
+            copyToClipboard(fullLog)
 
-                        -- 2. TÌM VÀ ĐÁNH QUÁI
-                        local EnemiesFolder = Workspace:FindFirstChild("Enemies")
-                        local foundEnemy = false
+            -- Thực thi vòng lặp farm
+            while AutoFarmLevelEnabled do
+                task.wait(0.2)
+                local char = LocalPlayer.Character
+                local root = char and char:FindFirstChild("HumanoidRootPart")
+                local hum = char and char:FindFirstChildOfClass("Humanoid")
 
-                        if EnemiesFolder then
-                            for _, enemy in pairs(EnemiesFolder:GetChildren()) do
-                                if not AutoFarmLevelEnabled then break end
+                if char and root and hum and hum.Health > 0 and currentData then
+                    local npcPos = NpcPositions[currentData.Island]
 
-                                if string.find(enemy.Name, currentData.EnemyName) then
-                                    local enemyHumanoid = enemy:FindFirstChildOfClass("Humanoid")
-                                    local enemyRoot = enemy:FindFirstChild("HumanoidRootPart")
-
-                                    if enemyHumanoid and enemyHumanoid.Health > 0 and enemyRoot then
-                                        foundEnemy = true
-                                        
-                                        -- Đánh quái này đến khi nó chết
-                                        while enemyHumanoid.Health > 0 and AutoFarmLevelEnabled and Character and Humanoid.Health > 0 do
-                                            teleportTo(enemyRoot.CFrame * CFrame.new(0, 8, 0))
-
-                                            RegisterAttack:FireServer(0.5, 1)
-
-                                            local hitPart = enemy:FindFirstChild("RightHand") 
-                                                or enemy:FindFirstChild("UpperTorso") 
-                                                or enemyRoot
-
-                                            RegisterHit:FireServer(hitPart, {}, nil, "157beb64")
-
-                                            task.wait(0.1)
-                                        end
-                                    end
-                                end
-                            end
-                        end
-
-                        -- 3. CHỜ QUÁI XUẤT HIỆN
-                        if not foundEnemy and npcPos then
-                            teleportTo(npcPos)
-                            task.wait(0.5)
-                        end
+                    -- Dịch chuyển thử
+                    if npcPos then
+                        root.CFrame = npcPos
                     end
                 end
             end
