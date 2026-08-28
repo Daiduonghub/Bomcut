@@ -454,72 +454,259 @@ local MainTab = Window:CreateTab("Main")
 local PlayerTab = Window:CreateTab("Player")
 
 -- ====================================================================
--- AUTO FARM LEVEL + TỰ ĐỘNG BAY TỚI NPC NHẬN QUEST THEO LEVEL
+-- AUTO FARM LEVEL (BLOX FRUITS SEA 1 - CHUẨN QUEST DATABASE)
 -- ====================================================================
 
+-- Tọa độ NPC giao Quest của các đảo Sea 1
+local NpcPositions = {
+    ["Pirate Starter"]  = CFrame.new(1059.37, 16.5, 1549.2),
+    ["Jungle"]          = CFrame.new(-1598.08, 36.85, 153.38),
+    ["Pirate Village"]  = CFrame.new(-1140.17, 4.75, 3827.42),
+    ["Desert"]          = CFrame.new(894.48, 6.44, 4392.43),
+    ["Frozen Village"]  = CFrame.new(1385.74, 87.27, -1298.07),
+    ["Marine Fortress"] = CFrame.new(-5039.59, 28.65, 4324.58),
+    ["Skylands"]        = CFrame.new(-4839.53, 717.67, -2619.44),
+    ["Prison"]          = CFrame.new(485.63, 1.65, 736.61),
+    ["Colosseum"]       = CFrame.new(-1422.01, 7.29, -3015.68),
+    ["Magma Village"]   = CFrame.new(-5232.9, 8.58, 8533.8),
+    ["Underwater City"] = CFrame.new(61163.85, 18.5, 1569.25),
+    ["Upper Skylands"]  = CFrame.new(-7859.1, 5545.5, -380.3),
+    ["Fountain City"]   = CFrame.new(5259.82, 38.5, 4050.0)
+}
+
 local QuestDatabase = {
+    -- Starter Island
     {
         MinLevel = 1,
-        MaxLevel = 14,
-        QuestName = "BanditQuest",
+        MaxLevel = 9,
+        QuestName = "BanditQuest1",
+        QuestNumber = 1,
         EnemyName = "Bandit",
-        NpcCFrame = CFrame.new(105, 20, 200)
+        Island = "Pirate Starter"
+    },
+
+    -- Jungle
+    {
+        MinLevel = 10,
+        MaxLevel = 14,
+        QuestName = "JungleQuest",
+        QuestNumber = 1,
+        EnemyName = "Monkey",
+        Island = "Jungle"
     },
     {
         MinLevel = 15,
         MaxLevel = 29,
-        QuestName = "MonkeyQuest",
-        EnemyName = "Monkey",
-        NpcCFrame = CFrame.new(-300, 20, 500)
+        QuestName = "JungleQuest",
+        QuestNumber = 2,
+        EnemyName = "Gorilla",
+        Island = "Jungle"
     },
+
+    -- Pirate Village
     {
         MinLevel = 30,
-        MaxLevel = 59,
-        QuestName = "GorillaQuest",
-        EnemyName = "Gorilla",
-        NpcCFrame = CFrame.new(-600, 20, 800)
+        MaxLevel = 39,
+        QuestName = "BuggyQuest1",
+        QuestNumber = 1,
+        EnemyName = "Pirate",
+        Island = "Pirate Village"
     },
+    {
+        MinLevel = 40,
+        MaxLevel = 59,
+        QuestName = "BuggyQuest1",
+        QuestNumber = 2,
+        EnemyName = "Brute",
+        Island = "Pirate Village"
+    },
+
+    -- Desert
     {
         MinLevel = 60,
-        MaxLevel = 89,
-        QuestName = "PirateQuest",
-        EnemyName = "Pirate",
-        NpcCFrame = CFrame.new(1200, 20, -400)
+        MaxLevel = 74,
+        QuestName = "DesertQuest",
+        QuestNumber = 1,
+        EnemyName = "Desert Bandit",
+        Island = "Desert"
     },
     {
-        MinLevel = 90,
-        MaxLevel = 119,
+        MinLevel = 75,
+        MaxLevel = 89,
         QuestName = "DesertQuest",
-        EnemyName = "Desert Bandit",
-        NpcCFrame = CFrame.new(900, 20, 1300)
+        QuestNumber = 2,
+        EnemyName = "Desert Officer",
+        Island = "Desert"
     },
+
+    -- Frozen Village
+    {
+        MinLevel = 90,
+        MaxLevel = 99,
+        QuestName = "SnowQuest",
+        QuestNumber = 1,
+        EnemyName = "Snow Bandit",
+        Island = "Frozen Village"
+    },
+    {
+        MinLevel = 100,
+        MaxLevel = 119,
+        QuestName = "SnowQuest",
+        QuestNumber = 2,
+        EnemyName = "Snowman",
+        Island = "Frozen Village"
+    },
+
+    -- Marine Fortress
     {
         MinLevel = 120,
         MaxLevel = 149,
-        QuestName = "SnowQuest",
-        EnemyName = "Snow Bandit",
-        NpcCFrame = CFrame.new(1300, 20, -1300)
+        QuestName = "MarineQuest2",
+        QuestNumber = 1,
+        EnemyName = "Chief Petty Officer",
+        Island = "Marine Fortress"
     },
+
+    -- Skylands
     {
         MinLevel = 150,
-        MaxLevel = 189,
-        QuestName = "MarineQuest",
-        EnemyName = "Chief Marine",
-        NpcCFrame = CFrame.new(-2500, 20, 1000)
+        MaxLevel = 174,
+        QuestName = "SkyQuest",
+        QuestNumber = 1,
+        EnemyName = "Sky Bandit",
+        Island = "Skylands"
     },
+    {
+        MinLevel = 175,
+        MaxLevel = 189,
+        QuestName = "SkyQuest",
+        QuestNumber = 2,
+        EnemyName = "Dark Master",
+        Island = "Skylands"
+    },
+
+    -- Prison
     {
         MinLevel = 190,
-        MaxLevel = 249,
-        QuestName = "SkyQuest",
-        EnemyName = "Sky Bandit",
-        NpcCFrame = CFrame.new(-4800, 500, -700)
+        MaxLevel = 209,
+        QuestName = "PrisonerQuest",
+        QuestNumber = 1,
+        EnemyName = "Prisoner",
+        Island = "Prison"
     },
     {
+        MinLevel = 210,
+        MaxLevel = 249,
+        QuestName = "PrisonerQuest",
+        QuestNumber = 2,
+        EnemyName = "Dangerous Prisoner",
+        Island = "Prison"
+    },
+
+    -- Colosseum
+    {
         MinLevel = 250,
-        MaxLevel = 300,
-        QuestName = "CyborgQuest",
-        EnemyName = "Cyborg",
-        NpcCFrame = CFrame.new(5000, 20, -2000)
+        MaxLevel = 274,
+        QuestName = "ColosseumQuest",
+        QuestNumber = 1,
+        EnemyName = "Toga Warrior",
+        Island = "Colosseum"
+    },
+    {
+        MinLevel = 275,
+        MaxLevel = 299,
+        QuestName = "ColosseumQuest",
+        QuestNumber = 2,
+        EnemyName = "Gladiator",
+        Island = "Colosseum"
+    },
+
+    -- Magma Village
+    {
+        MinLevel = 300,
+        MaxLevel = 324,
+        QuestName = "MagmaQuest",
+        QuestNumber = 1,
+        EnemyName = "Military Soldier",
+        Island = "Magma Village"
+    },
+    {
+        MinLevel = 325,
+        MaxLevel = 374,
+        QuestName = "MagmaQuest",
+        QuestNumber = 2,
+        EnemyName = "Military Spy",
+        Island = "Magma Village"
+    },
+
+    -- Underwater City
+    {
+        MinLevel = 375,
+        MaxLevel = 399,
+        QuestName = "FishmanQuest",
+        QuestNumber = 1,
+        EnemyName = "Fishman Warrior",
+        Island = "Underwater City"
+    },
+    {
+        MinLevel = 400,
+        MaxLevel = 449,
+        QuestName = "FishmanQuest",
+        QuestNumber = 2,
+        EnemyName = "Fishman Commando",
+        Island = "Underwater City"
+    },
+
+    -- Upper Skylands
+    {
+        MinLevel = 450,
+        MaxLevel = 474,
+        QuestName = "SkyExp1Quest",
+        QuestNumber = 1,
+        EnemyName = "God's Guard",
+        Island = "Upper Skylands"
+    },
+    {
+        MinLevel = 475,
+        MaxLevel = 524,
+        QuestName = "SkyExp1Quest",
+        QuestNumber = 2,
+        EnemyName = "Shanda",
+        Island = "Upper Skylands"
+    },
+    {
+        MinLevel = 525,
+        MaxLevel = 549,
+        QuestName = "SkyExp2Quest",
+        QuestNumber = 1,
+        EnemyName = "Royal Squad",
+        Island = "Upper Skylands"
+    },
+    {
+        MinLevel = 550,
+        MaxLevel = 624,
+        QuestName = "SkyExp2Quest",
+        QuestNumber = 2,
+        EnemyName = "Royal Soldier",
+        Island = "Upper Skylands"
+    },
+
+    -- Fountain City
+    {
+        MinLevel = 625,
+        MaxLevel = 649,
+        QuestName = "FountainQuest",
+        QuestNumber = 1,
+        EnemyName = "Galley Pirate",
+        Island = "Fountain City"
+    },
+    {
+        MinLevel = 650,
+        MaxLevel = 700,
+        QuestName = "FountainQuest",
+        QuestNumber = 2,
+        EnemyName = "Galley Captain",
+        Island = "Fountain City"
     }
 }
 
@@ -537,71 +724,35 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
             local LocalPlayer = Players.LocalPlayer
             local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
             local RegisterAttack = Net:WaitForChild("RE/RegisterAttack")
-            local RegisterHit = Net:WaitForChild("RE/RegisterHit")
+            local RegisterHit = Net:WaitForChild("RegisterHit") or Net:WaitForChild("RE/RegisterHit")
 
             -- Lấy Level chính xác
             local function getPlayerLevel()
                 if LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Level") then
                     return LocalPlayer.Data.Level.Value
+                elseif LocalPlayer:FindFirstChild("leaderstats") and LocalPlayer.leaderstats:FindFirstChild("Level") then
+                    return LocalPlayer.leaderstats.Level.Value
                 end
                 return 1
             end
 
-            -- Check xem nhân vật đang có Quest hay chưa
+            -- Kiểm tra xem đã có Quest active chưa
             local function hasActiveQuest()
                 local questObj = LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Quest")
                 if questObj and questObj.Value ~= "" and questObj.Value ~= nil then
                     return true
                 end
-                
-                -- Check thêm trên Gui Quest (nếu có)
-                local questGui = LocalPlayer:FindFirstChild("PlayerGui") and LocalPlayer.PlayerGui:FindFirstChild("QuestUI")
-                if questGui and questGui.Visible == true then
-                    return true
-                end
-
                 return false
             end
 
-            -- Hàm chuyên nhận Quest theo Level
-            local function acceptQuestForLevel(questData, rootPart)
-                if hasActiveQuest() then return end
-
-                -- 1. Teleport tới sát NPC
-                if questData.NpcCFrame then
-                    rootPart.CFrame = questData.NpcCFrame
-                    rootPart.AssemblyLinearVelocity = Vector3.zero
-                    task.wait(0.4)
-                end
-
-                -- 2. Dò tìm Remote nhận Quest
-                local startQuestRemote = Net:FindFirstChild("RF/StartQuest") 
-                    or Net:FindFirstChild("RE/StartQuest") 
-                    or Net:FindFirstChild("StartQuest")
-
-                if startQuestRemote then
-                    -- Thử các kiểu gửi Remote nhận Quest phổ biến
-                    pcall(function()
-                        if startQuestRemote:IsA("RemoteFunction") then
-                            startQuestRemote:InvokeServer(questData.QuestName, 1)
-                        else
-                            startQuestRemote:FireServer(questData.QuestName, 1)
-                        end
-                    end)
-                end
-                
-                task.wait(0.5)
-            end
-
-            -- Vòng lặp Farm chính
             while AutoFarmLevelEnabled do
                 local Character = LocalPlayer.Character
                 if Character and Character:FindFirstChild("HumanoidRootPart") then
                     local RootPart = Character.HumanoidRootPart
                     local currentLevel = getPlayerLevel()
 
-                    -- Tìm dữ liệu Quest tương ứng với Level hiện tại
-                    local currentData = QuestDatabase[1]
+                    -- Lọc Quest dữ liệu theo Level
+                    local currentData = nil
                     for _, q in ipairs(QuestDatabase) do
                         if currentLevel >= q.MinLevel and currentLevel <= q.MaxLevel then
                             currentData = q
@@ -609,51 +760,72 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                         end
                     end
 
-                    -- 1. TỰ ĐỘNG NHẬN QUEST NẾU CHƯA CÓ
-                    if not hasActiveQuest() then
-                        acceptQuestForLevel(currentData, RootPart)
-                    end
+                    if currentData then
+                        local npcPos = NpcPositions[currentData.Island]
 
-                    -- 2. TÌM QUÁI VÀ ĐÁNH
-                    local EnemiesFolder = Workspace:FindFirstChild("Enemies")
-                    local foundEnemy = false
+                        -- 1. NHẬN QUEST NẾU CHƯA CÓ
+                        if not hasActiveQuest() then
+                            if npcPos then
+                                RootPart.CFrame = npcPos
+                                RootPart.AssemblyLinearVelocity = Vector3.zero
+                                task.wait(0.4)
+                            end
 
-                    if EnemiesFolder then
-                        for _, enemy in pairs(EnemiesFolder:GetChildren()) do
-                            if not AutoFarmLevelEnabled then break end
+                            local StartQuest = Net:FindFirstChild("RF/StartQuest") or Net:FindFirstChild("RE/StartQuest")
+                            if StartQuest then
+                                pcall(function()
+                                    if StartQuest:IsA("RemoteFunction") then
+                                        StartQuest:InvokeServer(currentData.QuestName, currentData.QuestNumber)
+                                    else
+                                        StartQuest:FireServer(currentData.QuestName, currentData.QuestNumber)
+                                    end
+                                end)
+                            end
+                            task.wait(0.5)
+                        end
 
-                            if enemy.Name == currentData.EnemyName then
-                                local enemyHumanoid = enemy:FindFirstChildOfClass("Humanoid")
-                                local enemyRoot = enemy:FindFirstChild("HumanoidRootPart")
+                        -- 2. TÌM VÀ ĐÁNH QUÁI
+                        local EnemiesFolder = Workspace:FindFirstChild("Enemies")
+                        local foundEnemy = false
 
-                                if enemyHumanoid and enemyHumanoid.Health > 0 and enemyRoot then
-                                    foundEnemy = true
-                                    while enemyHumanoid.Health > 0 and AutoFarmLevelEnabled do
-                                        -- Đứng im cao 8 stud trên đầu quái
-                                        RootPart.CFrame = enemyRoot.CFrame * CFrame.new(0, 8, 0)
-                                        RootPart.AssemblyLinearVelocity = Vector3.zero
-                                        RootPart.AssemblyAngularVelocity = Vector3.zero
+                        if EnemiesFolder then
+                            for _, enemy in pairs(EnemiesFolder:GetChildren()) do
+                                if not AutoFarmLevelEnabled then break end
 
-                                        -- Đánh quái
-                                        RegisterAttack:FireServer(0.5, 1)
+                                -- Nhận diện tên quái trong folder Enemies
+                                if string.find(enemy.Name, currentData.EnemyName) then
+                                    local enemyHumanoid = enemy:FindFirstChildOfClass("Humanoid")
+                                    local enemyRoot = enemy:FindFirstChild("HumanoidRootPart")
 
-                                        local hitPart = enemy:FindFirstChild("RightHand") 
-                                            or enemy:FindFirstChild("UpperTorso") 
-                                            or enemyRoot
+                                    if enemyHumanoid and enemyHumanoid.Health > 0 and enemyRoot then
+                                        foundEnemy = true
+                                        while enemyHumanoid.Health > 0 and AutoFarmLevelEnabled do
+                                            -- Bay đứng im trên đầu quái 8 stud
+                                            RootPart.CFrame = enemyRoot.CFrame * CFrame.new(0, 8, 0)
+                                            RootPart.AssemblyLinearVelocity = Vector3.zero
+                                            RootPart.AssemblyAngularVelocity = Vector3.zero
 
-                                        RegisterHit:FireServer(hitPart, {}, nil, "157beb64")
+                                            -- Đánh
+                                            RegisterAttack:FireServer(0.5, 1)
 
-                                        task.wait(0.15)
+                                            local hitPart = enemy:FindFirstChild("RightHand") 
+                                                or enemy:FindFirstChild("UpperTorso") 
+                                                or enemyRoot
+
+                                            RegisterHit:FireServer(hitPart, {}, nil, "157beb64")
+
+                                            task.wait(0.15)
+                                        end
                                     end
                                 end
                             end
                         end
-                    end
 
-                    -- 3. NẾU CHƯA THẤY QUÁI -> QUAY VỀ NPC ĐỨNG CHỜ REPSAWN
-                    if not foundEnemy and currentData.NpcCFrame then
-                        RootPart.CFrame = currentData.NpcCFrame
-                        task.wait(1)
+                        -- 3. CHỜ QUÁI REPSAWN TẠI VỊ TRÍ ĐẢO
+                        if not foundEnemy and npcPos then
+                            RootPart.CFrame = npcPos
+                            task.wait(1)
+                        end
                     end
                 end
                 task.wait(0.5)
