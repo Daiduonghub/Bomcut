@@ -821,17 +821,62 @@ task.spawn(function()
     end
 end)
 
+-- SEA 1 TELEPORT LOCATIONS
+local IslandTeleports = {
+    ["Pirate Starter"]  = CFrame.new(1059.37, 40, 1549.2),
+    ["Jungle"]          = CFrame.new(-1610.6, 50, 142.3),
+    ["Pirate Village"]  = CFrame.new(-1140.17, 30, 3827.42),
+    ["Desert"]          = CFrame.new(894.48, 30, 4392.43),
+    ["Frozen Village"]  = CFrame.new(1385.74, 110, -1298.07),
+    ["Marine Fortress"] = CFrame.new(-5039.59, 50, 4324.58),
+    ["Skylands"]        = CFrame.new(-4839.53, 730, -2619.44),
+    ["Prison"]          = CFrame.new(485.63, 20, 736.61),
+    ["Colosseum"]       = CFrame.new(-1422.01, 30, -3015.68),
+    ["Magma Village"]   = CFrame.new(-5232.9, 30, 8533.8),
+    ["Underwater City"] = CFrame.new(61163.85, 40, 1569.25),
+    ["Upper Skylands"]  = CFrame.new(-7859.1, 5560, -380.3),
+    ["Fountain City"]   = CFrame.new(5259.82, 60, 4050.0)
+}
+
 -- ====================================================================
 -- GIAO DIỆN UI
 -- ====================================================================
 local Window = Library:CreateWindow("ABYSSAL HUB")
-local MainTab = Window:CreateTab("Main")
+local MainTab = Window:CreateTab("Farming Tab")
+local SettingTab = Window:CreateTab("Settings")
+local PlayerTab = Window:CreateTab("Player")
+local TeleportTab = Window:CreateTab("Teleport (Sea 1)")
 
 MainTab:CreateToggle("Auto Farm Level", false, function(state)
     AutoFarmLevelEnabled = state
 end)
 
-local PlayerTab = Window:CreateTab("Player")
+local selectedIsland = "Pirate Starter"
+
+TeleportTab:CreateDropdown("Select Island", {
+    "Pirate Starter",
+    "Jungle",
+    "Pirate Village",
+    "Desert",
+    "Frozen Village",
+    "Marine Fortress",
+    "Skylands",
+    "Prison",
+    "Colosseum",
+    "Magma Village",
+    "Underwater City",
+    "Upper Skylands",
+    "Fountain City"
+}, "Pirate Starter", function(choice)
+    selectedIsland = choice
+end)
+
+TeleportTab:CreateButton("Teleport to Island", function()
+    local pos = IslandTeleports[selectedIsland]
+    if pos then
+        smoothMoveTo(pos)
+    end
+end)
 
 PlayerTab:CreateSlider("WalkSpeed", 16, 200, 16, function(value)
     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
@@ -842,8 +887,6 @@ end)
 PlayerTab:CreateBox("Teleport Player", "Tên Player...", function(text)
     print("Đang Teleport đến:", text)
 end)
-
-local SettingTab = Window:CreateTab("Settings")
 
 SettingTab:CreateToggle("Fast Attack", true, function(state)
     FastAttackEnabled = state
