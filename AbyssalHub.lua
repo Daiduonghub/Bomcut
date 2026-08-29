@@ -508,6 +508,9 @@ local FastAttackEnabled = true
 local BringMobEnabled = true
 local SelectedWeapon = "Melee"
 
+-- Độ cao đứng farm so với quái (tăng/giảm tùy ý cậu)
+local FarmHeight = 15 
+
 local NpcPositions = {
     ["Pirate Starter"]  = CFrame.new(1059.37, 16.45, 1549.2),
     ["Jungle"]          = CFrame.new(-1598.08, 36.85, 153.38),
@@ -652,39 +655,36 @@ local function AutoEquipWeapon()
     end
 end
 
+-- Fix: Gom quái đứng yên tại 1 vị trí cố định dưới chân target
 local function BringMobs(targetEnemy, currentData)
     if not BringMobEnabled or not targetEnemy then return end
 
-    local char = LocalPlayer.Character
-    local root = char and char:FindFirstChild("HumanoidRootPart")
-    if not root then return end
+    local targetRoot = targetEnemy:FindFirstChild("HumanoidRootPart")
+    if not targetRoot then return end
 
-    local bringPos = root.CFrame * CFrame.new(0, -4, -2)
+    -- Vị trí cố định để gom quái
+    local bringPoint = targetRoot.CFrame
     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
     
     if EnemiesFolder then
-        local count = 0
-        local maxBring = 2
-
         for _, enemy in pairs(EnemiesFolder:GetChildren()) do
-            if count >= maxBring then break end
-
             if enemy.Name == currentData.EnemyName then
                 local eHum = enemy:FindFirstChildOfClass("Humanoid")
                 local eRoot = enemy:FindFirstChild("HumanoidRootPart")
 
                 if eHum and eHum.Health > 0 and eRoot then
-                    if (eRoot.Position - root.Position).Magnitude <= 150 then
-                        count = count + 1
+                    if (eRoot.Position - bringPoint.Position).Magnitude <= 200 then
                         eRoot.CanCollide = false
                         if enemy:FindFirstChild("Head") then
                             enemy.Head.CanCollide = false
                         end
 
-                        eRoot.CFrame = bringPos
+                        -- Ép vị trí và khóa chuyển động để quái đứng yên
+                        eRoot.CFrame = bringPoint
+                        eRoot.Velocity = Vector3.zero
+                        eRoot.RotVelocity = Vector3.zero
                         eRoot.Size = Vector3.new(15, 15, 15)
                         eHum.WalkSpeed = 0
-                        eHum:ChangeState(Enum.HumanoidStateType.Physics)
 
                         pcall(function()
                             eRoot:SetNetworkOwner(LocalPlayer)
@@ -697,7 +697,7 @@ local function BringMobs(targetEnemy, currentData)
 end
 
 local lastAttackTime = 0
-local attackCooldown = 0.12
+local attackCooldown = 0.05
 
 local function DoFastAttack(targetEnemy, Net)
     if not FastAttackEnabled then return end
@@ -719,7 +719,7 @@ local function DoFastAttack(targetEnemy, Net)
             local eHum = enemy:FindFirstChildOfClass("Humanoid")
             local eRoot = enemy:FindFirstChild("HumanoidRootPart")
             if eHum and eHum.Health > 0 and eRoot then
-                if (eRoot.Position - myRoot.Position).Magnitude <= 35 then
+                if (eRoot.Position - myRoot.Position).Magnitude <= 60 then
                     local hitPart = enemy:FindFirstChild("UpperTorso") or enemy:FindFirstChild("Head") or eRoot
                     table.insert(hitTargets, {enemy, hitPart})
                 end
@@ -803,7 +803,7 @@ task.spawn(function()
                     if hasActiveQuest() then
                         local enemySpot = EnemyPositions[currentData.EnemyName]
                         if enemySpot and (RootPart.Position - enemySpot.Position).Magnitude > 150 then
-                            smoothMoveTo(enemySpot * CFrame.new(0, 18, 0))
+                            smoothMoveTo(enemySpot * CFrame.new(0, FarmHeight, 0))
                         end
 
                         while hasActiveQuest() and AutoFarmLevelEnabled do
@@ -849,7 +849,9 @@ task.spawn(function()
                                     end
 
                                     AutoEquipWeapon()
-                                    activeRoot.CFrame = CFrame.lookAt(eRoot.Position + Vector3.new(0, 6, 0), eRoot.Position)
+                                    
+                                    -- Đặt vị trí người chơi lên cao thẳng đứng so với vị trí quái
+                                    activeRoot.CFrame = CFrame.lookAt(eRoot.Position + Vector3.new(0, FarmHeight, 0), eRoot.Position)
 
                                     BringMobs(targetEnemy, currentData)
                                     DoFastAttack(targetEnemy, Net)
@@ -858,7 +860,7 @@ task.spawn(function()
                                 end
                             else
                                 if enemySpot then
-                                    curRoot.CFrame = enemySpot * CFrame.new(0, 18, 0)
+                                    curRoot.CFrame = enemySpot * CFrame.new(0, FarmHeight, 0)
                                 end
                                 task.wait(0.3)
                             end
