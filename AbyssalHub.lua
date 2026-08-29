@@ -9,37 +9,6 @@ function Library:CreateWindow(hubName)
     ScreenGui.Parent = CoreGui
     ScreenGui.ResetOnSpawn = false
 
-    -- Nút Toggle UI (Góc trái)
-        -- Nút Toggle UI (Tròn, chứa ảnh)
-    local ToggleGui = Instance.new("ScreenGui")
-    ToggleGui.Name = "AbyssalHub_ToggleGui"
-    ToggleGui.Parent = CoreGui
-    ToggleGui.ResetOnSpawn = false
-
-    local ToggleButton = Instance.new("ImageButton")
-    ToggleButton.Name = "ToggleButton"
-    ToggleButton.Parent = ToggleGui
-    ToggleButton.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-    ToggleButton.Position = UDim2.new(0.05, 0, 0.15, 0)
-    ToggleButton.Size = UDim2.new(0, 50, 0, 50)
-    ToggleButton.Image = "rbxassetid://122987919647953"
-    ToggleButton.Active = true
-    ToggleButton.Draggable = true
-
-    local UICorner = Instance.new("UICorner")
-    UICorner.CornerRadius = UDim.new(0, 12)
-    UICorner.Parent = ToggleButton
-
-    local UIStroke = Instance.new("UIStroke")
-    UIStroke.Color = Color3.fromRGB(0, 170, 255)
-    UIStroke.Thickness = 2
-    UIStroke.Parent = ToggleButton
-
-    -- Logic Bật/Tắt Menu (Đúng tên biến ToggleButton)
-    ToggleButton.MouseButton1Click:Connect(function()
-        MainFrame.Visible = not MainFrame.Visible
-    end)
-
     -- Khung chính UI
     local MainFrame = Instance.new("Frame")
     MainFrame.Name = "MainFrame"
@@ -85,10 +54,6 @@ function Library:CreateWindow(hubName)
         end
     end)
 
-    ToggleUIButton.MouseButton1Click:Connect(function()
-        MainFrame.Visible = not MainFrame.Visible
-    end)
-
     -- Topbar
     local Topbar = Instance.new("Frame")
     Topbar.Name = "Topbar"
@@ -131,6 +96,36 @@ function Library:CreateWindow(hubName)
     ContentContainer.Position = UDim2.new(0, 130, 0, 42)
     ContentContainer.Size = UDim2.new(1, -135, 1, -46)
     ContentContainer.BackgroundTransparency = 1
+
+    -- Nút Toggle UI (Nút tròn bật/tắt menu)
+    local ToggleGui = Instance.new("ScreenGui")
+    ToggleGui.Name = "AbyssalHub_ToggleGui"
+    ToggleGui.Parent = CoreGui
+    ToggleGui.ResetOnSpawn = false
+
+    local ToggleButton = Instance.new("ImageButton")
+    ToggleButton.Name = "ToggleButton"
+    ToggleButton.Parent = ToggleGui
+    ToggleButton.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    ToggleButton.Position = UDim2.new(0.05, 0, 0.15, 0)
+    ToggleButton.Size = UDim2.new(0, 50, 0, 50)
+    ToggleButton.Image = "rbxassetid://122987919647953"
+    ToggleButton.Active = true
+    ToggleButton.Draggable = true
+
+    local UICorner = Instance.new("UICorner")
+    UICorner.CornerRadius = UDim.new(0, 12)
+    UICorner.Parent = ToggleButton
+
+    local UIStroke = Instance.new("UIStroke")
+    UIStroke.Color = Color3.fromRGB(0, 170, 255)
+    UIStroke.Thickness = 2
+    UIStroke.Parent = ToggleButton
+
+    -- Logic Bật/Tắt Menu
+    ToggleButton.MouseButton1Click:Connect(function()
+        MainFrame.Visible = not MainFrame.Visible
+    end)
 
     local Window = {}
     local firstTab = true
