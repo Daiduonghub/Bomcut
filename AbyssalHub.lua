@@ -508,8 +508,8 @@ local FastAttackEnabled = true
 local BringMobEnabled = true
 local SelectedWeapon = "Melee"
 
--- Độ cao đứng farm so với quái (tăng/giảm tùy ý cậu)
-local FarmHeight = 15 
+-- Độ cao đứng farm so với mặt đất/bãi quái
+local FarmHeight = 16
 
 local NpcPositions = {
     ["Pirate Starter"]  = CFrame.new(1059.37, 16.45, 1549.2),
@@ -655,36 +655,33 @@ local function AutoEquipWeapon()
     end
 end
 
--- Fix: Gom quái đứng yên tại 1 vị trí cố định dưới chân target
-local function BringMobs(targetEnemy, currentData)
-    if not BringMobEnabled or not targetEnemy then return end
+-- Fix: Cố định vị trí gom quái đúng tại bãi quái (EnemyPosition) không bị bay lướt hay chạy theo người chơi
+local function BringMobs(enemySpot, currentData)
+    if not BringMobEnabled then return end
 
-    local targetRoot = targetEnemy:FindFirstChild("HumanoidRootPart")
-    if not targetRoot then return end
-
-    -- Vị trí cố định để gom quái
-    local bringPoint = targetRoot.CFrame
     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
-    
-    if EnemiesFolder then
+    if EnemiesFolder and enemySpot then
+        -- Điểm neo cố định ngay tại vị trí bãi quái gốc
+        local fixedBringPos = enemySpot
+
         for _, enemy in pairs(EnemiesFolder:GetChildren()) do
             if enemy.Name == currentData.EnemyName then
                 local eHum = enemy:FindFirstChildOfClass("Humanoid")
                 local eRoot = enemy:FindFirstChild("HumanoidRootPart")
 
                 if eHum and eHum.Health > 0 and eRoot then
-                    if (eRoot.Position - bringPoint.Position).Magnitude <= 200 then
+                    if (eRoot.Position - enemySpot.Position).Magnitude <= 250 then
                         eRoot.CanCollide = false
                         if enemy:FindFirstChild("Head") then
                             enemy.Head.CanCollide = false
                         end
 
-                        -- Ép vị trí và khóa chuyển động để quái đứng yên
-                        eRoot.CFrame = bringPoint
+                        -- Ép quái đứng im tại chỗ gốc
+                        eRoot.CFrame = fixedBringPos
                         eRoot.Velocity = Vector3.zero
                         eRoot.RotVelocity = Vector3.zero
-                        eRoot.Size = Vector3.new(15, 15, 15)
                         eHum.WalkSpeed = 0
+                        eHum:ChangeState(Enum.HumanoidStateType.Physics)
 
                         pcall(function()
                             eRoot:SetNetworkOwner(LocalPlayer)
@@ -699,7 +696,7 @@ end
 local lastAttackTime = 0
 local attackCooldown = 0.05
 
-local function DoFastAttack(targetEnemy, Net)
+local function DoFastAttack(Net)
     if not FastAttackEnabled then return end
     if tick() - lastAttackTime < attackCooldown then return end
     lastAttackTime = tick()
@@ -719,7 +716,7 @@ local function DoFastAttack(targetEnemy, Net)
             local eHum = enemy:FindFirstChildOfClass("Humanoid")
             local eRoot = enemy:FindFirstChild("HumanoidRootPart")
             if eHum and eHum.Health > 0 and eRoot then
-                if (eRoot.Position - myRoot.Position).Magnitude <= 60 then
+                if (eRoot.Position - myRoot.Position).Magnitude <= 65 then
                     local hitPart = enemy:FindFirstChild("UpperTorso") or enemy:FindFirstChild("Head") or eRoot
                     table.insert(hitTargets, {enemy, hitPart})
                 end
@@ -818,26 +815,24 @@ task.spawn(function()
                             end
 
                             local EnemiesFolder = Workspace:FindFirstChild("Enemies")
-                            local targetEnemy = nil
+                            local targetExists = false
 
                             if EnemiesFolder then
                                 for _, enemy in pairs(EnemiesFolder:GetChildren()) do
                                     if enemy.Name == currentData.EnemyName then
                                         local eHum = enemy:FindFirstChildOfClass("Humanoid")
                                         if eHum and eHum.Health > 0 then
-                                            targetEnemy = enemy
+                                            targetExists = true
                                             break
                                         end
                                     end
                                 end
                             end
 
-                            if targetEnemy then
-                                local eHum = targetEnemy:FindFirstChildOfClass("Humanoid")
-                                local eRoot = targetEnemy:FindFirstChild("HumanoidRootPart")
+                            if targetExists then
                                 local farmTime = tick()
 
-                                while targetEnemy and eHum and eHum.Health > 0 and AutoFarmLevelEnabled and hasActiveQuest() do
+                                while targetExists and AutoFarmLevelEnabled and hasActiveQuest() do
                                     if tick() - farmTime > 12 then break end
 
                                     local activeChar = LocalPlayer.Character
@@ -850,13 +845,29 @@ task.spawn(function()
 
                                     AutoEquipWeapon()
                                     
-                                    -- Đặt vị trí người chơi lên cao thẳng đứng so với vị trí quái
-                                    activeRoot.CFrame = CFrame.lookAt(eRoot.Position + Vector3.new(0, FarmHeight, 0), eRoot.Position)
+                                    -- Người chơi đứng yên trên cao thẳng xuống vị trí bãi quái
+                                    if enemySpot then
+                                        activeRoot.CFrame = enemySpot * CFrame.new(0, FarmHeight, 0)
+                                    end
 
-                                    BringMobs(targetEnemy, currentData)
-                                    DoFastAttack(targetEnemy, Net)
+                                    BringMobs(enemySpot, currentData)
+                                    DoFastAttack(Net)
 
                                     task.wait(0.05)
+                                    
+                                    -- Kiểm tra lại xem quái còn sống không
+                                    targetExists = false
+                                    if EnemiesFolder then
+                                        for _, enemy in pairs(EnemiesFolder:GetChildren()) do
+                                            if enemy.Name == currentData.EnemyName then
+                                                local eHum = enemy:FindFirstChildOfClass("Humanoid")
+                                                if eHum and eHum.Health > 0 then
+                                                    targetExists = true
+                                                    break
+                                                end
+                                            end
+                                        end
+                                    end
                                 end
                             else
                                 if enemySpot then
