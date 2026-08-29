@@ -505,6 +505,7 @@ local AutoFarmLevelEnabled = false
 local FastAttackEnabled = true
 local FastAttackSpeed = 8
 local SelectedWeapon = "Melee"
+local BringMobEnabled = true
 
 local NpcPositions = {
     ["Pirate Starter"]  = CFrame.new(1059.37, 20, 1549.2),
@@ -689,6 +690,37 @@ local function DoFastAttack(targetEnemy, Net)
             end
         end
     end)
+end
+
+local function BringMobs(targetEnemy, currentData)
+    -- Nếu tắt Bring Mob thì dừng không kéo quái
+    if not BringMobEnabled then return end
+
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if not root or not targetEnemy then return end
+
+    local EnemiesFolder = Workspace:FindFirstChild("Enemies")
+    if not EnemiesFolder then return end
+
+    -- Vị trí tập trung quái ngay dưới chân
+    local bringPos = root.CFrame * CFrame.new(0, -4, -2)
+
+    for _, enemy in pairs(EnemiesFolder:GetChildren()) do
+        if enemy.Name == currentData.EnemyName then
+            local eHum = enemy:FindFirstChildOfClass("Humanoid")
+            local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+
+            if eHum and eHum.Health > 0 and eRoot then
+                if (eRoot.Position - root.Position).Magnitude <= 250 then
+                    eRoot.CanCollide = false
+                    eHum:ChangeState(11) -- Stun quái
+                    eRoot.CFrame = bringPos
+                    eRoot.Size = Vector3.new(20, 20, 20) -- Mở rộng Hitbox
+                end
+            end
+        end
+    end
 end
 
 -- ====================================================================
@@ -969,3 +1001,8 @@ SettingTab:CreateDropdown("Fast Attack Speed", {"Slow", "Medium", "Fast"}, "Fast
         FastAttackSpeed = 10
     end
 end)
+
+SettingTab:CreateToggle("Bring Mobs", true, function(state)
+    BringMobEnabled = state
+end)
+
