@@ -840,27 +840,27 @@ task.spawn(function()
                                 local eRoot = targetEnemy:FindFirstChild("HumanoidRootPart")
                                 local farmTime = tick()
 
-                                                                while targetEnemy and eHum and while targetEnemy and eHum and eHum.Health > 0 and AutoFarmLevelEnabled and hasActiveQuest() do
-    if tick() - farmTime > 12 then break end
+                                while targetEnemy and eHum and eHum.Health > 0 and AutoFarmLevelEnabled and hasActiveQuest() do
+                                    if tick() - farmTime > 12 then break end
 
-    local activeChar = LocalPlayer.Character
-    local activeRoot = activeChar and activeChar:FindFirstChild("HumanoidRootPart")
-    local activeHum = activeChar and activeChar:FindFirstChildOfClass("Humanoid")
+                                    local activeChar = LocalPlayer.Character
+                                    local activeRoot = activeChar and activeChar:FindFirstChild("HumanoidRootPart")
+                                    local activeHum = activeChar and activeChar:FindFirstChildOfClass("Humanoid")
 
-    if not activeChar or not activeRoot or not activeHum or activeHum.Health <= 0 then
-        break
-    end
+                                    if not activeChar or not activeRoot or not activeHum or activeHum.Health <= 0 then
+                                        break
+                                    end
 
-    AutoEquipWeapon()
-    
-    -- Đứng cao 6m: Vừa đủ tầm chém kiếm vật lý vừa an toàn né đòn quái
-    activeRoot.CFrame = CFrame.lookAt(eRoot.Position + Vector3.new(0, 6, 0), eRoot.Position)
+                                    AutoEquipWeapon()
+                                    
+                                    -- Đứng cao 6m: Vừa đủ tầm chém kiếm vật lý vừa an toàn né đòn quái
+                                    activeRoot.CFrame = CFrame.lookAt(eRoot.Position + Vector3.new(0, 6, 0), eRoot.Position)
 
-    BringMobs(targetEnemy, currentData)
-    DoFastAttack(targetEnemy, Net)
+                                    BringMobs(targetEnemy, currentData)
+                                    DoFastAttack(targetEnemy, Net)
 
-    task.wait(0.05)
-end
+                                    task.wait(0.05)
+                                end
                             else
                                 if enemySpot then
                                     curRoot.CFrame = enemySpot * CFrame.new(0, 18, 0)
