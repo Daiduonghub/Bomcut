@@ -504,7 +504,7 @@ local LocalPlayer = Players.LocalPlayer
 -- ==========================================
 local AutoFarmLevelEnabled = false
 local FastAttackEnabled = true
-local BringMobEnabled = true
+local BringMobEnabled = false -- Đặt mặc định là false hoặc true tùy cậu chỉnh
 local SelectedWeapon = "Melee"
 
 -- Độ cao đứng farm so với mặt đất/bãi quái
@@ -664,7 +664,6 @@ local function BringMobs(enemySpot, currentData)
             local eRoot = enemy:FindFirstChild("HumanoidRootPart")
 
             if eHum and eRoot then
-                -- Nếu TẮT Bring Mob: Trả lại hoàn toàn trạng thái di chuyển và va chạm để quái đi lại bình thường
                 if not BringMobEnabled then
                     eRoot.CanCollide = true
                     if enemy:FindFirstChild("Head") then
@@ -674,7 +673,6 @@ local function BringMobs(enemySpot, currentData)
                         eHum.WalkSpeed = 16
                     end
                 else
-                    -- Nếu BẬT Bring Mob: Gom quái nhẹ nhàng về bãi
                     if enemySpot and eHum.Health > 0 then
                         local dist = (eRoot.Position - enemySpot.Position).Magnitude
                         if dist <= 300 and dist > 4 then
@@ -817,12 +815,22 @@ task.spawn(function()
                             local EnemiesFolder = Workspace:FindFirstChild("Enemies")
                             
                             local aliveCount = 0
+                            local targetEnemyRoot = nil
+
                             if EnemiesFolder then
                                 for _, enemy in pairs(EnemiesFolder:GetChildren()) do
                                     if enemy.Name == currentData.EnemyName then
                                         local eHum = enemy:FindFirstChildOfClass("Humanoid")
-                                        if eHum and eHum.Health > 0 then
+                                        local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+                                        if eHum and eHum.Health > 0 and eRoot then
                                             aliveCount = aliveCount + 1
+                                            if not targetEnemyRoot then
+                                                targetEnemyRoot = eRoot
+                                            else
+                                                if (eRoot.Position - curRoot.Position).Magnitude < (targetEnemyRoot.Position - curRoot.Position).Magnitude then
+                                                    targetEnemyRoot = eRoot
+                                                end
+                                            end
                                         end
                                     end
                                 end
@@ -844,22 +852,39 @@ task.spawn(function()
 
                                     AutoEquipWeapon()
                                     
-                                    if enemySpot then
-                                        activeRoot.CFrame = enemySpot * CFrame.new(0, FarmHeight, 0)
+                                    if BringMobEnabled then
+                                        if enemySpot then
+                                            activeRoot.CFrame = enemySpot * CFrame.new(0, FarmHeight, 0)
+                                        end
+                                        BringMobs(enemySpot, currentData)
+                                    else
+                                        if targetEnemyRoot and targetEnemyRoot.Parent then
+                                            activeRoot.CFrame = targetEnemyRoot.CFrame * CFrame.new(0, 5, 3)
+                                        elseif enemySpot then
+                                            activeRoot.CFrame = enemySpot * CFrame.new(0, FarmHeight, 0)
+                                        end
                                     end
 
-                                    BringMobs(enemySpot, currentData)
                                     DoFastAttack(Net)
 
                                     task.wait(0.05)
 
                                     aliveCount = 0
+                                    targetEnemyRoot = nil
                                     if EnemiesFolder then
                                         for _, enemy in pairs(EnemiesFolder:GetChildren()) do
                                             if enemy.Name == currentData.EnemyName then
                                                 local eHum = enemy:FindFirstChildOfClass("Humanoid")
-                                                if eHum and eHum.Health > 0 then
+                                                local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+                                                if eHum and eHum.Health > 0 and eRoot then
                                                     aliveCount = aliveCount + 1
+                                                    if not targetEnemyRoot then
+                                                        targetEnemyRoot = eRoot
+                                                    else
+                                                        if (eRoot.Position - activeRoot.Position).Magnitude < (targetEnemyRoot.Position - activeRoot.Position).Magnitude then
+                                                            targetEnemyRoot = eRoot
+                                                        end
+                                                    end
                                                 end
                                             end
                                         end
@@ -878,7 +903,7 @@ task.spawn(function()
         end
     end
 end)
-
+         
 -- SEA 1 TELEPORT LOCATIONS
 local IslandTeleports = {
     ["Pirate Starter"]  = Vector3.new(1059.37, 40, 1549.2),
