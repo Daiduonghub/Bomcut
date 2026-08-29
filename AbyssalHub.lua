@@ -852,7 +852,6 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
 
         task.wait(0.01)
     end
-end
                             else
                                 if enemySpot then
                                     curRoot.CFrame = enemySpot * CFrame.new(0, 18, 0)
