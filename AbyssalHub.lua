@@ -827,31 +827,28 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                             end
 
                             if targetEnemy then
-    local eHum = targetEnemy:FindFirstChildOfClass("Humanoid")
-    local eRoot = targetEnemy:FindFirstChild("HumanoidRootPart")
-    local farmTime = tick()
+                                local eHum = targetEnemy:FindFirstChildOfClass("Humanoid")
+                                local eRoot = targetEnemy:FindFirstChild("HumanoidRootPart")
+                                local farmTime = tick()
 
-    while targetEnemy and eHum and eHum.Health > 0 and AutoFarmLevelEnabled and hasActiveQuest() do
-        if tick() - farmTime > 12 then break end
+                                while targetEnemy and eHum and eHum.Health > 0 and AutoFarmLevelEnabled and hasActiveQuest() do
+                                    if tick() - farmTime > 12 then break end
 
-        local activeChar = LocalPlayer.Character
-        local activeRoot = activeChar and activeChar:FindFirstChild("HumanoidRootPart")
-        local activeHum = activeChar and activeChar:FindFirstChildOfClass("Humanoid")
+                                    -- Cập nhật RootPart mới liên tục khi đánh
+                                    local activeChar = LocalPlayer.Character
+                                    local activeRoot = activeChar and activeChar:FindFirstChild("HumanoidRootPart")
+                                    local activeHum = activeChar and activeChar:FindFirstChildOfClass("Humanoid")
 
-        if not activeChar or not activeRoot or not activeHum or activeHum.Health <= 0 then
-            break
-        end
+                                    if not activeChar or not activeRoot or not activeHum or activeHum.Health <= 0 then
+                                        break
+                                    end
 
-        AutoEquipWeapon()
+                                    AutoEquipWeapon()
+                                    activeRoot.CFrame = CFrame.lookAt(eRoot.Position + Vector3.new(0, 18, 0), eRoot.Position)
+                                    DoFastAttack(targetEnemy, Net)
 
-        -- Đứng trên đầu quái khoảng 10-12 studs để đòn đánh không bị hụt
-        activeRoot.CFrame = CFrame.lookAt(eRoot.Position + Vector3.new(0, 11, 0), eRoot.Position)
-        
-        -- Gọi Fast Attack cực nhạy
-        DoFastAttack(targetEnemy, Net)
-
-        task.wait(0.01)
-    end
+                                    task.wait(0.01)
+                                end
                             else
                                 if enemySpot then
                                     curRoot.CFrame = enemySpot * CFrame.new(0, 18, 0)
