@@ -649,8 +649,13 @@ local function AutoEquipWeapon()
     end
 end
 
+local lastAttackTime = 0
+local attackCooldown = 0.12 -- Giới hạn nhịp đánh tối ưu, không spam quá đà
+
 local function DoFastAttack(targetEnemy, Net)
     if not FastAttackEnabled then return end
+    if tick() - lastAttackTime < attackCooldown then return end
+    lastAttackTime = tick()
 
     local char = LocalPlayer.Character
     if not char then return end
@@ -660,15 +665,15 @@ local function DoFastAttack(targetEnemy, Net)
 
     local hitTargets = {}
     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
-    
-    if EnemiesFolder then
+    local myRoot = char:FindFirstChild("HumanoidRootPart")
+
+    if EnemiesFolder and myRoot then
         for _, enemy in pairs(EnemiesFolder:GetChildren()) do
             local eHum = enemy:FindFirstChildOfClass("Humanoid")
             local eRoot = enemy:FindFirstChild("HumanoidRootPart")
-            local myRoot = char:FindFirstChild("HumanoidRootPart")
-
-            if eHum and eHum.Health > 0 and eRoot and myRoot then
-                if (eRoot.Position - myRoot.Position).Magnitude <= 60 then
+            if eHum and eHum.Health > 0 and eRoot then
+                -- Khoảng cách đánh hợp lý (dưới 35m)
+                if (eRoot.Position - myRoot.Position).Magnitude <= 35 then
                     local hitPart = enemy:FindFirstChild("UpperTorso") or enemy:FindFirstChild("Head") or eRoot
                     table.insert(hitTargets, {enemy, hitPart})
                 end
@@ -676,24 +681,14 @@ local function DoFastAttack(targetEnemy, Net)
         end
     end
 
-    if #hitTargets == 0 and targetEnemy then
-        local eRoot = targetEnemy:FindFirstChild("HumanoidRootPart")
-        if eRoot then
-            local hitPart = targetEnemy:FindFirstChild("UpperTorso") or eRoot
-            table.insert(hitTargets, {targetEnemy, hitPart})
-        end
-    end
-
-    for i = 1, FastAttackSpeed do
-        pcall(function()
-            if RegAttack then RegAttack:FireServer(0, 1) end
-            if RegHit then
-                for _, data in ipairs(hitTargets) do
-                    RegHit:FireServer(data[2], {}, nil, "157beb64")
-                end
+    pcall(function()
+        if RegAttack then RegAttack:FireServer(0, 1) end
+        if RegHit and #hitTargets > 0 then
+            for _, data in ipairs(hitTargets) do
+                RegHit:FireServer(data[2], {}, nil, "157beb64")
             end
-        end)
-    end
+        end
+    end)
 end
 
 -- ====================================================================
