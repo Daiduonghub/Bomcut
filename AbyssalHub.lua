@@ -655,35 +655,34 @@ local function AutoEquipWeapon()
 end
 
 local function BringMobs(enemySpot, currentData)
-    if not BringMobEnabled or not enemySpot then return end
-
     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
-    if EnemiesFolder then
-        for _, enemy in pairs(EnemiesFolder:GetChildren()) do
-            if enemy.Name == currentData.EnemyName then
-                local eHum = enemy:FindFirstChildOfClass("Humanoid")
-                local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+    if not EnemiesFolder or not enemySpot then return end
 
-                if eHum and eHum.Health > 0 and eRoot then
+    for _, enemy in pairs(EnemiesFolder:GetChildren()) do
+        if enemy.Name == currentData.EnemyName then
+            local eHum = enemy:FindFirstChildOfClass("Humanoid")
+            local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+
+            if eHum and eHum.Health > 0 and eRoot then
+                -- Nếu TẮT Bring Mob: Trả lại trạng thái bình thường cho quái để đánh từng con
+                if not BringMobEnabled then
+                    eRoot.CanCollide = true
+                    if enemy:FindFirstChild("Head") then
+                        enemy.Head.CanCollide = true
+                    end
+                    eHum.WalkSpeed = 16 -- Trả lại tốc độ mặc định của quái
+                else
+                    -- Nếu BẬT Bring Mob: Gom quái lại gần vị trí đứng đánh mà không khóa cứng ngắc gây lỗi damge
                     local dist = (eRoot.Position - enemySpot.Position).Magnitude
-                    if dist <= 350 and dist > 5 then
+                    if dist <= 300 and dist > 4 then
                         eRoot.CanCollide = false
                         if enemy:FindFirstChild("Head") then
                             enemy.Head.CanCollide = false
                         end
 
-                        -- Kéo quái về bãi gọn gàng và giữ tốc độ bằng 0 để không bị giật, tránh lỗi damage
+                        -- Kéo nhẹ quái về bãi mà không ép NetworkOwner hay đổi trạng thái Physics nặng nề
                         eRoot.CFrame = enemySpot
                         eRoot.AssemblyLinearVelocity = Vector3.zero
-                        eRoot.AssemblyAngularVelocity = Vector3.zero
-                        eHum.WalkSpeed = 0
-                        
-                        pcall(function()
-                            if not enemy:GetAttribute("NetClaimed") then
-                                eRoot:SetNetworkOwner(LocalPlayer)
-                                enemy:SetAttribute("NetClaimed", true)
-                            end
-                        end)
                     end
                 end
             end
