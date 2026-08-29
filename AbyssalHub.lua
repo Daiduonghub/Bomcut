@@ -655,6 +655,8 @@ local function AutoEquipWeapon()
 end
 
 local function BringMobs(enemySpot, currentData)
+    if not BringMobEnabled or not enemySpot then return end
+
     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
     if not EnemiesFolder then return end
 
@@ -665,38 +667,16 @@ local function BringMobs(enemySpot, currentData)
             local eHum = enemy:FindFirstChildOfClass("Humanoid")
             local eRoot = enemy:FindFirstChild("HumanoidRootPart")
 
-            if eHum and eRoot then
-                if not BringMobEnabled then
-                    -- Khi tắt: Trả lại hoàn toàn trạng thái bình thường cho quái
-                    eRoot.CanCollide = true
-                    if enemy:FindFirstChild("Head") then
-                        enemy.Head.CanCollide = true
-                    end
-                    if eHum.Health > 0 then
-                        eHum.WalkSpeed = 16
-                    end
-                else
-                    -- Khi bật: Gom nhẹ tối đa 2 con ở gần bãi, tuyệt đối không spam liên tục gây đơ quái
-                    if enemySpot and eHum.Health > 0 then
-                        local dist = (eRoot.Position - enemySpot.Position).Magnitude
-                        -- Nếu quái ở trong phạm vi vừa phải và chưa bị gom quá tải
-                        if dist <= 250 and dist > 8 and broughtCount < 2 then
-                            eRoot.CanCollide = false
-                            if enemy:FindFirstChild("Head") then
-                                enemy.Head.CanCollide = false
-                            end
+            if eHum and eHum.Health > 0 and eRoot then
+                local dist = (eRoot.Position - enemySpot.Position).Magnitude
 
-                            -- Teleport về bãi đúng 1 nhịp và reset sạch vận tốc để chống lỗi văng game
-                            eRoot.CFrame = enemySpot
-                            eRoot.AssemblyLinearVelocity = Vector3.zero
-                            eRoot.AssemblyAngularVelocity = Vector3.zero
-
-                            broughtCount = broughtCount + 1
-                        else
-                            -- Các con còn lại giữ nguyên va chạm để server không khóa AI
-                            eRoot.CanCollide = true
-                        end
-                    end
+                -- Chỉ gom khi quái còn ở xa (> 12) và tối đa 2 con/lần
+                if dist > 12 and dist <= 250 and broughtCount < 2 then
+                    pcall(function()
+                        enemy:PivotTo(enemySpot)
+                        eRoot.AssemblyLinearVelocity = Vector3.zero
+                    end)
+                    broughtCount = broughtCount + 1
                 end
             end
         end
