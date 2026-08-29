@@ -484,13 +484,18 @@ end
 -- SYSTEM VARS & LOGIC FARM
 -- ====================================================================
 
+if not game:IsLoaded() then game.Loaded:Wait() end
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 
 local LocalPlayer = Players.LocalPlayer
 
+-- Biến trạng thái
+local AutoFarmLevelEnabled = false
 local FastAttackEnabled = true
 local FastAttackSpeed = 8
 local SelectedWeapon = "Melee"
@@ -540,6 +545,7 @@ local EnemyPositions = {
     ["Galley Captain"]        = CFrame.new(5641.8, 50, 4920.4)
 }
 
+-- DATABASE CHUẨN LIÊN TỤC 1-700
 local QuestDatabase = {
     { MinLevel = 1,   MaxLevel = 9,   QuestName = "BanditQuest1",   QuestNumber = 1, EnemyName = "Bandit",               Island = "Pirate Starter" },
     { MinLevel = 10,  MaxLevel = 14,  QuestName = "JungleQuest",    QuestNumber = 1, EnemyName = "Monkey",               Island = "Jungle" },
@@ -569,29 +575,16 @@ local QuestDatabase = {
     { MinLevel = 650, MaxLevel = 700, QuestName = "FountainQuest",  QuestNumber = 2, EnemyName = "Galley Captain",       Island = "Fountain City" }
 }
 
-local AutoFarmLevelEnabled = false
-local noclipConnection = nil
-
-local function enableNoclip()
-    if not noclipConnection then
-        noclipConnection = RunService.Stepped:Connect(function()
-            if AutoFarmLevelEnabled and LocalPlayer.Character then
-                for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
-                    if part:IsA("BasePart") then
-                        part.CanCollide = false
-                    end
-                end
+-- Noclip xuyên tường khi farm
+RunService.Stepped:Connect(function()
+    if AutoFarmLevelEnabled and LocalPlayer.Character then
+        for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
             end
-        end)
+        end
     end
-end
-
-local function disableNoclip()
-    if noclipConnection then
-        noclipConnection:Disconnect()
-        noclipConnection = nil
-    end
-end
+end)
 
 local function smoothMoveTo(targetCFrame)
     local char = LocalPlayer.Character
@@ -607,7 +600,6 @@ local function smoothMoveTo(targetCFrame)
     local speed = 300
     local duration = distance / speed
     local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
-    
     local tween = TweenService:Create(root, tweenInfo, {CFrame = targetCFrame})
     
     local bv = Instance.new("BodyVelocity")
@@ -617,7 +609,6 @@ local function smoothMoveTo(targetCFrame)
 
     tween:Play()
     tween.Completed:Wait()
-
     bv:Destroy()
 end
 
@@ -653,45 +644,56 @@ local function AutoEquipWeapon()
 end
 
 local function DoFastAttack(targetEnemy, Net)
-    if not targetEnemy then return end
+    if not FastAttackEnabled then return end
+
+    local char = LocalPlayer.Character
+    if not char then return end
 
     local RegAttack = Net and Net:FindFirstChild("RE/RegisterAttack")
     local RegHit = Net and (Net:FindFirstChild("RegisterHit") or Net:FindFirstChild("RE/RegisterHit"))
-    local eRoot = targetEnemy:FindFirstChild("HumanoidRootPart")
-    if not eRoot then return end
 
-    local loopHits = FastAttackEnabled and FastAttackSpeed or 1
-    for i = 1, loopHits do
+    local hitTargets = {}
+    local EnemiesFolder = Workspace:FindFirstChild("Enemies")
+    
+    if EnemiesFolder then
+        for _, enemy in pairs(EnemiesFolder:GetChildren()) do
+            local eHum = enemy:FindFirstChildOfClass("Humanoid")
+            local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+            local myRoot = char:FindFirstChild("HumanoidRootPart")
+
+            if eHum and eHum.Health > 0 and eRoot and myRoot then
+                if (eRoot.Position - myRoot.Position).Magnitude <= 60 then
+                    local hitPart = enemy:FindFirstChild("UpperTorso") or enemy:FindFirstChild("Head") or eRoot
+                    table.insert(hitTargets, {enemy, hitPart})
+                end
+            end
+        end
+    end
+
+    if #hitTargets == 0 and targetEnemy then
+        local eRoot = targetEnemy:FindFirstChild("HumanoidRootPart")
+        if eRoot then
+            local hitPart = targetEnemy:FindFirstChild("UpperTorso") or eRoot
+            table.insert(hitTargets, {targetEnemy, hitPart})
+        end
+    end
+
+    for i = 1, FastAttackSpeed do
         pcall(function()
-            if RegAttack then RegAttack:FireServer(0.5, 1) end
-            if RegHit then 
-                local hitPart = targetEnemy:FindFirstChild("UpperTorso") or eRoot
-                RegHit:FireServer(hitPart, {}, nil, "157beb64")
+            if RegAttack then RegAttack:FireServer(0, 1) end
+            if RegHit then
+                for _, data in ipairs(hitTargets) do
+                    RegHit:FireServer(data[2], {}, nil, "157beb64")
+                end
             end
         end)
     end
 end
 
 -- ====================================================================
--- KHỞI TẠO GIAO DIỆN (UI INIT)
+-- LOGIC WORKER (CHẠY NGẦM)
 -- ====================================================================
-
-local Window = Library:CreateWindow("ABYSSAL HUB")
-
--- 1. TAB MAIN
-local MainTab = Window:CreateTab("Main")
-
-MainTab:CreateToggle("Auto Farm Level", false, function(state)
-    AutoFarmLevelEnabled = state
-
-    if not AutoFarmLevelEnabled then
-        disableNoclip()
-        return
-    end
-
-    enableNoclip()
-
-    task.spawn(function()
+task.spawn(function()
     local CommF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
     local Net = ReplicatedStorage:FindFirstChild("Modules") and ReplicatedStorage.Modules:FindFirstChild("Net")
 
@@ -716,12 +718,10 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
         return false
     end
 
-    -- Dùng vòng lặp luôn đúng để script không bị dừng hẳn khi chết
     while true do
         task.wait(0.1)
 
         if AutoFarmLevelEnabled then
-            -- Cập nhật nhân vật mới mỗi vòng lặp
             local Character = LocalPlayer.Character
             local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
             local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
@@ -762,7 +762,6 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                         while hasActiveQuest() and AutoFarmLevelEnabled do
                             task.wait(0.05)
 
-                            -- Kiểm tra lại nếu chết trong lúc farm thì thoát vòng lặp phụ để respawn
                             local curChar = LocalPlayer.Character
                             local curRoot = curChar and curChar:FindFirstChild("HumanoidRootPart")
                             local curHum = curChar and curChar:FindFirstChildOfClass("Humanoid")
@@ -794,7 +793,6 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                                 while targetEnemy and eHum and eHum.Health > 0 and AutoFarmLevelEnabled and hasActiveQuest() do
                                     if tick() - farmTime > 12 then break end
 
-                                    -- Cập nhật RootPart mới liên tục khi đánh
                                     local activeChar = LocalPlayer.Character
                                     local activeRoot = activeChar and activeChar:FindFirstChild("HumanoidRootPart")
                                     local activeHum = activeChar and activeChar:FindFirstChildOfClass("Humanoid")
@@ -804,7 +802,7 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                                     end
 
                                     AutoEquipWeapon()
-                                    activeRoot.CFrame = CFrame.lookAt(eRoot.Position + Vector3.new(0, 18, 0), eRoot.Position)
+                                    activeRoot.CFrame = CFrame.lookAt(eRoot.Position + Vector3.new(0, 11, 0), eRoot.Position)
                                     DoFastAttack(targetEnemy, Net)
 
                                     task.wait(0.01)
@@ -823,7 +821,16 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
     end
 end)
 
--- 2. TAB PLAYER
+-- ====================================================================
+-- GIAO DIỆN UI
+-- ====================================================================
+local Window = Library:CreateWindow("ABYSSAL HUB")
+local MainTab = Window:CreateTab("Main")
+
+MainTab:CreateToggle("Auto Farm Level", false, function(state)
+    AutoFarmLevelEnabled = state
+end)
+
 local PlayerTab = Window:CreateTab("Player")
 
 PlayerTab:CreateSlider("WalkSpeed", 16, 200, 16, function(value)
@@ -836,7 +843,6 @@ PlayerTab:CreateBox("Teleport Player", "Tên Player...", function(text)
     print("Đang Teleport đến:", text)
 end)
 
--- 3. TAB SETTINGS
 local SettingTab = Window:CreateTab("Settings")
 
 SettingTab:CreateToggle("Fast Attack", true, function(state)
@@ -849,9 +855,9 @@ end)
 
 SettingTab:CreateDropdown("Fast Attack Speed", {"Slow", "Medium", "Fast"}, "Fast", function(selectedSpeed)
     if selectedSpeed == "Slow" then
-        FastAttackSpeed = 2
+        FastAttackSpeed = 3
     elseif selectedSpeed == "Medium" then
-        FastAttackSpeed = 5
+        FastAttackSpeed = 6
     elseif selectedSpeed == "Fast" then
         FastAttackSpeed = 10
     end
