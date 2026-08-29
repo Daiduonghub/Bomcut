@@ -656,33 +656,36 @@ end
 
 local function BringMobs(enemySpot, currentData)
     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
-    if not EnemiesFolder or not enemySpot then return end
+    if not EnemiesFolder then return end
 
     for _, enemy in pairs(EnemiesFolder:GetChildren()) do
         if enemy.Name == currentData.EnemyName then
             local eHum = enemy:FindFirstChildOfClass("Humanoid")
             local eRoot = enemy:FindFirstChild("HumanoidRootPart")
 
-            if eHum and eHum.Health > 0 and eRoot then
-                -- Nếu TẮT Bring Mob: Trả lại trạng thái bình thường cho quái để đánh từng con
+            if eHum and eRoot then
+                -- Nếu TẮT Bring Mob: Trả lại hoàn toàn trạng thái di chuyển và va chạm để quái đi lại bình thường
                 if not BringMobEnabled then
                     eRoot.CanCollide = true
                     if enemy:FindFirstChild("Head") then
                         enemy.Head.CanCollide = true
                     end
-                    eHum.WalkSpeed = 16 -- Trả lại tốc độ mặc định của quái
+                    if eHum.Health > 0 then
+                        eHum.WalkSpeed = 16
+                    end
                 else
-                    -- Nếu BẬT Bring Mob: Gom quái lại gần vị trí đứng đánh mà không khóa cứng ngắc gây lỗi damge
-                    local dist = (eRoot.Position - enemySpot.Position).Magnitude
-                    if dist <= 300 and dist > 4 then
-                        eRoot.CanCollide = false
-                        if enemy:FindFirstChild("Head") then
-                            enemy.Head.CanCollide = false
-                        end
+                    -- Nếu BẬT Bring Mob: Gom quái nhẹ nhàng về bãi
+                    if enemySpot and eHum.Health > 0 then
+                        local dist = (eRoot.Position - enemySpot.Position).Magnitude
+                        if dist <= 300 and dist > 4 then
+                            eRoot.CanCollide = false
+                            if enemy:FindFirstChild("Head") then
+                                enemy.Head.CanCollide = false
+                            end
 
-                        -- Kéo nhẹ quái về bãi mà không ép NetworkOwner hay đổi trạng thái Physics nặng nề
-                        eRoot.CFrame = enemySpot
-                        eRoot.AssemblyLinearVelocity = Vector3.zero
+                            eRoot.CFrame = enemySpot
+                            eRoot.AssemblyLinearVelocity = Vector3.zero
+                        end
                     end
                 end
             end
