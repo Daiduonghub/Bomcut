@@ -508,7 +508,7 @@ local BringMobEnabled = false -- Đặt mặc định là false hoặc true tùy
 local SelectedWeapon = "Melee"
 
 -- Độ cao đứng farm so với mặt đất/bãi quái
-local FarmHeight = 25
+local FarmHeight = 40
 
 local NpcPositions = {
     ["Pirate Starter"]  = CFrame.new(1059.37, 16.45, 1549.2),
