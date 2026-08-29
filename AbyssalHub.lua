@@ -488,7 +488,6 @@ local Window = Library:CreateWindow("ABYSSAL HUB")
 
 local MainTab = Window:CreateTab("Main")
 local PlayerTab = Window:CreateTab("Player")
-local SettingTab = Window:CreateTab("Settings")
 
 -- ====================================================================
 -- AUTO FARM LEVEL FULL SEA 1 (FIX LAG GIẬT + FIX KẸT QUÁI)
