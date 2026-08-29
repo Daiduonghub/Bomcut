@@ -10,25 +10,50 @@ function Library:CreateWindow(hubName)
     ScreenGui.ResetOnSpawn = false
 
     -- Nút Toggle UI (Góc trái)
-    local ToggleUIButton = Instance.new("TextButton")
-    ToggleUIButton.Name = "ToggleUIButton"
-    ToggleUIButton.Parent = ScreenGui
-    ToggleUIButton.Position = UDim2.new(0.02, 0, 0.2, 0)
-    ToggleUIButton.Size = UDim2.new(0, 42, 0, 42)
-    ToggleUIButton.BackgroundColor3 = Color3.fromRGB(15, 20, 28)
-    ToggleUIButton.Text = "AH"
-    ToggleUIButton.TextColor3 = Color3.fromRGB(0, 210, 255)
-    ToggleUIButton.TextSize = 15
-    ToggleUIButton.Font = Enum.Font.GothamBold
+local CoreGui = game:GetService("CoreGui")
+local UserInputService = game:GetService("UserInputService")
 
-    local ToggleUICorner = Instance.new("UICorner")
-    ToggleUICorner.CornerRadius = UDim.new(0, 8)
-    ToggleUICorner.Parent = ToggleUIButton
+-- Tạo ScreenGui chứa nút Bật/Tắt
+local ToggleGui = Instance.new("ScreenGui")
+ToggleGui.Name = "AbyssalHub_ToggleGui"
+ToggleGui.Parent = CoreGui
+ToggleGui.ResetOnSpawn = false
 
-    local ToggleUIStroke = Instance.new("UIStroke")
-    ToggleUIStroke.Color = Color3.fromRGB(0, 210, 255)
-    ToggleUIStroke.Thickness = 1.5
-    ToggleUIStroke.Parent = ToggleUIButton
+-- Tạo ImageButton (Nút tròn chứa hình ảnh)
+local ToggleButton = Instance.new("ImageButton")
+ToggleButton.Name = "ToggleButton"
+ToggleButton.Parent = ToggleGui
+ToggleButton.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+ToggleButton.Position = UDim2.new(0.05, 0, 0.15, 0) -- Vị trí ban đầu
+ToggleButton.Size = UDim2.new(0, 50, 0, 50) -- Kích thước nút (50x50px)
+ToggleButton.Image = "rbxassetid://122987919647953" -- ID hình ảnh (có thể thay ID khác)
+ToggleButton.Active = true
+ToggleButton.Draggable = true -- Cho phép kéo thả vị trí trên màn hình
+
+-- Bo tròn góc nút
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 12)
+UICorner.Parent = ToggleButton
+
+-- Viền ngoài cho nút
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Color = Color3.fromRGB(0, 170, 255)
+UIStroke.Thickness = 2
+UIStroke.Parent = ToggleButton
+
+-- Logic Xử lý Bật/Tắt Menu khi bấm nút
+local uiVisible = true
+
+ToggleButton.MouseButton1Click:Connect(function()
+    uiVisible = not uiVisible
+    
+    -- Tìm ScreenGui của Library UI để ẩn/hiện
+    for _, gui in pairs(CoreGui:GetChildren()) do
+        if gui:IsA("ScreenGui") and gui.Name ~= "AbyssalHub_ToggleGui" then
+            gui.Enabled = uiVisible
+        end
+    end
+end)
 
     -- Khung chính UI
     local MainFrame = Instance.new("Frame")
