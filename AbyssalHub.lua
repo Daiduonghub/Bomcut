@@ -454,7 +454,7 @@ local MainTab = Window:CreateTab("Main")
 local PlayerTab = Window:CreateTab("Player")
 
 -- ====================================================================
--- AUTO FARM LEVEL FULL SEA 1 (1 - 700 LEVEL - BỎ BOSS)
+-- AUTO FARM LEVEL FULL SEA 1 (FIX CHẾT TỰ FARM + BỎ BOSS + ĐỨNG THẲNG)
 -- ====================================================================
 
 local TweenService = game:GetService("TweenService")
@@ -465,7 +465,6 @@ local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
 
--- Vị trí NPC nhận Quest tất cả các đảo Sea 1
 local NpcPositions = {
     ["Pirate Starter"]  = CFrame.new(1059.37, 20, 1549.2),
     ["Jungle"]          = CFrame.new(-1598.08, 40, 153.38),
@@ -482,7 +481,6 @@ local NpcPositions = {
     ["Fountain City"]   = CFrame.new(5259.82, 42, 4050.0)
 }
 
--- Vị trí bãi quái thường các đảo
 local EnemyPositions = {
     ["Bandit"]                = CFrame.new(1038.5, 30, 1542.8),
     ["Monkey"]                = CFrame.new(-1610.6, 35, 142.3),
@@ -512,12 +510,15 @@ local EnemyPositions = {
     ["Galley Captain"]        = CFrame.new(5641.8, 50, 4920.4)
 }
 
--- Danh sách Quest CHỈ LẤY QUÁI THƯỜNG (Đã lọc bỏ toàn bộ Boss)
+-- ====================================================================
+-- BẢNG QUEST MỚI: LEVEL 20 TỰ CHUYỂN SANG ĐẢO CƯỚP BIỂN (PIRATE VILLAGE)
+-- ====================================================================
+
 local QuestDatabase = {
     { MinLevel = 1,   MaxLevel = 9,   QuestName = "BanditQuest1",   QuestNumber = 1, EnemyName = "Bandit",               Island = "Pirate Starter" },
     { MinLevel = 10,  MaxLevel = 14,  QuestName = "JungleQuest",    QuestNumber = 1, EnemyName = "Monkey",               Island = "Jungle" },
-    { MinLevel = 15,  MaxLevel = 29,  QuestName = "JungleQuest",    QuestNumber = 2, EnemyName = "Gorilla",              Island = "Jungle" },
-    { MinLevel = 30,  MaxLevel = 39,  QuestName = "BuggyQuest1",    QuestNumber = 1, EnemyName = "Pirate",               Island = "Pirate Village" },
+    { MinLevel = 15,  MaxLevel = 19,  QuestName = "JungleQuest",    QuestNumber = 2, EnemyName = "Gorilla",              Island = "Jungle" },
+    { MinLevel = 20,  MaxLevel = 39,  QuestName = "BuggyQuest1",    QuestNumber = 1, EnemyName = "Pirate",               Island = "Pirate Village" },
     { MinLevel = 40,  MaxLevel = 59,  QuestName = "BuggyQuest1",    QuestNumber = 2, EnemyName = "Brute",                Island = "Pirate Village" },
     { MinLevel = 60,  MaxLevel = 74,  QuestName = "DesertQuest",    QuestNumber = 1, EnemyName = "Desert Bandit",        Island = "Desert" },
     { MinLevel = 75,  MaxLevel = 89,  QuestName = "DesertQuest",    QuestNumber = 2, EnemyName = "Desert Officer",       Island = "Desert" },
@@ -632,9 +633,20 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
         while AutoFarmLevelEnabled do
             task.wait(0.1)
 
+            -- XỬ LÝ KHI NHÂN VẬT CHẾT: Tự động chờ hồi sinh đầy đủ máu rồi chạy tiếp
             local Character = LocalPlayer.Character
             local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
             local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
+
+            if not Character or not RootPart or not Humanoid or Humanoid.Health <= 0 then
+                repeat 
+                    task.wait(0.5)
+                    Character = LocalPlayer.Character
+                    RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
+                    Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
+                until AutoFarmLevelEnabled and Character and RootPart and Humanoid and Humanoid.Health > 0
+                task.wait(1) -- Chờ load nhân vật 1s sau khi hồi sinh
+            end
 
             if Character and RootPart and Humanoid and Humanoid.Health > 0 then
                 local currentLevel = getPlayerLevel()
@@ -648,7 +660,7 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                 end
 
                 if currentData then
-                    -- 1. BÂY GIỜ SẼ TỰ BAY ĐẾN ĐẢO MỚI NẾU LÊN LEVEL MỚI
+                    -- 1. CHƯA CÓ QUEST THÌ BAY ĐẾN NHẬN
                     if not hasActiveQuest() then
                         local npcPos = NpcPositions[currentData.Island]
                         if npcPos then
@@ -664,16 +676,22 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                         task.wait(0.8)
                     end
 
-                    -- 2. ĐÁNH QUÁI THƯỜNG CHO ĐẾN KHU XONG QUEST
+                    -- 2. ĐÁNH QUÁI CHO ĐẾN KHU XONG QUEST
                     while hasActiveQuest() and AutoFarmLevelEnabled do
                         task.wait(0.1)
+
+                        -- Kiểm tra lại nhân vật sống/chết trong khi farm
+                        local curChar = LocalPlayer.Character
+                        local curHum = curChar and curChar:FindFirstChildOfClass("Humanoid")
+                        if not curHum or curHum.Health <= 0 then break end
 
                         local EnemiesFolder = Workspace:FindFirstChild("Enemies")
                         local targetEnemy = nil
 
                         if EnemiesFolder then
                             for _, enemy in pairs(EnemiesFolder:GetChildren()) do
-                                if string.find(enemy.Name, currentData.EnemyName) then
+                                -- SỬA LỖI ĐÁNH BOSS: So sánh bằng chính xác tên 100% (Loại bỏ Boss Gorilla King, Bobby,...)
+                                if enemy.Name == currentData.EnemyName then
                                     local eHum = enemy:FindFirstChildOfClass("Humanoid")
                                     local eRoot = enemy:FindFirstChild("HumanoidRootPart")
                                     if eHum and eHum.Health > 0 and eRoot then
@@ -689,7 +707,11 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                             local eRoot = targetEnemy:FindFirstChild("HumanoidRootPart")
 
                             while targetEnemy and eHum and eHum.Health > 0 and AutoFarmLevelEnabled and hasActiveQuest() do
-                                RootPart.CFrame = eRoot.CFrame * CFrame.new(0, 14, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+                                local playerHum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+                                if not playerHum or playerHum.Health <= 0 then break end
+
+                                -- ĐỨNG THẲNG ĐỨNG HOÀN TOÀN + CAO 18 STUDS (KHÔNG BỊ XOAY/GIẬT THEO QUÁI)
+                                RootPart.CFrame = CFrame.new(eRoot.Position + Vector3.new(0, 18, 0))
 
                                 if Net then
                                     pcall(function()
@@ -709,7 +731,7 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                         else
                             local enemySpot = EnemyPositions[currentData.EnemyName]
                             if enemySpot then
-                                smoothMoveTo(enemySpot * CFrame.new(0, 15, 0))
+                                smoothMoveTo(enemySpot * CFrame.new(0, 18, 0))
                             end
                             task.wait(0.5)
                         end
