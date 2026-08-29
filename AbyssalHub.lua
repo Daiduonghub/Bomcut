@@ -650,8 +650,51 @@ local function AutoEquipWeapon()
     end
 end
 
+-- 1. HÀM GOM QUÁI CHUẨN (BRING MOBS)
+local function BringMobs(targetEnemy, currentData)
+    if not BringMobEnabled or not targetEnemy then return end
+
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    -- Vị trí kéo quái về (ngay dưới chân nhân vật)
+    local bringPos = root.CFrame * CFrame.new(0, -3, 0)
+
+    local EnemiesFolder = Workspace:FindFirstChild("Enemies")
+    if EnemiesFolder then
+        for _, enemy in pairs(EnemiesFolder:GetChildren()) do
+            if enemy.Name == currentData.EnemyName then
+                local eHum = enemy:FindFirstChildOfClass("Humanoid")
+                local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+
+                if eHum and eHum.Health > 0 and eRoot then
+                    if (eRoot.Position - root.Position).Magnitude <= 200 then
+                        -- Tắt va chạm để quái không đẩy nhau
+                        eRoot.CanCollide = false
+                        if enemy:FindFirstChild("Head") then
+                            enemy.Head.CanCollide = false
+                        end
+
+                        -- Ép vị trí, mở rộng Hitbox và khóa di chuyển
+                        eRoot.CFrame = bringPos
+                        eRoot.Size = Vector3.new(20, 20, 20)
+                        eHum.WalkSpeed = 0
+                        
+                        -- Giữ NetworkOwnership để client điều khiển được CFrame của quái
+                        pcall(function()
+                            eRoot:SetNetworkOwner(LocalPlayer)
+                        end)
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- 2. HÀM ĐÁNH TỐI ƯU COOLDOWN (FAST ATTACK)
 local lastAttackTime = 0
-local attackCooldown = 0.12 -- Giới hạn nhịp đánh tối ưu, không spam quá đà
+local attackCooldown = 0.12
 
 local function DoFastAttack(targetEnemy, Net)
     if not FastAttackEnabled then return end
@@ -673,7 +716,6 @@ local function DoFastAttack(targetEnemy, Net)
             local eHum = enemy:FindFirstChildOfClass("Humanoid")
             local eRoot = enemy:FindFirstChild("HumanoidRootPart")
             if eHum and eHum.Health > 0 and eRoot then
-                -- Khoảng cách đánh hợp lý (dưới 35m)
                 if (eRoot.Position - myRoot.Position).Magnitude <= 35 then
                     local hitPart = enemy:FindFirstChild("UpperTorso") or enemy:FindFirstChild("Head") or eRoot
                     table.insert(hitTargets, {enemy, hitPart})
@@ -690,37 +732,6 @@ local function DoFastAttack(targetEnemy, Net)
             end
         end
     end)
-end
-
-local function BringMobs(targetEnemy, currentData)
-    -- Nếu tắt Bring Mob thì dừng không kéo quái
-    if not BringMobEnabled then return end
-
-    local char = LocalPlayer.Character
-    local root = char and char:FindFirstChild("HumanoidRootPart")
-    if not root or not targetEnemy then return end
-
-    local EnemiesFolder = Workspace:FindFirstChild("Enemies")
-    if not EnemiesFolder then return end
-
-    -- Vị trí tập trung quái ngay dưới chân
-    local bringPos = root.CFrame * CFrame.new(0, -4, -2)
-
-    for _, enemy in pairs(EnemiesFolder:GetChildren()) do
-        if enemy.Name == currentData.EnemyName then
-            local eHum = enemy:FindFirstChildOfClass("Humanoid")
-            local eRoot = enemy:FindFirstChild("HumanoidRootPart")
-
-            if eHum and eHum.Health > 0 and eRoot then
-                if (eRoot.Position - root.Position).Magnitude <= 250 then
-                    eRoot.CanCollide = false
-                    eHum:ChangeState(11) -- Stun quái
-                    eRoot.CFrame = bringPos
-                    eRoot.Size = Vector3.new(20, 20, 20) -- Mở rộng Hitbox
-                end
-            end
-        end
-    end
 end
 
 -- ====================================================================
@@ -823,7 +834,7 @@ task.spawn(function()
                                 local eRoot = targetEnemy:FindFirstChild("HumanoidRootPart")
                                 local farmTime = tick()
 
-                                while targetEnemy and eHum and eHum.Health > 0 and AutoFarmLevelEnabled and hasActiveQuest() do
+                                                                while targetEnemy and eHum and eHum.Health > 0 and AutoFarmLevelEnabled and hasActiveQuest() do
                                     if tick() - farmTime > 12 then break end
 
                                     local activeChar = LocalPlayer.Character
@@ -835,10 +846,15 @@ task.spawn(function()
                                     end
 
                                     AutoEquipWeapon()
-                                    activeRoot.CFrame = CFrame.lookAt(eRoot.Position + Vector3.new(0, 11, 0), eRoot.Position)
+                                    
+                                    -- Đứng cao 8m né skill
+                                    activeRoot.CFrame = CFrame.lookAt(eRoot.Position + Vector3.new(0, 8, 0), eRoot.Position)
+                                    
+                                    -- Gom quái & Đánh Fast Attack
+                                    BringMobs(targetEnemy, currentData)
                                     DoFastAttack(targetEnemy, Net)
 
-                                    task.wait(0.01)
+                                    task.wait(0.05)
                                 end
                             else
                                 if enemySpot then
