@@ -985,6 +985,58 @@ local function smoothMoveTo(targetPos)
     end
 end
 
+-- ==========================================
+-- AUTO STATS TỪNG TOGGLE RIÊNG BIỆT
+-- ==========================================
+
+-- Khai báo công tắc riêng cho từng loại Stat
+AutoMeleeEnabled = false
+AutoDefenseEnabled = false
+AutoSwordEnabled = false
+AutoGunEnabled = false
+AutoFruitEnabled = false
+
+StatsAmount = 3 -- Số điểm cộng mỗi lần
+
+task.spawn(function()
+    local CommF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
+    
+    while true do
+        task.wait(1) -- Check mỗi 1 giây cho nhẹ máy
+        
+        if CommF then
+            local data = LocalPlayer:FindFirstChild("Data")
+            local points = data and data:FindFirstChild("Points")
+            
+            -- Nếu có điểm thưởng dư (Points > 0)
+            if points and points.Value > 0 then
+                pcall(function()
+                    -- Kiểm tra xem cậu đang bật toggle nào thì tự động cộng vào đó
+                    if AutoMeleeEnabled then
+                        CommF:InvokeServer("AddPoint", "Melee", StatsAmount)
+                    end
+                    
+                    if AutoDefenseEnabled then
+                        CommF:InvokeServer("AddPoint", "Defense", StatsAmount)
+                    end
+                    
+                    if AutoSwordEnabled then
+                        CommF:InvokeServer("AddPoint", "Sword", StatsAmount)
+                    end
+                    
+                    if AutoGunEnabled then
+                        CommF:InvokeServer("AddPoint", "Gun", StatsAmount)
+                    end
+                    
+                    if AutoFruitEnabled then
+                        CommF:InvokeServer("AddPoint", "Demon Fruit", StatsAmount)
+                    end
+                end)
+            end
+        end
+    end
+end)
+
 -- ====================================================================
 -- GIAO DIỆN UI
 -- ====================================================================
@@ -993,6 +1045,7 @@ local MainTab = Window:CreateTab("Farming Tab")
 local SettingTab = Window:CreateTab("Settings")
 local PlayerTab = Window:CreateTab("Player")
 local TeleportTab = Window:CreateTab("Teleport (Sea1)")
+local AutoTab = Window:CreateTab("Auto stats")
 
 MainTab:CreateToggle("Auto Farm Level", false, function(state)
     AutoFarmLevelEnabled = state
@@ -1059,3 +1112,22 @@ SettingTab:CreateToggle("Bring Mobs(Đang lỗi)", true, function(state)
     BringMobEnabled = state
 end)
 
+AutoTab:CreateToggle("Auto Melee", function(state)
+    AutoMeleeEnabled = state
+end)
+
+AutoTab:CreateToggle("Auto Defense", function(state)
+    AutoDefenseEnabled = state
+end)
+
+AutoTab:CreateToggle("Auto Sword", function(state)
+    AutoSwordEnabled = state
+end)
+
+AutoTab:CreateToggle("Auto Gun", function(state)
+    AutoGunEnabled = state
+end)
+
+AutoTab:CreateToggle("Auto Demon Fruit", function(state)
+    AutoFruitEnabled = state
+end)
