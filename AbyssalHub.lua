@@ -380,6 +380,101 @@ function Library:CreateWindow(hubName)
             end)
         end
 
+function CreateDropdown(tabParent, text, options, defaultOption, callback)
+    local dropdownFrame = Instance.new("Frame")
+    local dropdownTitle = Instance.new("TextLabel")
+    local dropdownBtn = Instance.new("TextButton")
+    local optionsHolder = Instance.new("ScrollingFrame")
+    local UIListLayout = Instance.new("UIListLayout")
+
+    local selected = defaultOption or options[1]
+    local isOpened = false
+
+    -- Cấu hình Frame chính của Dropdown
+    dropdownFrame.Name = text .. "_Dropdown"
+    dropdownFrame.Size = UDim2.new(1, -20, 0, 40)
+    dropdownFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    dropdownFrame.BorderSizePixel = 0
+    dropdownFrame.Parent = tabParent
+
+    -- Tiêu đề Dropdown
+    dropdownTitle.Size = UDim2.new(0.5, 0, 0, 40)
+    dropdownTitle.Position = UDim2.new(0, 10, 0, 0)
+    dropdownTitle.BackgroundTransparency = 1
+    dropdownTitle.Text = text
+    dropdownTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    dropdownTitle.TextXAlignment = Enum.TextXAlignment.Left
+    dropdownTitle.Font = Enum.Font.SourceSansBold
+    dropdownTitle.TextSize = 14
+    dropdownTitle.Parent = dropdownFrame
+
+    -- Nút bấm mở/đóng danh sách
+    dropdownBtn.Size = UDim2.new(0.4, 0, 0, 30)
+    dropdownBtn.Position = UDim2.new(0.58, 0, 0, 5)
+    dropdownBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    dropdownBtn.Text = tostring(selected) .. "  ▼"
+    dropdownBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+    dropdownBtn.Font = Enum.Font.SourceSans
+    dropdownBtn.TextSize = 13
+    dropdownBtn.Parent = dropdownFrame
+
+    -- Khai báo Khung chứa danh sách các Lựa Chọn (Options Holder)
+    optionsHolder.Size = UDim2.new(1, 0, 0, 0)
+    optionsHolder.Position = UDim2.new(0, 0, 1, 5)
+    optionsHolder.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    optionsHolder.Visible = false
+    optionsHolder.CanvasSize = UDim2.new(0, 0, 0, #options * 25)
+    optionsHolder.ScrollBarThickness = 4
+    optionsHolder.ZIndex = 5
+    optionsHolder.Parent = dropdownFrame
+
+    UIListLayout.Parent = optionsHolder
+    UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+    -- Hàm cập nhật/mở/đóng Dropdown
+    local function toggleDropdown()
+        isOpened = not isOpened
+        optionsHolder.Visible = isOpened
+        if isOpened then
+            dropdownBtn.Text = tostring(selected) .. "  ▲"
+            optionsHolder.Size = UDim2.new(1, 0, 0, math.min(#options * 25, 100))
+        else
+            dropdownBtn.Text = tostring(selected) .. "  ▼"
+            optionsHolder.Size = UDim2.new(1, 0, 0, 0)
+        end
+    end
+
+    dropdownBtn.MouseButton1Click:Connect(toggleDropdown)
+
+    -- Tạo từng nút lựa chọn trong danh sách
+    for i, opt in ipairs(options) do
+        local optBtn = Instance.new("TextButton")
+        optBtn.Size = UDim2.new(1, 0, 0, 25)
+        optBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+        optBtn.BackgroundTransparency = 0.5
+        optBtn.Text = tostring(opt)
+        optBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
+        optBtn.Font = Enum.Font.SourceSans
+        optBtn.TextSize = 13
+        optBtn.ZIndex = 6
+        optBtn.Parent = optionsHolder
+
+        optBtn.MouseButton1Click:Connect(function()
+            selected = opt
+            dropdownBtn.Text = tostring(selected) .. "  ▼"
+            toggleDropdown()
+            if callback then
+                pcall(callback, selected)
+            end
+        end)
+    end
+
+    -- Thực thi callback lần đầu với giá trị mặc định
+    if callback then
+        pcall(callback, selected)
+    end
+end
+
         return TabElements
     end
 
@@ -719,14 +814,51 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
     end)
 end)
 
--- ====================================================================
--- HÀM FAST ATTACK & TÍCH HỢP TAB SETTINGS (DÙNG DATABASE SẴN CÓ)
--- ====================================================================
-
 local FastAttackEnabled = true
 local FastAttackSpeed = 8
+local SelectedWeapon = "Melee"
 
--- HÀM FAST ATTACK
+-- 1. HÀM TỰ ĐỘNG CẦM VŨ KHÍ (MELEE / SWORD)
+local function AutoEquipWeapon()
+    local char = LocalPlayer.Character
+    if not char then return end
+
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    local backpack = LocalPlayer:FindFirstChild("Backpack")
+    if not humanoid or not backpack then return end
+
+    -- Check xem đang cầm đúng loại chưa
+    local currentTool = char:FindFirstChildOfClass("Tool")
+    if currentTool then
+        if SelectedWeapon == "Melee" and (currentTool.Name == "Combat" or currentTool:FindFirstChild("Melee")) then return end
+        if SelectedWeapon == "Sword" and (currentTool.Name ~= "Combat" and currentTool:FindFirstChild("EquipEvent")) then return end
+    end
+
+    -- Tìm trong Balo để Equip
+    for _, tool in pairs(backpack:GetChildren()) do
+        if tool:IsA("Tool") then
+            local isTarget = false
+            if SelectedWeapon == "Melee" and tool.Name == "Combat" then
+                isTarget = true
+            elseif SelectedWeapon == "Sword" and tool.Name ~= "Combat" then
+                isTarget = true
+            end
+
+            if isTarget then
+                local equipEvent = tool:FindFirstChild("EquipEvent")
+                if equipEvent then
+                    pcall(function()
+                        equipEvent:FireServer(true)
+                    end)
+                end
+                humanoid:EquipTool(tool)
+                break
+            end
+        end
+    end
+end
+
+-- 2. HÀM FAST ATTACK (ĐÁNH SIÊU NHANH)
 local function DoFastAttack(targetEnemy, Net)
     if not targetEnemy then return end
 
@@ -735,7 +867,7 @@ local function DoFastAttack(targetEnemy, Net)
     local eRoot = targetEnemy:FindFirstChild("HumanoidRootPart")
     if not eRoot then return end
 
-    -- Tắt animation vung tay/kiếm để nhân vật không bị khựng
+    -- Tắt animation vung tay
     local char = LocalPlayer.Character
     if char then
         local humanoid = char:FindFirstChildOfClass("Humanoid")
@@ -748,7 +880,7 @@ local function DoFastAttack(targetEnemy, Net)
         end
     end
 
-    -- Xả hit liên tục tùy thuộc vào trạng thái FastAttackEnabled
+    -- Xả hit liên tục
     local loopHits = FastAttackEnabled and FastAttackSpeed or 1
     for i = 1, loopHits do
         pcall(function()
@@ -761,28 +893,49 @@ local function DoFastAttack(targetEnemy, Net)
     end
 end
 
--- ====================================================================
--- CẬP NHẬT ĐOẠN ĐÁNH QUÁI BÊN MAIN TAB (DÙNG FAST ATTACK)
--- ====================================================================
-
--- Mày chỉ cần thay đoạn vòng lặp đánh quái bên trong MainTab bằng đoạn này:
 while targetEnemy and eHum and eHum.Health > 0 and AutoFarmLevelEnabled and hasActiveQuest() do
     if tick() - farmTime > 12 then break end
 
     local playerHum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
     if not playerHum or playerHum.Health <= 0 then break end
 
-    -- Xoay mặt về phía quái để hit chính xác
+    -- 1. TỰ ĐỘNG CẦM VŨ KHÍ ĐÃ CHỌN TRONG SETTINGS
+    AutoEquipWeapon()
+
+    -- 2. ĐỨNG TRÊN KHÔNG VÀ QUAY MẶT VỀ PHÍA QUÁI
     RootPart.CFrame = CFrame.lookAt(eRoot.Position + Vector3.new(0, 18, 0), eRoot.Position)
 
-    -- Gọi hàm Fast Attack
+    -- 3. XẢ FAST ATTACK
     DoFastAttack(targetEnemy, Net)
 
     task.wait(0.01)
 end
 
+-- ====================================================================
+-- TAB SETTINGS (CHỨA TOGGLE VÀ DROPDOWN)
+-- ====================================================================
+
+local SettingTab = Window:CreateTab("Settings")
+
+-- Toggle bật/tắt Fast Attack
 SettingTab:CreateToggle("Fast Attack", true, function(state)
     FastAttackEnabled = state
+end)
+
+-- Dropdown chọn loại Vũ Khí
+CreateDropdown(SettingTab, "Select Weapon", {"Melee", "Sword"}, "Melee", function(selected)
+    SelectedWeapon = selected
+end)
+
+-- Dropdown chọn Tốc Độ Fast Attack
+CreateDropdown(SettingTab, "Fast Attack Speed", {"Slow", "Medium", "Fast"}, "Fast", function(selectedSpeed)
+    if selectedSpeed == "Slow" then
+        FastAttackSpeed = 3
+    elseif selectedSpeed == "Medium" then
+        FastAttackSpeed = 5
+    elseif selectedSpeed == "Fast" then
+        FastAttackSpeed = 8
+    end
 end)
 
 PlayerTab:CreateSlider("WalkSpeed", 16, 200, 16, function(value)
