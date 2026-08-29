@@ -395,7 +395,7 @@ local MainTab = Window:CreateTab("Main")
 local PlayerTab = Window:CreateTab("Player")
 
 -- ====================================================================
--- AUTO FARM LEVEL FULL SEA 1 (FIX CHẾT TỰ FARM + BỎ BOSS + ĐỨNG THẲNG)
+-- AUTO FARM LEVEL FULL SEA 1 (FIX LAG GIẬT + FIX KẸT QUÁI)
 -- ====================================================================
 
 local TweenService = game:GetService("TweenService")
@@ -451,31 +451,62 @@ local EnemyPositions = {
     ["Galley Captain"]        = CFrame.new(5641.8, 50, 4920.4)
 }
 
+-- ====================================================================
+-- DATABASE CẤP ĐỘ TRÒN CHUẨN 100% THEO BLOX FRUITS (SEA 1)
+-- ====================================================================
+
 local QuestDatabase = {
-    { MinLevel = 1,   MaxLevel = 10,   QuestName = "BanditQuest1",   QuestNumber = 1, EnemyName = "Bandit",               Island = "Pirate Starter" },
-    { MinLevel = 10,  MaxLevel = 14,  QuestName = "JungleQuest",    QuestNumber = 1, EnemyName = "Monkey",               Island = "Jungle" },
+    -- Đảo Khởi Đầu
+    { MinLevel = 1,   MaxLevel = 10,  QuestName = "BanditQuest1",   QuestNumber = 1, EnemyName = "Bandit",               Island = "Pirate Starter" },
+    
+    -- Đảo Khỉ (Jungle)
+    { MinLevel = 10,  MaxLevel = 15,  QuestName = "JungleQuest",    QuestNumber = 1, EnemyName = "Monkey",               Island = "Jungle" },
     { MinLevel = 15,  MaxLevel = 30,  QuestName = "JungleQuest",    QuestNumber = 2, EnemyName = "Gorilla",              Island = "Jungle" },
+    
+    -- Đảo Cướp Biển (Pirate Village)
     { MinLevel = 30,  MaxLevel = 40,  QuestName = "BuggyQuest1",    QuestNumber = 1, EnemyName = "Pirate",               Island = "Pirate Village" },
     { MinLevel = 40,  MaxLevel = 60,  QuestName = "BuggyQuest1",    QuestNumber = 2, EnemyName = "Brute",                Island = "Pirate Village" },
+    
+    -- Sa Mạc (Desert)
     { MinLevel = 60,  MaxLevel = 75,  QuestName = "DesertQuest",    QuestNumber = 1, EnemyName = "Desert Bandit",        Island = "Desert" },
     { MinLevel = 75,  MaxLevel = 90,  QuestName = "DesertQuest",    QuestNumber = 2, EnemyName = "Desert Officer",       Island = "Desert" },
-    { MinLevel = 90,  MaxLevel = 100,  QuestName = "SnowQuest",      QuestNumber = 1, EnemyName = "Snow Bandit",          Island = "Frozen Village" },
+    
+    -- Đảo Tuyết (Frozen Village)
+    { MinLevel = 90,  MaxLevel = 100, QuestName = "SnowQuest",      QuestNumber = 1, EnemyName = "Snow Bandit",          Island = "Frozen Village" },
     { MinLevel = 100, MaxLevel = 120, QuestName = "SnowQuest",      QuestNumber = 2, EnemyName = "Snowman",              Island = "Frozen Village" },
+    
+    -- Căn Cứ Hải Quân (Marine Fortress)
     { MinLevel = 120, MaxLevel = 150, QuestName = "MarineQuest2",   QuestNumber = 1, EnemyName = "Chief Petty Officer",  Island = "Marine Fortress" },
+    
+    -- Đảo Mây 1 (Skylands)
     { MinLevel = 150, MaxLevel = 175, QuestName = "SkyQuest",       QuestNumber = 1, EnemyName = "Sky Bandit",           Island = "Skylands" },
     { MinLevel = 175, MaxLevel = 190, QuestName = "SkyQuest",       QuestNumber = 2, EnemyName = "Dark Master",          Island = "Skylands" },
+    
+    -- Nhà Tù (Prison)
     { MinLevel = 190, MaxLevel = 210, QuestName = "PrisonerQuest",  QuestNumber = 1, EnemyName = "Prisoner",             Island = "Prison" },
     { MinLevel = 210, MaxLevel = 250, QuestName = "PrisonerQuest",  QuestNumber = 2, EnemyName = "Dangerous Prisoner",   Island = "Prison" },
+    
+    -- Đấu Trường (Colosseum)
     { MinLevel = 250, MaxLevel = 275, QuestName = "ColosseumQuest", QuestNumber = 1, EnemyName = "Toga Warrior",         Island = "Colosseum" },
     { MinLevel = 275, MaxLevel = 300, QuestName = "ColosseumQuest", QuestNumber = 2, EnemyName = "Gladiator",            Island = "Colosseum" },
+    
+    -- Đảo Núi Lửa (Magma Village)
     { MinLevel = 300, MaxLevel = 325, QuestName = "MagmaQuest",     QuestNumber = 1, EnemyName = "Military Soldier",     Island = "Magma Village" },
     { MinLevel = 325, MaxLevel = 375, QuestName = "MagmaQuest",     QuestNumber = 2, EnemyName = "Military Spy",         Island = "Magma Village" },
+    
+    -- Đảo Người Cá (Underwater City)
     { MinLevel = 375, MaxLevel = 400, QuestName = "FishmanQuest",   QuestNumber = 1, EnemyName = "Fishman Warrior",      Island = "Underwater City" },
     { MinLevel = 400, MaxLevel = 450, QuestName = "FishmanQuest",   QuestNumber = 2, EnemyName = "Fishman Commando",     Island = "Underwater City" },
+    
+    -- Đảo Mây Trên 1 (Upper Skylands Area 1)
     { MinLevel = 450, MaxLevel = 475, QuestName = "SkyExp1Quest",   QuestNumber = 1, EnemyName = "God's Guard",          Island = "Upper Skylands" },
     { MinLevel = 475, MaxLevel = 525, QuestName = "SkyExp1Quest",   QuestNumber = 2, EnemyName = "Shanda",               Island = "Upper Skylands" },
+    
+    -- Đảo Mây Trên 2 (Upper Skylands Area 2)
     { MinLevel = 525, MaxLevel = 550, QuestName = "SkyExp2Quest",   QuestNumber = 1, EnemyName = "Royal Squad",          Island = "Upper Skylands" },
-    { MinLevel = 550, MaxLevel = 625, QuestName = "SkyExp2Quest",   QuestNumber = 2, EnemyName = "Royal Soldier",        Island = "Upper Skylands" },
+    { MinLevel = 550, MaxLevel = 625, QuestName = "SkyExp2Quest",   QuestNumber = 2, EnemyName = "Royal Soldier",        Island = "Royal Soldier" },
+    
+    -- Đảo Đài Thần (Fountain City)
     { MinLevel = 625, MaxLevel = 650, QuestName = "FountainQuest",  QuestNumber = 1, EnemyName = "Galley Pirate",        Island = "Fountain City" },
     { MinLevel = 650, MaxLevel = 700, QuestName = "FountainQuest",  QuestNumber = 2, EnemyName = "Galley Captain",       Island = "Fountain City" }
 }
@@ -510,12 +541,12 @@ local function smoothMoveTo(targetCFrame)
     if not root then return end
 
     local distance = (root.Position - targetCFrame.Position).Magnitude
-    if distance < 12 then
+    if distance < 10 then
         root.CFrame = targetCFrame
         return
     end
 
-    local speed = 280
+    local speed = 300
     local duration = distance / speed
     local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
     
@@ -570,7 +601,6 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
         while AutoFarmLevelEnabled do
             task.wait(0.1)
 
-            -- XỬ LÝ KHI NHÂN VẬT CHẾT: Tự động chờ hồi sinh đầy đủ máu rồi chạy tiếp
             local Character = LocalPlayer.Character
             local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
             local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
@@ -582,7 +612,7 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                     RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
                     Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
                 until AutoFarmLevelEnabled and Character and RootPart and Humanoid and Humanoid.Health > 0
-                task.wait(1) -- Chờ load nhân vật 1s sau khi hồi sinh
+                task.wait(0.8)
             end
 
             if Character and RootPart and Humanoid and Humanoid.Health > 0 then
@@ -597,7 +627,7 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                 end
 
                 if currentData then
-                    -- 1. CHƯA CÓ QUEST THÌ BAY ĐẾN NHẬN
+                    -- 1. CHỈ NHẬN QUEST KHI HOÀN TOÀN KHÔNG CÓ QUEST HIỆN TẠI
                     if not hasActiveQuest() then
                         local npcPos = NpcPositions[currentData.Island]
                         if npcPos then
@@ -605,72 +635,81 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                             task.wait(0.2)
                         end
 
-                        if CommF then
+                        if CommF and not hasActiveQuest() then
                             pcall(function()
                                 CommF:InvokeServer("StartQuest", currentData.QuestName, currentData.QuestNumber)
                             end)
                         end
-                        task.wait(0.8)
+                        task.wait(0.5)
                     end
 
-                    -- 2. ĐÁNH QUÁI CHO ĐẾN KHU XONG QUEST
-                    while hasActiveQuest() and AutoFarmLevelEnabled do
-                        task.wait(0.1)
+                    -- 2. VÒNG LẶP FARM CHỈ CHẠY KHI ĐÃ NHẬN QUEST
+                    if hasActiveQuest() then
+                        -- Bay thẳng tới bãi quái 1 lần duy nhất trước khi chọn quái
+                        local enemySpot = EnemyPositions[currentData.EnemyName]
+                        if enemySpot and (RootPart.Position - enemySpot.Position).Magnitude > 150 then
+                            smoothMoveTo(enemySpot * CFrame.new(0, 18, 0))
+                        end
 
-                        -- Kiểm tra lại nhân vật sống/chết trong khi farm
-                        local curChar = LocalPlayer.Character
-                        local curHum = curChar and curChar:FindFirstChildOfClass("Humanoid")
-                        if not curHum or curHum.Health <= 0 then break end
+                        while hasActiveQuest() and AutoFarmLevelEnabled do
+                            task.wait(0.05)
 
-                        local EnemiesFolder = Workspace:FindFirstChild("Enemies")
-                        local targetEnemy = nil
+                            local curChar = LocalPlayer.Character
+                            local curHum = curChar and curChar:FindFirstChildOfClass("Humanoid")
+                            if not curHum or curHum.Health <= 0 then break end
 
-                        if EnemiesFolder then
-                            for _, enemy in pairs(EnemiesFolder:GetChildren()) do
-                                -- SỬA LỖI ĐÁNH BOSS: So sánh bằng chính xác tên 100% (Loại bỏ Boss Gorilla King, Bobby,...)
-                                if enemy.Name == currentData.EnemyName then
-                                    local eHum = enemy:FindFirstChildOfClass("Humanoid")
-                                    local eRoot = enemy:FindFirstChild("HumanoidRootPart")
-                                    if eHum and eHum.Health > 0 and eRoot then
-                                        targetEnemy = enemy
-                                        break
+                            local EnemiesFolder = Workspace:FindFirstChild("Enemies")
+                            local targetEnemy = nil
+
+                            if EnemiesFolder then
+                                for _, enemy in pairs(EnemiesFolder:GetChildren()) do
+                                    if enemy.Name == currentData.EnemyName then
+                                        local eHum = enemy:FindFirstChildOfClass("Humanoid")
+                                        local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+                                        if eHum and eHum.Health > 0 and eRoot then
+                                            targetEnemy = enemy
+                                            break
+                                        end
                                     end
                                 end
                             end
-                        end
 
-                        if targetEnemy then
-                            local eHum = targetEnemy:FindFirstChildOfClass("Humanoid")
-                            local eRoot = targetEnemy:FindFirstChild("HumanoidRootPart")
+                            if targetEnemy then
+                                local eHum = targetEnemy:FindFirstChildOfClass("Humanoid")
+                                local eRoot = targetEnemy:FindFirstChild("HumanoidRootPart")
+                                local farmTime = tick()
 
-                            while targetEnemy and eHum and eHum.Health > 0 and AutoFarmLevelEnabled and hasActiveQuest() do
-                                local playerHum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-                                if not playerHum or playerHum.Health <= 0 then break end
+                                -- BỌC CƠ CHẾ TIMEOUT: Nếu đánh 1 con quái quá 12s chưa chết -> Tự đổi quái khác
+                                while targetEnemy and eHum and eHum.Health > 0 and AutoFarmLevelEnabled and hasActiveQuest() do
+                                    if tick() - farmTime > 12 then break end
 
-                                -- ĐỨNG THẲNG ĐỨNG HOÀN TOÀN + CAO 18 STUDS (KHÔNG BỊ XOAY/GIẬT THEO QUÁI)
-                                RootPart.CFrame = CFrame.new(eRoot.Position + Vector3.new(0, 18, 0))
+                                    local playerHum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+                                    if not playerHum or playerHum.Health <= 0 then break end
 
-                                if Net then
-                                    pcall(function()
-                                        local RegAttack = Net:FindFirstChild("RE/RegisterAttack")
-                                        local RegHit = Net:FindFirstChild("RegisterHit") or Net:FindFirstChild("RE/RegisterHit")
-                                        
-                                        if RegAttack then RegAttack:FireServer(0.5, 1) end
-                                        if RegHit then 
-                                            local hitPart = targetEnemy:FindFirstChild("UpperTorso") or eRoot
-                                            RegHit:FireServer(hitPart, {}, nil, "157beb64")
-                                        end
-                                    end)
+                                    RootPart.CFrame = CFrame.new(eRoot.Position + Vector3.new(0, 18, 0))
+
+                                    if Net then
+                                        pcall(function()
+                                            local RegAttack = Net:FindFirstChild("RE/RegisterAttack")
+                                            local RegHit = Net:FindFirstChild("RegisterHit") or Net:FindFirstChild("RE/RegisterHit")
+                                            
+                                            if RegAttack then RegAttack:FireServer(0.5, 1) end
+                                            if RegHit then 
+                                                local hitPart = targetEnemy:FindFirstChild("UpperTorso") or eRoot
+                                                RegHit:FireServer(hitPart, {}, nil, "157beb64")
+                                            end
+                                        end)
+                                    end
+
+                                    task.wait(0.08)
                                 end
-
-                                task.wait(0.08)
+                            else
+                                -- Chờ quái spawn tại điểm cố định
+                                if enemySpot then
+                                    RootPart.CFrame = enemySpot * CFrame.new(0, 18, 0)
+                                end
+                                task.wait(0.3)
                             end
-                        else
-                            local enemySpot = EnemyPositions[currentData.EnemyName]
-                            if enemySpot then
-                                smoothMoveTo(enemySpot * CFrame.new(0, 18, 0))
-                            end
-                            task.wait(0.5)
                         end
                     end
                 end
