@@ -653,20 +653,60 @@ local function AutoEquipWeapon()
 end
 
 local function DoFastAttack(targetEnemy, Net)
-    if not targetEnemy then return end
+    if not FastAttackEnabled then return end
+
+    local char = LocalPlayer.Character
+    if not char then return end
+
+    local tool = char:FindFirstChildOfClass("Tool")
+    if not tool then return end
 
     local RegAttack = Net and Net:FindFirstChild("RE/RegisterAttack")
     local RegHit = Net and (Net:FindFirstChild("RegisterHit") or Net:FindFirstChild("RE/RegisterHit"))
-    local eRoot = targetEnemy:FindFirstChild("HumanoidRootPart")
-    if not eRoot then return end
 
-    local loopHits = FastAttackEnabled and FastAttackSpeed or 1
-    for i = 1, loopHits do
+    -- Lấy danh sách tất cả quái gần đó để đánh lan (Hitbox Area Attack)
+    local hitTargets = {}
+    local EnemiesFolder = Workspace:FindFirstChild("Enemies")
+    
+    if EnemiesFolder then
+        for _, enemy in pairs(EnemiesFolder:GetChildren()) do
+            local eHum = enemy:FindFirstChildOfClass("Humanoid")
+            local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+            local myRoot = char:FindFirstChild("HumanoidRootPart")
+
+            if eHum and eHum.Health > 0 and eRoot and myRoot then
+                -- Gom các con quái trong bán kính 60 studs
+                if (eRoot.Position - myRoot.Position).Magnitude <= 60 then
+                    local hitPart = enemy:FindFirstChild("UpperTorso") or enemy:FindFirstChild("Head") or eRoot
+                    table.insert(hitTargets, {enemy, hitPart})
+                end
+            end
+        end
+    end
+
+    -- Nếu không tìm thấy quái xung quanh thì lấy chính targetEnemy
+    if #hitTargets == 0 and targetEnemy then
+        local eRoot = targetEnemy:FindFirstChild("HumanoidRootPart")
+        if eRoot then
+            local hitPart = targetEnemy:FindFirstChild("UpperTorso") or eRoot
+            table.insert(hitTargets, {targetEnemy, hitPart})
+        end
+    end
+
+    -- Thực hiện Fast Attack đa mục tiêu
+    for i = 1, FastAttackSpeed do
         pcall(function()
-            if RegAttack then RegAttack:FireServer(0.5, 1) end
-            if RegHit then 
-                local hitPart = targetEnemy:FindFirstChild("UpperTorso") or eRoot
-                RegHit:FireServer(hitPart, {}, nil, "157beb64")
+            -- Gửi lệnh vung vũ khí
+            if RegAttack then 
+                RegAttack:FireServer(0, 1) 
+            end
+
+            -- Gửi lệnh gây sát thương lên toàn bộ quái trong danh sách
+            if RegHit then
+                for _, data in ipairs(hitTargets) do
+                    local targetPart = data[2]
+                    RegHit:FireServer(targetPart, {}, nil, "157beb64")
+                end
             end
         end)
     end
@@ -787,28 +827,32 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                             end
 
                             if targetEnemy then
-                                local eHum = targetEnemy:FindFirstChildOfClass("Humanoid")
-                                local eRoot = targetEnemy:FindFirstChild("HumanoidRootPart")
-                                local farmTime = tick()
+    local eHum = targetEnemy:FindFirstChildOfClass("Humanoid")
+    local eRoot = targetEnemy:FindFirstChild("HumanoidRootPart")
+    local farmTime = tick()
 
-                                while targetEnemy and eHum and eHum.Health > 0 and AutoFarmLevelEnabled and hasActiveQuest() do
-                                    if tick() - farmTime > 12 then break end
+    while targetEnemy and eHum and eHum.Health > 0 and AutoFarmLevelEnabled and hasActiveQuest() do
+        if tick() - farmTime > 12 then break end
 
-                                    -- Cập nhật RootPart mới liên tục khi đánh
-                                    local activeChar = LocalPlayer.Character
-                                    local activeRoot = activeChar and activeChar:FindFirstChild("HumanoidRootPart")
-                                    local activeHum = activeChar and activeChar:FindFirstChildOfClass("Humanoid")
+        local activeChar = LocalPlayer.Character
+        local activeRoot = activeChar and activeChar:FindFirstChild("HumanoidRootPart")
+        local activeHum = activeChar and activeChar:FindFirstChildOfClass("Humanoid")
 
-                                    if not activeChar or not activeRoot or not activeHum or activeHum.Health <= 0 then
-                                        break
-                                    end
+        if not activeChar or not activeRoot or not activeHum or activeHum.Health <= 0 then
+            break
+        end
 
-                                    AutoEquipWeapon()
-                                    activeRoot.CFrame = CFrame.lookAt(eRoot.Position + Vector3.new(0, 18, 0), eRoot.Position)
-                                    DoFastAttack(targetEnemy, Net)
+        AutoEquipWeapon()
 
-                                    task.wait(0.01)
-                                end
+        -- Đứng trên đầu quái khoảng 10-12 studs để đòn đánh không bị hụt
+        activeRoot.CFrame = CFrame.lookAt(eRoot.Position + Vector3.new(0, 11, 0), eRoot.Position)
+        
+        -- Gọi Fast Attack cực nhạy
+        DoFastAttack(targetEnemy, Net)
+
+        task.wait(0.01)
+    end
+end
                             else
                                 if enemySpot then
                                     curRoot.CFrame = enemySpot * CFrame.new(0, 18, 0)
