@@ -1055,7 +1055,7 @@ SettingTab:CreateDropdown("Fast Attack Speed", {"Slow", "Medium", "Fast"}, "Fast
     end
 end)
 
-SettingTab:CreateToggle("Bring Mobs", true, function(state)
+SettingTab:CreateToggle("Bring Mobs(Đang lỗi)", true, function(state)
     BringMobEnabled = state
 end)
 
