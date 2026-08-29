@@ -655,32 +655,34 @@ local function AutoEquipWeapon()
 end
 
 local function BringMobs(enemySpot, currentData)
-    if not BringMobEnabled then return end
+    if not BringMobEnabled or not enemySpot then return end
 
     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
-    if EnemiesFolder and enemySpot then
-        local fixedBringPos = enemySpot
-
+    if EnemiesFolder then
         for _, enemy in pairs(EnemiesFolder:GetChildren()) do
             if enemy.Name == currentData.EnemyName then
                 local eHum = enemy:FindFirstChildOfClass("Humanoid")
                 local eRoot = enemy:FindFirstChild("HumanoidRootPart")
 
                 if eHum and eHum.Health > 0 and eRoot then
-                    if (eRoot.Position - enemySpot.Position).Magnitude <= 350 then
+                    local dist = (eRoot.Position - enemySpot.Position).Magnitude
+                    if dist <= 350 and dist > 5 then
                         eRoot.CanCollide = false
                         if enemy:FindFirstChild("Head") then
                             enemy.Head.CanCollide = false
                         end
 
-                        eRoot.CFrame = fixedBringPos
-                        eRoot.Velocity = Vector3.zero
-                        eRoot.RotVelocity = Vector3.zero
+                        -- Kéo quái về bãi gọn gàng và giữ tốc độ bằng 0 để không bị giật, tránh lỗi damage
+                        eRoot.CFrame = enemySpot
+                        eRoot.AssemblyLinearVelocity = Vector3.zero
+                        eRoot.AssemblyAngularVelocity = Vector3.zero
                         eHum.WalkSpeed = 0
-                        eHum:ChangeState(Enum.HumanoidStateType.Physics)
-
+                        
                         pcall(function()
-                            eRoot:SetNetworkOwner(LocalPlayer)
+                            if not enemy:GetAttribute("NetClaimed") then
+                                eRoot:SetNetworkOwner(LocalPlayer)
+                                enemy:SetAttribute("NetClaimed", true)
+                            end
                         end)
                     end
                 end
