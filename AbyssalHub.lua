@@ -985,51 +985,55 @@ local function smoothMoveTo(targetPos)
     end
 end
 
--- ==========================================
--- AUTO STATS TỪNG TOGGLE RIÊNG BIỆT
--- ==========================================
-
--- Khai báo công tắc riêng cho từng loại Stat
+-- Khai báo biến trạng thái ban đầu
 AutoMeleeEnabled = false
 AutoDefenseEnabled = false
 AutoSwordEnabled = false
 AutoGunEnabled = false
 AutoFruitEnabled = false
-
 StatsAmount = 3 -- Số điểm cộng mỗi lần
 
 task.spawn(function()
     local CommF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
     
     while true do
-        task.wait(1) -- Check mỗi 1 giây cho nhẹ máy
+        task.wait(1) -- Check mỗi 1 giây
         
         if CommF then
             local data = LocalPlayer:FindFirstChild("Data")
             local points = data and data:FindFirstChild("Points")
             
-            -- Nếu có điểm thưởng dư (Points > 0)
+            -- Nếu còn điểm thưởng (Points > 0)
             if points and points.Value > 0 then
                 pcall(function()
-                    -- Kiểm tra xem cậu đang bật toggle nào thì tự động cộng vào đó
                     if AutoMeleeEnabled then
-                        CommF:InvokeServer("AddPoint", "Melee", StatsAmount)
+                        local args = { [1] = "AddPoint", [2] = "Melee", [3] = StatsAmount }
+                        CommF:InvokeServer(unpack(args))
+                        task.wait(0.2)
                     end
                     
                     if AutoDefenseEnabled then
-                        CommF:InvokeServer("AddPoint", "Defense", StatsAmount)
+                        local args = { [1] = "AddPoint", [2] = "Defense", [3] = StatsAmount }
+                        CommF:InvokeServer(unpack(args))
+                        task.wait(0.2)
                     end
                     
                     if AutoSwordEnabled then
-                        CommF:InvokeServer("AddPoint", "Sword", StatsAmount)
+                        local args = { [1] = "AddPoint", [2] = "Sword", [3] = StatsAmount }
+                        CommF:InvokeServer(unpack(args))
+                        task.wait(0.2)
                     end
                     
                     if AutoGunEnabled then
-                        CommF:InvokeServer("AddPoint", "Gun", StatsAmount)
+                        local args = { [1] = "AddPoint", [2] = "Gun", [3] = StatsAmount }
+                        CommF:InvokeServer(unpack(args))
+                        task.wait(0.2)
                     end
                     
                     if AutoFruitEnabled then
-                        CommF:InvokeServer("AddPoint", "Demon Fruit", StatsAmount)
+                        local args = { [1] = "AddPoint", [2] = "Demon Fruit", [3] = StatsAmount }
+                        CommF:InvokeServer(unpack(args))
+                        task.wait(0.2)
                     end
                 end)
             end
