@@ -508,7 +508,7 @@ local BringMobEnabled = false -- Đặt mặc định là false hoặc true tùy
 local SelectedWeapon = "Melee"
 
 -- Độ cao đứng farm so với mặt đất/bãi quái
-local FarmHeight = 16
+local FarmHeight = 25
 
 local NpcPositions = {
     ["Pirate Starter"]  = CFrame.new(1059.37, 16.45, 1549.2),
@@ -658,6 +658,8 @@ local function BringMobs(enemySpot, currentData)
     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
     if not EnemiesFolder then return end
 
+    local broughtCount = 0 -- Đếm số lượng quái được gom trong một nhịp
+
     for _, enemy in pairs(EnemiesFolder:GetChildren()) do
         if enemy.Name == currentData.EnemyName then
             local eHum = enemy:FindFirstChildOfClass("Humanoid")
@@ -674,18 +676,24 @@ local function BringMobs(enemySpot, currentData)
                     end
                 else
                     if enemySpot and eHum.Health > 0 then
-                        local dist = (eRoot.Position - enemySpot.Position).Magnitude
-                        -- Chỉ gom khi quái nằm trong phạm vi tầm nhìn, không kéo quá xa gây lỗi server
-                        if dist <= 250 and dist > 3 then
-                            eRoot.CanCollide = false
-                            if enemy:FindFirstChild("Head") then
-                                enemy.Head.CanCollide = false
-                            end
+                        -- Chỉ gom tối đa 2 con một lần để tránh làm lỗi server/đứng quái
+                        if broughtCount < 2 then
+                            local dist = (eRoot.Position - enemySpot.Position).Magnitude
+                            if dist <= 300 and dist > 3 then
+                                eRoot.CanCollide = false
+                                if enemy:FindFirstChild("Head") then
+                                    enemy.Head.CanCollide = false
+                                end
 
-                            -- Kéo về bãi nhưng reset vận tốc để không bị văng, quái không bị đơ AI
-                            eRoot.CFrame = enemySpot
-                            eRoot.AssemblyLinearVelocity = Vector3.zero
-                            eRoot.AssemblyAngularVelocity = Vector3.zero
+                                eRoot.CFrame = enemySpot
+                                eRoot.AssemblyLinearVelocity = Vector3.zero
+                                eRoot.AssemblyAngularVelocity = Vector3.zero
+                                
+                                broughtCount = broughtCount + 1
+                            end
+                        else
+                            -- Các con còn lại bật va chạm bình thường để không bị đơ
+                            eRoot.CanCollide = true
                         end
                     end
                 end
