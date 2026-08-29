@@ -454,7 +454,7 @@ local MainTab = Window:CreateTab("Main")
 local PlayerTab = Window:CreateTab("Player")
 
 -- ====================================================================
--- AUTO FARM LEVEL (FIX TRIỆT ĐỂ LỖI ĐÁNH 1 CON LẠI VỀ NHẬN QUEST)
+-- AUTO FARM LEVEL FULL SEA 1 (1 - 700 LEVEL - BỎ BOSS)
 -- ====================================================================
 
 local TweenService = game:GetService("TweenService")
@@ -465,24 +465,81 @@ local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
 
+-- Vị trí NPC nhận Quest tất cả các đảo Sea 1
 local NpcPositions = {
     ["Pirate Starter"]  = CFrame.new(1059.37, 20, 1549.2),
     ["Jungle"]          = CFrame.new(-1598.08, 40, 153.38),
     ["Pirate Village"]  = CFrame.new(-1140.17, 10, 3827.42),
     ["Desert"]          = CFrame.new(894.48, 10, 4392.43),
-    ["Frozen Village"]  = CFrame.new(1385.74, 90, -1298.07)
+    ["Frozen Village"]  = CFrame.new(1385.74, 90, -1298.07),
+    ["Marine Fortress"] = CFrame.new(-5039.59, 30, 4324.58),
+    ["Skylands"]        = CFrame.new(-4839.53, 720, -2619.44),
+    ["Prison"]          = CFrame.new(485.63, 5, 736.61),
+    ["Colosseum"]       = CFrame.new(-1422.01, 10, -3015.68),
+    ["Magma Village"]   = CFrame.new(-5232.9, 12, 8533.8),
+    ["Underwater City"] = CFrame.new(61163.85, 22, 1569.25),
+    ["Upper Skylands"]  = CFrame.new(-7859.1, 5550, -380.3),
+    ["Fountain City"]   = CFrame.new(5259.82, 42, 4050.0)
 }
 
+-- Vị trí bãi quái thường các đảo
 local EnemyPositions = {
-    ["Bandit"]   = CFrame.new(1038.5, 30, 1542.8),
-    ["Monkey"]   = CFrame.new(-1610.6, 35, 142.3),
-    ["Gorilla"]  = CFrame.new(-1237.7, 35, -486.3)
+    ["Bandit"]                = CFrame.new(1038.5, 30, 1542.8),
+    ["Monkey"]                = CFrame.new(-1610.6, 35, 142.3),
+    ["Gorilla"]               = CFrame.new(-1237.7, 35, -486.3),
+    ["Pirate"]                = CFrame.new(-1205.1, 25, 3858.8),
+    ["Brute"]                 = CFrame.new(-1148.5, 25, 4253.6),
+    ["Desert Bandit"]         = CFrame.new(932.4, 20, 4438.3),
+    ["Desert Officer"]        = CFrame.new(1571.3, 20, 4381.1),
+    ["Snow Bandit"]           = CFrame.new(1288.2, 100, -1352.4),
+    ["Snowman"]               = CFrame.new(1228.6, 100, -1522.6),
+    ["Chief Petty Officer"]   = CFrame.new(-4881.9, 40, 4242.3),
+    ["Sky Bandit"]            = CFrame.new(-4972.3, 730, -2871.2),
+    ["Dark Master"]           = CFrame.new(-5223.1, 730, -2285.8),
+    ["Prisoner"]              = CFrame.new(542.1, 20, 482.9),
+    ["Dangerous Prisoner"]    = CFrame.new(480.2, 20, 1140.3),
+    ["Toga Warrior"]          = CFrame.new(-1805.1, 20, -2742.6),
+    ["Gladiator"]             = CFrame.new(-1323.8, 20, -3316.3),
+    ["Military Soldier"]      = CFrame.new(-5411.3, 30, 8512.4),
+    ["Military Spy"]          = CFrame.new(-5815.2, 90, 8821.5),
+    ["Fishman Warrior"]       = CFrame.new(60842.1, 30, 1531.2),
+    ["Fishman Commando"]      = CFrame.new(61812.5, 30, 1475.8),
+    ["God's Guard"]           = CFrame.new(-7725.4, 5560, -425.1),
+    ["Shanda"]                = CFrame.new(-7672.1, 5560, -1021.3),
+    ["Royal Squad"]           = CFrame.new(-7528.3, 5600, -1451.2),
+    ["Royal Soldier"]         = CFrame.new(-7812.6, 5600, -1820.5),
+    ["Galley Pirate"]         = CFrame.new(5582.3, 50, 3982.1),
+    ["Galley Captain"]        = CFrame.new(5641.8, 50, 4920.4)
 }
 
+-- Danh sách Quest CHỈ LẤY QUÁI THƯỜNG (Đã lọc bỏ toàn bộ Boss)
 local QuestDatabase = {
-    { MinLevel = 1, MaxLevel = 9, QuestName = "BanditQuest1", QuestNumber = 1, EnemyName = "Bandit", Island = "Pirate Starter" },
-    { MinLevel = 10, MaxLevel = 14, QuestName = "JungleQuest", QuestNumber = 1, EnemyName = "Monkey", Island = "Jungle" },
-    { MinLevel = 15, MaxLevel = 29, QuestName = "JungleQuest", QuestNumber = 2, EnemyName = "Gorilla", Island = "Jungle" }
+    { MinLevel = 1,   MaxLevel = 9,   QuestName = "BanditQuest1",   QuestNumber = 1, EnemyName = "Bandit",               Island = "Pirate Starter" },
+    { MinLevel = 10,  MaxLevel = 14,  QuestName = "JungleQuest",    QuestNumber = 1, EnemyName = "Monkey",               Island = "Jungle" },
+    { MinLevel = 15,  MaxLevel = 29,  QuestName = "JungleQuest",    QuestNumber = 2, EnemyName = "Gorilla",              Island = "Jungle" },
+    { MinLevel = 30,  MaxLevel = 39,  QuestName = "BuggyQuest1",    QuestNumber = 1, EnemyName = "Pirate",               Island = "Pirate Village" },
+    { MinLevel = 40,  MaxLevel = 59,  QuestName = "BuggyQuest1",    QuestNumber = 2, EnemyName = "Brute",                Island = "Pirate Village" },
+    { MinLevel = 60,  MaxLevel = 74,  QuestName = "DesertQuest",    QuestNumber = 1, EnemyName = "Desert Bandit",        Island = "Desert" },
+    { MinLevel = 75,  MaxLevel = 89,  QuestName = "DesertQuest",    QuestNumber = 2, EnemyName = "Desert Officer",       Island = "Desert" },
+    { MinLevel = 90,  MaxLevel = 99,  QuestName = "SnowQuest",      QuestNumber = 1, EnemyName = "Snow Bandit",          Island = "Frozen Village" },
+    { MinLevel = 100, MaxLevel = 119, QuestName = "SnowQuest",      QuestNumber = 2, EnemyName = "Snowman",              Island = "Frozen Village" },
+    { MinLevel = 120, MaxLevel = 149, QuestName = "MarineQuest2",   QuestNumber = 1, EnemyName = "Chief Petty Officer",  Island = "Marine Fortress" },
+    { MinLevel = 150, MaxLevel = 174, QuestName = "SkyQuest",       QuestNumber = 1, EnemyName = "Sky Bandit",           Island = "Skylands" },
+    { MinLevel = 175, MaxLevel = 189, QuestName = "SkyQuest",       QuestNumber = 2, EnemyName = "Dark Master",          Island = "Skylands" },
+    { MinLevel = 190, MaxLevel = 209, QuestName = "PrisonerQuest",  QuestNumber = 1, EnemyName = "Prisoner",             Island = "Prison" },
+    { MinLevel = 210, MaxLevel = 249, QuestName = "PrisonerQuest",  QuestNumber = 2, EnemyName = "Dangerous Prisoner",   Island = "Prison" },
+    { MinLevel = 250, MaxLevel = 274, QuestName = "ColosseumQuest", QuestNumber = 1, EnemyName = "Toga Warrior",         Island = "Colosseum" },
+    { MinLevel = 275, MaxLevel = 299, QuestName = "ColosseumQuest", QuestNumber = 2, EnemyName = "Gladiator",            Island = "Colosseum" },
+    { MinLevel = 300, MaxLevel = 324, QuestName = "MagmaQuest",     QuestNumber = 1, EnemyName = "Military Soldier",     Island = "Magma Village" },
+    { MinLevel = 325, MaxLevel = 374, QuestName = "MagmaQuest",     QuestNumber = 2, EnemyName = "Military Spy",         Island = "Magma Village" },
+    { MinLevel = 375, MaxLevel = 399, QuestName = "FishmanQuest",   QuestNumber = 1, EnemyName = "Fishman Warrior",      Island = "Underwater City" },
+    { MinLevel = 400, MaxLevel = 449, QuestName = "FishmanQuest",   QuestNumber = 2, EnemyName = "Fishman Commando",     Island = "Underwater City" },
+    { MinLevel = 450, MaxLevel = 474, QuestName = "SkyExp1Quest",   QuestNumber = 1, EnemyName = "God's Guard",          Island = "Upper Skylands" },
+    { MinLevel = 475, MaxLevel = 524, QuestName = "SkyExp1Quest",   QuestNumber = 2, EnemyName = "Shanda",               Island = "Upper Skylands" },
+    { MinLevel = 525, MaxLevel = 549, QuestName = "SkyExp2Quest",   QuestNumber = 1, EnemyName = "Royal Squad",          Island = "Upper Skylands" },
+    { MinLevel = 550, MaxLevel = 624, QuestName = "SkyExp2Quest",   QuestNumber = 2, EnemyName = "Royal Soldier",        Island = "Upper Skylands" },
+    { MinLevel = 625, MaxLevel = 649, QuestName = "FountainQuest",  QuestNumber = 1, EnemyName = "Galley Pirate",        Island = "Fountain City" },
+    { MinLevel = 650, MaxLevel = 700, QuestName = "FountainQuest",  QuestNumber = 2, EnemyName = "Galley Captain",       Island = "Fountain City" }
 }
 
 local AutoFarmLevelEnabled = false
@@ -558,11 +615,9 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
             return 1
         end
 
-        -- CHECK QUEST NÂNG CẤP: Quét tất cả chữ hiển thị Quest trên màn hình
         local function hasActiveQuest()
             local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
             if playerGui then
-                -- Tìm khung Quest chính của Blox Fruits
                 local mainGui = playerGui:FindFirstChild("Main")
                 if mainGui then
                     local questFrame = mainGui:FindFirstChild("Quest")
@@ -593,7 +648,7 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                 end
 
                 if currentData then
-                    -- 1. NẾU CHƯA CÓ QUEST THÌ MỚI BAY VỀ NHẬN
+                    -- 1. BÂY GIỜ SẼ TỰ BAY ĐẾN ĐẢO MỚI NẾU LÊN LEVEL MỚI
                     if not hasActiveQuest() then
                         local npcPos = NpcPositions[currentData.Island]
                         if npcPos then
@@ -609,7 +664,7 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                         task.wait(0.8)
                     end
 
-                    -- 2. VÒNG LẶP FARM LIÊN TỤC CHO ĐẾN KHI HẾT QUEST
+                    -- 2. ĐÁNH QUÁI THƯỜNG CHO ĐẾN KHU XONG QUEST
                     while hasActiveQuest() and AutoFarmLevelEnabled do
                         task.wait(0.1)
 
@@ -633,7 +688,6 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                             local eHum = targetEnemy:FindFirstChildOfClass("Humanoid")
                             local eRoot = targetEnemy:FindFirstChild("HumanoidRootPart")
 
-                            -- Đánh 1 con quái đến khi nó chết hẳn
                             while targetEnemy and eHum and eHum.Health > 0 and AutoFarmLevelEnabled and hasActiveQuest() do
                                 RootPart.CFrame = eRoot.CFrame * CFrame.new(0, 14, 0) * CFrame.Angles(math.rad(-90), 0, 0)
 
@@ -653,7 +707,6 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                                 task.wait(0.08)
                             end
                         else
-                            -- Nếu chưa có quái thì bay lơ lửng chờ ở bãi quái chứ không bay về NPC
                             local enemySpot = EnemyPositions[currentData.EnemyName]
                             if enemySpot then
                                 smoothMoveTo(enemySpot * CFrame.new(0, 15, 0))
