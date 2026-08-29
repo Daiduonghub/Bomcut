@@ -692,40 +692,37 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
     enableNoclip()
 
     task.spawn(function()
-    local CommF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
-    local Net = ReplicatedStorage:FindFirstChild("Modules") and ReplicatedStorage.Modules:FindFirstChild("Net")
+        local CommF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
+        local Net = ReplicatedStorage:FindFirstChild("Modules") and ReplicatedStorage.Modules:FindFirstChild("Net")
 
-    local function getPlayerLevel()
-        if LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Level") then
-            return LocalPlayer.Data.Level.Value
+        local function getPlayerLevel()
+            if LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Level") then
+                return LocalPlayer.Data.Level.Value
+            end
+            return 1
         end
-        return 1
-    end
 
-    local function hasActiveQuest()
-        local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-        if playerGui then
-            local mainGui = playerGui:FindFirstChild("Main")
-            if mainGui then
-                local questFrame = mainGui:FindFirstChild("Quest")
-                if questFrame and questFrame.Visible then
-                    return true
+        local function hasActiveQuest()
+            local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+            if playerGui then
+                local mainGui = playerGui:FindFirstChild("Main")
+                if mainGui then
+                    local questFrame = mainGui:FindFirstChild("Quest")
+                    if questFrame and questFrame.Visible then
+                        return true
+                    end
                 end
             end
+            return false
         end
-        return false
-    end
 
-    while true do
-        task.wait(0.1)
+        while AutoFarmLevelEnabled do
+            task.wait(0.1)
 
-        if AutoFarmLevelEnabled then
-            -- Luôn luôn cập nhật Character, RootPart và Humanoid MỚI NHẤT mỗi vòng lặp
             local Character = LocalPlayer.Character
             local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
             local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
 
-            -- Chỉ thực hiện Farm khi nhân vật thực sự sống và có RootPart
             if Character and RootPart and Humanoid and Humanoid.Health > 0 then
                 local currentLevel = getPlayerLevel()
                 local currentData = nil
@@ -738,7 +735,6 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                 end
 
                 if currentData then
-                    -- BƯỚC 1: NẾU CHƯA CÓ QUEST -> ĐI NHẬN QUEST
                     if not hasActiveQuest() then
                         local npcPos = NpcPositions[currentData.Island]
                         if npcPos then
@@ -754,7 +750,6 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                         task.wait(0.5)
                     end
 
-                    -- BƯỚC 2: NẾU ĐÃ CÓ QUEST -> VÀO VÒNG LẶP ĐÁNH QUÁI
                     if hasActiveQuest() then
                         local enemySpot = EnemyPositions[currentData.EnemyName]
                         if enemySpot and (RootPart.Position - enemySpot.Position).Magnitude > 150 then
@@ -763,15 +758,6 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
 
                         while hasActiveQuest() and AutoFarmLevelEnabled do
                             task.wait(0.05)
-
-                            -- KIỂM TRA SỐNG CÒN: Nếu nhân vật chết/mất RootPart trong khi farm -> Thoát vòng lặp ngay để chờ hồi sinh
-                            local currChar = LocalPlayer.Character
-                            local currRoot = currChar and currChar:FindFirstChild("HumanoidRootPart")
-                            local currHum = currChar and currChar:FindFirstChildOfClass("Humanoid")
-
-                            if not currChar or not currRoot or not currHum or currHum.Health <= 0 then
-                                break
-                            end
 
                             local EnemiesFolder = Workspace:FindFirstChild("Enemies")
                             local targetEnemy = nil
@@ -796,24 +782,15 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                                 while targetEnemy and eHum and eHum.Health > 0 and AutoFarmLevelEnabled and hasActiveQuest() do
                                     if tick() - farmTime > 12 then break end
 
-                                    -- Kiểm tra lại nhân vật còn sống trước khi Fast Attack
-                                    local activeChar = LocalPlayer.Character
-                                    local activeRoot = activeChar and activeChar:FindFirstChild("HumanoidRootPart")
-                                    local activeHum = activeChar and activeChar:FindFirstChildOfClass("Humanoid")
-
-                                    if not activeChar or not activeRoot or not activeHum or activeHum.Health <= 0 then
-                                        break
-                                    end
-
                                     AutoEquipWeapon()
-                                    activeRoot.CFrame = CFrame.lookAt(eRoot.Position + Vector3.new(0, 18, 0), eRoot.Position)
+                                    RootPart.CFrame = CFrame.lookAt(eRoot.Position + Vector3.new(0, 18, 0), eRoot.Position)
                                     DoFastAttack(targetEnemy, Net)
 
                                     task.wait(0.01)
                                 end
                             else
                                 if enemySpot then
-                                    currRoot.CFrame = enemySpot * CFrame.new(0, 18, 0)
+                                    RootPart.CFrame = enemySpot * CFrame.new(0, 18, 0)
                                 end
                                 task.wait(0.3)
                             end
@@ -822,8 +799,7 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                 end
             end
         end
-    end
-end)
+    end)
 end)
 
 -- 2. TAB PLAYER
