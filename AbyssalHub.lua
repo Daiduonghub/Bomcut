@@ -489,7 +489,6 @@ end
 -- ====================================================================
 -- SYSTEM VARS & LOGIC FARM
 -- ====================================================================
-
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 local Players = game:GetService("Players")
@@ -655,8 +654,6 @@ local function AutoEquipWeapon()
     end
 end
 
--- Fix: Cố định vị trí gom quái đúng tại bãi quái (EnemyPosition) không bị bay lướt hay chạy theo người chơi
--- Thay thế hàm BringMobs cũ bằng đoạn này:
 local function BringMobs(enemySpot, currentData)
     if not BringMobEnabled then return end
 
@@ -676,7 +673,6 @@ local function BringMobs(enemySpot, currentData)
                             enemy.Head.CanCollide = false
                         end
 
-                        -- Gom tất cả quái về đúng một điểm cố định và khóa cứng lại
                         eRoot.CFrame = fixedBringPos
                         eRoot.Velocity = Vector3.zero
                         eRoot.RotVelocity = Vector3.zero
@@ -816,7 +812,6 @@ task.spawn(function()
 
                             local EnemiesFolder = Workspace:FindFirstChild("Enemies")
                             
-                            -- Đếm số lượng quái sống
                             local aliveCount = 0
                             if EnemiesFolder then
                                 for _, enemy in pairs(EnemiesFolder:GetChildren()) do
@@ -854,7 +849,6 @@ task.spawn(function()
 
                                     task.wait(0.05)
 
-                                    -- Cập nhật lại số lượng quái sống
                                     aliveCount = 0
                                     if EnemiesFolder then
                                         for _, enemy in pairs(EnemiesFolder:GetChildren()) do
@@ -873,8 +867,7 @@ task.spawn(function()
                                 end
                                 task.wait(0.3)
                             end
-
-                        end -- Kết thúc vòng lặp while hasActiveQuest
+                        end
                     end
                 end
             end
