@@ -508,7 +508,7 @@ local BringMobEnabled = false -- Đặt mặc định là false hoặc true tùy
 local SelectedWeapon = "Melee"
 
 -- Độ cao đứng farm so với mặt đất/bãi quái
-local FarmHeight = 40
+local FarmHeight = 70
 
 local NpcPositions = {
     ["Pirate Starter"]  = CFrame.new(1059.37, 16.45, 1549.2),
@@ -809,7 +809,7 @@ task.spawn(function()
                     if hasActiveQuest() then
                         local enemySpot = EnemyPositions[currentData.EnemyName]
                         if enemySpot and (RootPart.Position - enemySpot.Position).Magnitude > 150 then
-                            smoothMoveTo(enemySpot * CFrame.new(0, FarmHeight, 0))
+                            smoothMoveTo(enemySpot * CFrame.new(0, 50, 0)) -- Đã chỉnh độ cao lên 50
                         end
 
                         while hasActiveQuest() and AutoFarmLevelEnabled do
@@ -865,14 +865,14 @@ task.spawn(function()
                                     
                                     if BringMobEnabled then
                                         if enemySpot then
-                                            activeRoot.CFrame = enemySpot * CFrame.new(0, FarmHeight, 0)
+                                            activeRoot.CFrame = enemySpot * CFrame.new(0, 50, 0) -- Đứng cao tít trên bãi quái
                                         end
                                         BringMobs(enemySpot, currentData)
                                     else
                                         if targetEnemyRoot and targetEnemyRoot.Parent then
-                                            activeRoot.CFrame = targetEnemyRoot.CFrame * CFrame.new(0, 5, 3)
+                                            activeRoot.CFrame = targetEnemyRoot.CFrame * CFrame.new(0, 10, 3)
                                         elseif enemySpot then
-                                            activeRoot.CFrame = enemySpot * CFrame.new(0, FarmHeight, 0)
+                                            activeRoot.CFrame = enemySpot * CFrame.new(0, 50, 0)
                                         end
                                     end
 
@@ -903,7 +903,7 @@ task.spawn(function()
                                 end
                             else
                                 if enemySpot then
-                                    curRoot.CFrame = enemySpot * CFrame.new(0, FarmHeight, 0)
+                                    curRoot.CFrame = enemySpot * CFrame.new(0, 50, 0)
                                 end
                                 task.wait(0.3)
                             end
