@@ -824,6 +824,7 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
         end
     end
 end)
+end)
 
 -- 2. TAB PLAYER
 local PlayerTab = Window:CreateTab("Player")
