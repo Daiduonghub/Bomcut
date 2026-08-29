@@ -675,14 +675,17 @@ local function BringMobs(enemySpot, currentData)
                 else
                     if enemySpot and eHum.Health > 0 then
                         local dist = (eRoot.Position - enemySpot.Position).Magnitude
-                        if dist <= 300 and dist > 4 then
+                        -- Chỉ gom khi quái nằm trong phạm vi tầm nhìn, không kéo quá xa gây lỗi server
+                        if dist <= 250 and dist > 3 then
                             eRoot.CanCollide = false
                             if enemy:FindFirstChild("Head") then
                                 enemy.Head.CanCollide = false
                             end
 
+                            -- Kéo về bãi nhưng reset vận tốc để không bị văng, quái không bị đơ AI
                             eRoot.CFrame = enemySpot
                             eRoot.AssemblyLinearVelocity = Vector3.zero
+                            eRoot.AssemblyAngularVelocity = Vector3.zero
                         end
                     end
                 end
