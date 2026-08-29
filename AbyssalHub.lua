@@ -454,7 +454,7 @@ local MainTab = Window:CreateTab("Main")
 local PlayerTab = Window:CreateTab("Player")
 
 -- ====================================================================
--- AUTO FARM LEVEL (FIX GIẬT + ĐÁNH ĐỦ QUẤT MỚI VỀ NHẬN QUEST)
+-- AUTO FARM LEVEL (FIX TRIỆT ĐỂ LỖI ĐÁNH 1 CON LẠI VỀ NHẬN QUEST)
 -- ====================================================================
 
 local TweenService = game:GetService("TweenService")
@@ -488,7 +488,6 @@ local QuestDatabase = {
 local AutoFarmLevelEnabled = false
 local noclipConnection = nil
 
--- Tắt va chạm chuẩn giúp giữ nhân vật đứng yên trên không
 local function enableNoclip()
     if not noclipConnection then
         noclipConnection = RunService.Stepped:Connect(function()
@@ -510,7 +509,6 @@ local function disableNoclip()
     end
 end
 
--- Bay mượt với tốc độ ổn định
 local function smoothMoveTo(targetCFrame)
     local char = LocalPlayer.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
@@ -560,14 +558,20 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
             return 1
         end
 
-        -- FIX: Kiểm tra chính xác xem UI Quest còn trên màn hình không
+        -- CHECK QUEST NÂNG CẤP: Quét tất cả chữ hiển thị Quest trên màn hình
         local function hasActiveQuest()
             local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-            if playerGui and playerGui:FindFirstChild("Main") and playerGui.Main:FindFirstChild("Quest") then
-                return playerGui.Main.Quest.Visible
+            if playerGui then
+                -- Tìm khung Quest chính của Blox Fruits
+                local mainGui = playerGui:FindFirstChild("Main")
+                if mainGui then
+                    local questFrame = mainGui:FindFirstChild("Quest")
+                    if questFrame and questFrame.Visible then
+                        return true
+                    end
+                end
             end
-            local questObj = LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Quest")
-            return (questObj and questObj.Value ~= "" and questObj.Value ~= nil)
+            return false
         end
 
         while AutoFarmLevelEnabled do
@@ -589,7 +593,7 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                 end
 
                 if currentData then
-                    -- 1. CHỈ NHẬN QUEST KHI HOÀN TOÀN KHÔNG CÓ QUEST HIỆN TẠI
+                    -- 1. NẾU CHƯA CÓ QUEST THÌ MỚI BAY VỀ NHẬN
                     if not hasActiveQuest() then
                         local npcPos = NpcPositions[currentData.Island]
                         if npcPos then
@@ -602,61 +606,60 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                                 CommF:InvokeServer("StartQuest", currentData.QuestName, currentData.QuestNumber)
                             end)
                         end
-                        task.wait(0.5)
+                        task.wait(0.8)
                     end
 
-                    -- 2. TÌM QUÁI BÃI
-                    local EnemiesFolder = Workspace:FindFirstChild("Enemies")
-                    local targetEnemy = nil
+                    -- 2. VÒNG LẶP FARM LIÊN TỤC CHO ĐẾN KHI HẾT QUEST
+                    while hasActiveQuest() and AutoFarmLevelEnabled do
+                        task.wait(0.1)
 
-                    if EnemiesFolder then
-                        for _, enemy in pairs(EnemiesFolder:GetChildren()) do
-                            if string.find(enemy.Name, currentData.EnemyName) then
-                                local eHum = enemy:FindFirstChildOfClass("Humanoid")
-                                local eRoot = enemy:FindFirstChild("HumanoidRootPart")
-                                if eHum and eHum.Health > 0 and eRoot then
-                                    targetEnemy = enemy
-                                    break
+                        local EnemiesFolder = Workspace:FindFirstChild("Enemies")
+                        local targetEnemy = nil
+
+                        if EnemiesFolder then
+                            for _, enemy in pairs(EnemiesFolder:GetChildren()) do
+                                if string.find(enemy.Name, currentData.EnemyName) then
+                                    local eHum = enemy:FindFirstChildOfClass("Humanoid")
+                                    local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+                                    if eHum and eHum.Health > 0 and eRoot then
+                                        targetEnemy = enemy
+                                        break
+                                    end
                                 end
                             end
                         end
-                    end
 
-                    -- 3. TỎA ĐỘ CAO 13 STUDS TRÊN ĐẦU QUÁI (KHÔNG BỊ GIẬT / KHÔNG CHẠM NỀN)
-                    if targetEnemy then
-                        local eHum = targetEnemy:FindFirstChildOfClass("Humanoid")
-                        local eRoot = targetEnemy:FindFirstChild("HumanoidRootPart")
+                        if targetEnemy then
+                            local eHum = targetEnemy:FindFirstChildOfClass("Humanoid")
+                            local eRoot = targetEnemy:FindFirstChild("HumanoidRootPart")
 
-                        -- Bay đến điểm cao 13 studs và quay mặt xuống quái
-                        local targetFarmPos = eRoot.CFrame * CFrame.new(0, 13, 0) * CFrame.Angles(math.rad(-90), 0, 0)
-                        smoothMoveTo(targetFarmPos)
+                            -- Đánh 1 con quái đến khi nó chết hẳn
+                            while targetEnemy and eHum and eHum.Health > 0 and AutoFarmLevelEnabled and hasActiveQuest() do
+                                RootPart.CFrame = eRoot.CFrame * CFrame.new(0, 14, 0) * CFrame.Angles(math.rad(-90), 0, 0)
 
-                        while targetEnemy and eHum and eHum.Health > 0 and AutoFarmLevelEnabled and hasActiveQuest() do
-                            -- Giữ cố định vị trí đứng im trên cao
-                            RootPart.CFrame = eRoot.CFrame * CFrame.new(0, 13, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+                                if Net then
+                                    pcall(function()
+                                        local RegAttack = Net:FindFirstChild("RE/RegisterAttack")
+                                        local RegHit = Net:FindFirstChild("RegisterHit") or Net:FindFirstChild("RE/RegisterHit")
+                                        
+                                        if RegAttack then RegAttack:FireServer(0.5, 1) end
+                                        if RegHit then 
+                                            local hitPart = targetEnemy:FindFirstChild("UpperTorso") or eRoot
+                                            RegHit:FireServer(hitPart, {}, nil, "157beb64")
+                                        end
+                                    end)
+                                end
 
-                            if Net then
-                                pcall(function()
-                                    local RegAttack = Net:FindFirstChild("RE/RegisterAttack")
-                                    local RegHit = Net:FindFirstChild("RegisterHit") or Net:FindFirstChild("RE/RegisterHit")
-                                    
-                                    if RegAttack then RegAttack:FireServer(0.5, 1) end
-                                    if RegHit then 
-                                        local hitPart = targetEnemy:FindFirstChild("UpperTorso") or eRoot
-                                        RegHit:FireServer(hitPart, {}, nil, "157beb64")
-                                    end
-                                end)
+                                task.wait(0.08)
                             end
-
-                            task.wait(0.08)
+                        else
+                            -- Nếu chưa có quái thì bay lơ lửng chờ ở bãi quái chứ không bay về NPC
+                            local enemySpot = EnemyPositions[currentData.EnemyName]
+                            if enemySpot then
+                                smoothMoveTo(enemySpot * CFrame.new(0, 15, 0))
+                            end
+                            task.wait(0.5)
                         end
-                    else
-                        -- Đứng chờ quái spawn ở độ cao an toàn
-                        local enemySpot = EnemyPositions[currentData.EnemyName]
-                        if enemySpot then
-                            smoothMoveTo(enemySpot * CFrame.new(0, 15, 0))
-                        end
-                        task.wait(0.3)
                     end
                 end
             end
