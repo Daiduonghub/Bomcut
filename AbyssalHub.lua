@@ -658,7 +658,7 @@ local function BringMobs(enemySpot, currentData)
     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
     if not EnemiesFolder then return end
 
-    local broughtCount = 0 -- Đếm số lượng quái được gom trong một nhịp
+    local broughtCount = 0
 
     for _, enemy in pairs(EnemiesFolder:GetChildren()) do
         if enemy.Name == currentData.EnemyName then
@@ -667,6 +667,7 @@ local function BringMobs(enemySpot, currentData)
 
             if eHum and eRoot then
                 if not BringMobEnabled then
+                    -- Khi tắt: Trả lại hoàn toàn trạng thái bình thường cho quái
                     eRoot.CanCollide = true
                     if enemy:FindFirstChild("Head") then
                         enemy.Head.CanCollide = true
@@ -675,24 +676,24 @@ local function BringMobs(enemySpot, currentData)
                         eHum.WalkSpeed = 16
                     end
                 else
+                    -- Khi bật: Gom nhẹ tối đa 2 con ở gần bãi, tuyệt đối không spam liên tục gây đơ quái
                     if enemySpot and eHum.Health > 0 then
-                        -- Chỉ gom tối đa 2 con một lần để tránh làm lỗi server/đứng quái
-                        if broughtCount < 2 then
-                            local dist = (eRoot.Position - enemySpot.Position).Magnitude
-                            if dist <= 300 and dist > 3 then
-                                eRoot.CanCollide = false
-                                if enemy:FindFirstChild("Head") then
-                                    enemy.Head.CanCollide = false
-                                end
-
-                                eRoot.CFrame = enemySpot
-                                eRoot.AssemblyLinearVelocity = Vector3.zero
-                                eRoot.AssemblyAngularVelocity = Vector3.zero
-                                
-                                broughtCount = broughtCount + 1
+                        local dist = (eRoot.Position - enemySpot.Position).Magnitude
+                        -- Nếu quái ở trong phạm vi vừa phải và chưa bị gom quá tải
+                        if dist <= 250 and dist > 8 and broughtCount < 2 then
+                            eRoot.CanCollide = false
+                            if enemy:FindFirstChild("Head") then
+                                enemy.Head.CanCollide = false
                             end
+
+                            -- Teleport về bãi đúng 1 nhịp và reset sạch vận tốc để chống lỗi văng game
+                            eRoot.CFrame = enemySpot
+                            eRoot.AssemblyLinearVelocity = Vector3.zero
+                            eRoot.AssemblyAngularVelocity = Vector3.zero
+
+                            broughtCount = broughtCount + 1
                         else
-                            -- Các con còn lại bật va chạm bình thường để không bị đơ
+                            -- Các con còn lại giữ nguyên va chạm để server không khóa AI
                             eRoot.CanCollide = true
                         end
                     end
