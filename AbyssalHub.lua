@@ -454,15 +454,17 @@ local MainTab = Window:CreateTab("Main")
 local PlayerTab = Window:CreateTab("Player")
 
 -- ====================================================================
--- FIX TỰ ĐỘNG NHẬN QUEST + BAY ĐẾN BÃI QUÁI GORILLA / MONKEY
+-- AUTO FARM LEVEL (BAY TỪ TỪ NÉ ANTI-CHEAT - BLOX FRUITS SEA 1)
 -- ====================================================================
 
+local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local LocalPlayer = Players.LocalPlayer
 
+-- Vị trí NPC nhận Quest
 local NpcPositions = {
     ["Pirate Starter"]  = CFrame.new(1059.37, 16.5, 1549.2),
     ["Jungle"]          = CFrame.new(-1598.08, 36.85, 153.38),
@@ -471,11 +473,11 @@ local NpcPositions = {
     ["Frozen Village"]  = CFrame.new(1385.74, 87.27, -1298.07)
 }
 
--- Tọa độ vị trí bãi quái (để phòng trường hợp chưa thấy quái vẫn tự bay tới)
+-- Vị trí bãi quái
 local EnemyPositions = {
+    ["Bandit"]   = CFrame.new(1038.5, 16.5, 1542.8),
     ["Monkey"]   = CFrame.new(-1610.6, 22.8, 142.3),
-    ["Gorilla"]  = CFrame.new(-1237.7, 6.2, -486.3),
-    ["Bandit"]   = CFrame.new(1038.5, 16.5, 1542.8)
+    ["Gorilla"]  = CFrame.new(-1237.7, 6.2, -486.3)
 }
 
 local QuestDatabase = {
@@ -485,13 +487,49 @@ local QuestDatabase = {
 }
 
 local AutoFarmLevelEnabled = false
+local currentTween = nil
+
+-- Hàm bay từ từ né Anti-Cheat (Chỉnh speed = 300 để bay an toàn)
+local function tweenTo(targetCFrame, speed)
+    speed = speed or 300
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    
+    if root then
+        local distance = (root.Position - targetCFrame.Position).Magnitude
+        local duration = distance / speed
+        
+        -- Nếu khoảng cách quá gần thì dịch chuyển nhẹ
+        if distance < 15 then
+            root.CFrame = targetCFrame
+            return
+        end
+
+        local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
+        currentTween = TweenService:Create(root, tweenInfo, {CFrame = targetCFrame})
+        currentTween:Play()
+        currentTween.Completed:Wait()
+    end
+end
+
+-- Hàm hủy bay khi tắt toggle
+local function stopTween()
+    if currentTween then
+        currentTween:Cancel()
+        currentTween = nil
+    end
+end
 
 MainTab:CreateToggle("Auto Farm Level", false, function(state)
     AutoFarmLevelEnabled = state
 
+    if not AutoFarmLevelEnabled then
+        stopTween()
+        return
+    end
+
     if AutoFarmLevelEnabled then
         task.spawn(function()
-            -- Remote chuẩn nhận Quest của Blox Fruits
             local CommF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
             local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
             local RegisterAttack = Net:WaitForChild("RE/RegisterAttack")
@@ -528,22 +566,22 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                     end
 
                     if currentData then
-                        -- 1. BƯỚC NHẬN QUEST NẾU CHƯA CÓ
+                        -- 1. BAY TỪ TỪ ĐẾN NPC NHẬN QUEST (NẾU CHƯA CÓ QUEST)
                         if not hasActiveQuest() then
                             local npcPos = NpcPositions[currentData.Island]
                             if npcPos then
-                                RootPart.CFrame = npcPos
+                                tweenTo(npcPos, 250) -- Bay tốc độ 250 đến NPC
                                 task.wait(0.3)
                             end
 
-                            -- Gọi Remote nhận Quest chuẩn Blox Fruits
+                            -- Gọi Remote nhận Quest
                             pcall(function()
                                 CommF:InvokeServer("StartQuest", currentData.QuestName, currentData.QuestNumber)
                             end)
                             task.wait(0.5)
                         end
 
-                        -- 2. BƯỚC ĐI ĐÁNH QUÁI
+                        -- 2. TÌM QUÁI VÀ ĐÁNH
                         local EnemiesFolder = Workspace:FindFirstChild("Enemies")
                         local targetEnemy = nil
 
@@ -560,10 +598,12 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                             end
                         end
 
-                        -- Nếu thấy quái thì xông vào đánh
                         if targetEnemy then
                             local eHum = targetEnemy:FindFirstChildOfClass("Humanoid")
                             local eRoot = targetEnemy:FindFirstChild("HumanoidRootPart")
+
+                            -- Bay đến trên đầu quái
+                            tweenTo(eRoot.CFrame * CFrame.new(0, 8, 0), 350)
 
                             while targetEnemy and eHum and eHum.Health > 0 and AutoFarmLevelEnabled do
                                 RootPart.CFrame = eRoot.CFrame * CFrame.new(0, 8, 0)
@@ -575,10 +615,10 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                                 task.wait(0.15)
                             end
                         else
-                            -- Nếu không thấy quái ở gần -> Tự bay thẳng tới bãi quái Gorilla chứ không đứng ở NPC nữa
+                            -- Nếu chưa thấy quái -> Bay từ từ ra bãi quái
                             local enemySpot = EnemyPositions[currentData.EnemyName]
                             if enemySpot then
-                                RootPart.CFrame = enemySpot
+                                tweenTo(enemySpot, 250)
                             end
                             task.wait(0.5)
                         end
