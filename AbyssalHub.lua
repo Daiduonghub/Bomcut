@@ -691,115 +691,133 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
 
     enableNoclip()
 
-    task.spawn(function()
-        local CommF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
-        local Net = ReplicatedStorage:FindFirstChild("Modules") and ReplicatedStorage.Modules:FindFirstChild("Net")
+task.spawn(function()
+    local CommF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
+    local Net = ReplicatedStorage:FindFirstChild("Modules") and ReplicatedStorage.Modules:FindFirstChild("Net")
 
-        local function getPlayerLevel()
-            if LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Level") then
-                return LocalPlayer.Data.Level.Value
-            end
-            return 1
+    local function getPlayerLevel()
+        if LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Level") then
+            return LocalPlayer.Data.Level.Value
         end
+        return 1
+    end
 
-        local function hasActiveQuest()
-            local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-            if playerGui then
-                local mainGui = playerGui:FindFirstChild("Main")
-                if mainGui then
-                    local questFrame = mainGui:FindFirstChild("Quest")
-                    if questFrame and questFrame.Visible then
-                        return true
-                    end
+    local function hasActiveQuest()
+        local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+        if playerGui then
+            local mainGui = playerGui:FindFirstChild("Main")
+            if mainGui then
+                local questFrame = mainGui:FindFirstChild("Quest")
+                if questFrame and questFrame.Visible then
+                    return true
                 end
             end
-            return false
         end
+        return false
+    end
 
-        while AutoFarmLevelEnabled do
-            task.wait(0.1)
+    while AutoFarmLevelEnabled do
+        task.wait(0.1)
 
-            local Character = LocalPlayer.Character
-            local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
-            local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
+        local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+        local RootPart = Character:WaitForChild("HumanoidRootPart", 5)
+        local Humanoid = Character:WaitForChild("Humanoid", 5)
 
-            if Character and RootPart and Humanoid and Humanoid.Health > 0 then
-                local currentLevel = getPlayerLevel()
-                local currentData = nil
+        -- Kiểm tra nhân vật sống và đủ bộ phận
+        if Character and RootPart and Humanoid and Humanoid.Health > 0 then
+            local currentLevel = getPlayerLevel()
+            local currentData = nil
 
-                for _, q in ipairs(QuestDatabase) do
-                    if currentLevel >= q.MinLevel and currentLevel <= q.MaxLevel then
-                        currentData = q
-                        break
+            for _, q in ipairs(QuestDatabase) do
+                if currentLevel >= q.MinLevel and currentLevel <= q.MaxLevel then
+                    currentData = q
+                    break
+                end
+            end
+
+            if currentData then
+                -- 1. Chưa nhận quest thì đi nhận
+                if not hasActiveQuest() then
+                    local npcPos = NpcPositions[currentData.Island]
+                    if npcPos then
+                        smoothMoveTo(npcPos)
+                        task.wait(0.2)
                     end
+
+                    if CommF and not hasActiveQuest() then
+                        pcall(function()
+                            CommF:InvokeServer("StartQuest", currentData.QuestName, currentData.QuestNumber)
+                        end)
+                    end
+                    task.wait(0.5)
                 end
 
-                if currentData then
-                    if not hasActiveQuest() then
-                        local npcPos = NpcPositions[currentData.Island]
-                        if npcPos then
-                            smoothMoveTo(npcPos)
-                            task.wait(0.2)
+                -- 2. Đã nhận quest thì đánh quái
+                if hasActiveQuest() then
+                    local enemySpot = EnemyPositions[currentData.EnemyName]
+
+                    while hasActiveQuest() and AutoFarmLevelEnabled do
+                        task.wait(0.05)
+
+                        -- Tự hủy Quest cũ nếu bị đánh chết / mất nhân vật
+                        Character = LocalPlayer.Character
+                        if not Character or not Character:FindFirstChild("HumanoidRootPart") or (Character:FindFirstChild("Humanoid") and Character.Humanoid.Health <= 0) then
+                            if CommF then
+                                pcall(function() CommF:InvokeServer("AbandonQuest") end)
+                            end
+                            break 
                         end
 
-                        if CommF and not hasActiveQuest() then
-                            pcall(function()
-                                CommF:InvokeServer("StartQuest", currentData.QuestName, currentData.QuestNumber)
-                            end)
-                        end
-                        task.wait(0.5)
-                    end
+                        RootPart = Character.HumanoidRootPart
 
-                    if hasActiveQuest() then
-                        local enemySpot = EnemyPositions[currentData.EnemyName]
-                        if enemySpot and (RootPart.Position - enemySpot.Position).Magnitude > 150 then
-                            smoothMoveTo(enemySpot * CFrame.new(0, 18, 0))
-                        end
+                        local EnemiesFolder = Workspace:FindFirstChild("Enemies")
+                        local targetEnemy = nil
 
-                        while hasActiveQuest() and AutoFarmLevelEnabled do
-                            task.wait(0.05)
-
-                            local EnemiesFolder = Workspace:FindFirstChild("Enemies")
-                            local targetEnemy = nil
-
-                            if EnemiesFolder then
-                                for _, enemy in pairs(EnemiesFolder:GetChildren()) do
-                                    if enemy.Name == currentData.EnemyName then
-                                        local eHum = enemy:FindFirstChildOfClass("Humanoid")
-                                        if eHum and eHum.Health > 0 then
-                                            targetEnemy = enemy
-                                            break
-                                        end
+                        if EnemiesFolder then
+                            for _, enemy in pairs(EnemiesFolder:GetChildren()) do
+                                if enemy.Name == currentData.EnemyName then
+                                    local eHum = enemy:FindFirstChildOfClass("Humanoid")
+                                    if eHum and eHum.Health > 0 then
+                                        targetEnemy = enemy
+                                        break
                                     end
                                 end
                             end
+                        end
 
-                            if targetEnemy then
-                                local eHum = targetEnemy:FindFirstChildOfClass("Humanoid")
-                                local eRoot = targetEnemy:FindFirstChild("HumanoidRootPart")
-                                local farmTime = tick()
+                        if targetEnemy then
+                            local eHum = targetEnemy:FindFirstChildOfClass("Humanoid")
+                            local eRoot = targetEnemy:FindFirstChild("HumanoidRootPart")
+                            local farmTime = tick()
 
-                                while targetEnemy and eHum and eHum.Health > 0 and AutoFarmLevelEnabled and hasActiveQuest() do
-                                    if tick() - farmTime > 12 then break end
+                            while targetEnemy and eHum and eHum.Health > 0 and AutoFarmLevelEnabled and hasActiveQuest() do
+                                if tick() - farmTime > 12 then break end
 
-                                    AutoEquipWeapon()
-                                    RootPart.CFrame = CFrame.lookAt(eRoot.Position + Vector3.new(0, 18, 0), eRoot.Position)
-                                    DoFastAttack(targetEnemy, Net)
-
-                                    task.wait(0.01)
+                                -- Check sống chết liên tục trong lúc xả skill
+                                if not Character or not Character:FindFirstChild("HumanoidRootPart") or (Character:FindFirstChild("Humanoid") and Character.Humanoid.Health <= 0) then
+                                    break
                                 end
-                            else
-                                if enemySpot then
-                                    RootPart.CFrame = enemySpot * CFrame.new(0, 18, 0)
-                                end
-                                task.wait(0.3)
+
+                                AutoEquipWeapon()
+                                RootPart.CFrame = CFrame.lookAt(eRoot.Position + Vector3.new(0, 18, 0), eRoot.Position)
+                                DoFastAttack(targetEnemy, Net)
+
+                                task.wait(0.01)
                             end
+                        else
+                            if enemySpot then
+                                RootPart.CFrame = enemySpot * CFrame.new(0, 18, 0)
+                            end
+                            task.wait(0.3)
                         end
                     end
                 end
             end
+        else
+            -- Tự đợi 1s nếu nhân vật đang hồi sinh
+            task.wait(1)
         end
-    end)
+    end
 end)
 
 -- 2. TAB PLAYER
