@@ -655,28 +655,39 @@ local function AutoEquipWeapon()
 end
 
 local function BringMobs(enemySpot, currentData)
-    if not BringMobEnabled or not enemySpot then return end
-
     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
     if not EnemiesFolder then return end
-
-    local broughtCount = 0
 
     for _, enemy in pairs(EnemiesFolder:GetChildren()) do
         if enemy.Name == currentData.EnemyName then
             local eHum = enemy:FindFirstChildOfClass("Humanoid")
             local eRoot = enemy:FindFirstChild("HumanoidRootPart")
 
-            if eHum and eHum.Health > 0 and eRoot then
-                local dist = (eRoot.Position - enemySpot.Position).Magnitude
+            if eHum and eRoot and eHum.Health > 0 then
+                -- Ép game nhường quyền quản lý con quái này cho client của cậu
+                pcall(function()
+                    if sethiddenproperty then
+                        sethiddenproperty(enemy, "NetworkOwner", LocalPlayer)
+                    elseif requestnetworkownership then
+                        requestnetworkownership(enemy)
+                    end
+                end)
 
-                -- Chỉ gom khi quái còn ở xa (> 12) và tối đa 2 con/lần
-                if dist > 12 and dist <= 250 and broughtCount < 2 then
-                    pcall(function()
-                        enemy:PivotTo(enemySpot)
+                -- Sau khi đã giành được quyền, cậu kéo quái về bãi thoải mái không sợ đơ
+                if BringMobEnabled and enemySpot then
+                    local dist = (eRoot.Position - enemySpot.Position).Magnitude
+                    if dist <= 300 and dist > 3 then
+                        eRoot.CanCollide = false
+                        if enemy:FindFirstChild("Head") then
+                            enemy.Head.CanCollide = false
+                        end
+
+                        eRoot.CFrame = enemySpot
                         eRoot.AssemblyLinearVelocity = Vector3.zero
-                    end)
-                    broughtCount = broughtCount + 1
+                        eRoot.AssemblyAngularVelocity = Vector3.zero
+                    end
+                else
+                    eRoot.CanCollide = true
                 end
             end
         end
