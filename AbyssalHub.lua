@@ -844,7 +844,6 @@ local IslandTeleports = {
     ["Fountain City"]   = Vector3.new(5259.82, 60, 4050.0)
 }
 
--- SMOOTH TELEPORT SYSTEM (Straight line & High altitude to prevent water drop/stutter)
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -852,45 +851,53 @@ local LocalPlayer = Players.LocalPlayer
 local function smoothMoveTo(targetPos)
     local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
     local hrp = character:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
+    local humanoid = character:FindFirstChild("Humanoid")
+    if not hrp or not humanoid then return end
 
-    -- Giữ độ cao an toàn (300) để không bị rơi xuống biển khi di chuyển
-    local safeHeight = math.max(hrp.Position.Y, targetPos.Y, 300)
+    -- Tốc độ giảm nhẹ lại để anticheat không kéo văng về biển
+    local speed = 250 
     
-    -- Điểm trung gian để di chuyển trên không
+    -- Độ cao bay thấp vừa đủ an toàn (150m)
+    local safeHeight = math.max(150, targetPos.Y + 20)
+    
     local startAir = Vector3.new(hrp.Position.X, safeHeight, hrp.Position.Z)
     local targetAir = Vector3.new(targetPos.X, safeHeight, targetPos.Z)
-    
-    local speed = 350 -- Tốc độ bay (điều chỉnh nếu muốn nhanh/chậm hơn)
 
-    -- Tắt va chạm tạm thời để không bị giật khi đụng vật cản
+    -- Giữ cố định nhân vật không cho trọng lực kéo rớt xuống biển
+    local bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+    bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+    bodyVelocity.Parent = hrp
+
+    -- Tắt va chạm tạm thời
     for _, part in ipairs(character:GetDescendants()) do
         if part:IsA("BasePart") then
             part.CanCollide = false
         end
     end
 
-    -- Bước 1: Bay thẳng lên độ cao an toàn
+    -- 1. Tới độ cao an toàn
     local dist1 = (startAir - hrp.Position).Magnitude
-    if dist1 > 10 then
+    if dist1 > 5 then
         local tween1 = TweenService:Create(hrp, TweenInfo.new(dist1 / speed, Enum.EasingStyle.Linear), {CFrame = CFrame.new(startAir)})
         tween1:Play()
         tween1.Completed:Wait()
     end
 
-    -- Bước 2: Bay ngang thẳng tới đảo
+    -- 2. Lướt thẳng sang đảo
     local dist2 = (targetAir - startAir).Magnitude
     local tween2 = TweenService:Create(hrp, TweenInfo.new(dist2 / speed, Enum.EasingStyle.Linear), {CFrame = CFrame.new(targetAir)})
     tween2:Play()
     tween2.Completed:Wait()
 
-    -- Bước 3: Hạ cánh xuống vị trí chính xác của đảo
+    -- 3. Hạ nhẹ xuống vị trí đảo
     local dist3 = (targetPos - targetAir).Magnitude
     local tween3 = TweenService:Create(hrp, TweenInfo.new(dist3 / speed, Enum.EasingStyle.Linear), {CFrame = CFrame.new(targetPos)})
     tween3:Play()
     tween3.Completed:Wait()
 
-    -- Bật lại va chạm sau khi đến nơi
+    -- Xóa lực giữ và bật lại va chạm
+    bodyVelocity:Destroy()
     for _, part in ipairs(character:GetDescendants()) do
         if part:IsA("BasePart") then
             part.CanCollide = true
