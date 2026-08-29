@@ -393,6 +393,7 @@ local Window = Library:CreateWindow("ABYSSAL HUB")
 
 local MainTab = Window:CreateTab("Main")
 local PlayerTab = Window:CreateTab("Player")
+local SettingTab = Window:CreateTab("Settings")
 
 -- ====================================================================
 -- AUTO FARM LEVEL FULL SEA 1 (FIX LAG GIẬT + FIX KẸT QUÁI)
@@ -718,8 +719,70 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
     end)
 end)
 
-MainTab:CreateToggle("Fast Attack", false, function(state)
-    print("Fast Attack:", state)
+-- ====================================================================
+-- HÀM FAST ATTACK & TÍCH HỢP TAB SETTINGS (DÙNG DATABASE SẴN CÓ)
+-- ====================================================================
+
+local FastAttackEnabled = true
+local FastAttackSpeed = 8
+
+-- HÀM FAST ATTACK
+local function DoFastAttack(targetEnemy, Net)
+    if not targetEnemy then return end
+
+    local RegAttack = Net and Net:FindFirstChild("RE/RegisterAttack")
+    local RegHit = Net and (Net:FindFirstChild("RegisterHit") or Net:FindFirstChild("RE/RegisterHit"))
+    local eRoot = targetEnemy:FindFirstChild("HumanoidRootPart")
+    if not eRoot then return end
+
+    -- Tắt animation vung tay/kiếm để nhân vật không bị khựng
+    local char = LocalPlayer.Character
+    if char then
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            for _, track in pairs(humanoid:GetPlayingAnimationTracks()) do
+                if track.Name:lower():find("attack") or track.Name:lower():find("slash") then
+                    track:Stop()
+                end
+            end
+        end
+    end
+
+    -- Xả hit liên tục tùy thuộc vào trạng thái FastAttackEnabled
+    local loopHits = FastAttackEnabled and FastAttackSpeed or 1
+    for i = 1, loopHits do
+        pcall(function()
+            if RegAttack then RegAttack:FireServer(0.5, 1) end
+            if RegHit then 
+                local hitPart = targetEnemy:FindFirstChild("UpperTorso") or eRoot
+                RegHit:FireServer(hitPart, {}, nil, "157beb64")
+            end
+        end)
+    end
+end
+
+-- ====================================================================
+-- CẬP NHẬT ĐOẠN ĐÁNH QUÁI BÊN MAIN TAB (DÙNG FAST ATTACK)
+-- ====================================================================
+
+-- Mày chỉ cần thay đoạn vòng lặp đánh quái bên trong MainTab bằng đoạn này:
+while targetEnemy and eHum and eHum.Health > 0 and AutoFarmLevelEnabled and hasActiveQuest() do
+    if tick() - farmTime > 12 then break end
+
+    local playerHum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+    if not playerHum or playerHum.Health <= 0 then break end
+
+    -- Xoay mặt về phía quái để hit chính xác
+    RootPart.CFrame = CFrame.lookAt(eRoot.Position + Vector3.new(0, 18, 0), eRoot.Position)
+
+    -- Gọi hàm Fast Attack
+    DoFastAttack(targetEnemy, Net)
+
+    task.wait(0.01)
+end
+
+SettingTab:CreateToggle("Fast Attack", true, function(state)
+    FastAttackEnabled = state
 end)
 
 PlayerTab:CreateSlider("WalkSpeed", 16, 200, 16, function(value)
