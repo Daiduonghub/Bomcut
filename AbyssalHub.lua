@@ -500,59 +500,59 @@ local TweenService = game:GetService("TweenService")
 
 local LocalPlayer = Players.LocalPlayer
 
--- Biến trạng thái
+-- ==========================================
+-- 1. BIẾN TRẠNG THÁI & DATABASE CHUẨN (SEA 1)
+-- ==========================================
 local AutoFarmLevelEnabled = false
 local FastAttackEnabled = true
-local FastAttackSpeed = 8
-local SelectedWeapon = "Melee"
 local BringMobEnabled = true
+local SelectedWeapon = "Melee"
 
 local NpcPositions = {
-    ["Pirate Starter"]  = CFrame.new(1059.37, 20, 1549.2),
-    ["Jungle"]          = CFrame.new(-1598.08, 40, 153.38),
-    ["Pirate Village"]  = CFrame.new(-1140.17, 10, 3827.42),
-    ["Desert"]          = CFrame.new(894.48, 10, 4392.43),
-    ["Frozen Village"]  = CFrame.new(1385.74, 90, -1298.07),
-    ["Marine Fortress"] = CFrame.new(-5039.59, 30, 4324.58),
-    ["Skylands"]        = CFrame.new(-4839.53, 720, -2619.44),
-    ["Prison"]          = CFrame.new(485.63, 5, 736.61),
-    ["Colosseum"]       = CFrame.new(-1422.01, 10, -3015.68),
-    ["Magma Village"]   = CFrame.new(-5232.9, 12, 8533.8),
-    ["Underwater City"] = CFrame.new(61163.85, 22, 1569.25),
-    ["Upper Skylands"]  = CFrame.new(-7859.1, 5550, -380.3),
-    ["Fountain City"]   = CFrame.new(5259.82, 42, 4050.0)
+    ["Pirate Starter"]  = CFrame.new(1059.37, 16.45, 1549.2),
+    ["Jungle"]          = CFrame.new(-1598.08, 36.85, 153.38),
+    ["Pirate Village"]  = CFrame.new(-1140.17, 4.75, 3827.42),
+    ["Desert"]          = CFrame.new(894.48, 6.44, 4392.43),
+    ["Frozen Village"]  = CFrame.new(1385.74, 87.27, -1298.07),
+    ["Marine Fortress"] = CFrame.new(-5039.59, 27.35, 4324.58),
+    ["Skylands"]        = CFrame.new(-4839.53, 717.5, -2619.44),
+    ["Prison"]          = CFrame.new(485.63, 1.65, 736.61),
+    ["Colosseum"]       = CFrame.new(-1422.01, 7.38, -3015.68),
+    ["Magma Village"]   = CFrame.new(-5232.9, 8.58, 8533.8),
+    ["Underwater City"] = CFrame.new(61163.85, 11.68, 1569.25),
+    ["Upper Skylands"]  = CFrame.new(-7859.1, 5545.49, -380.3),
+    ["Fountain City"]   = CFrame.new(5259.82, 38.5, 4050.0)
 }
 
 local EnemyPositions = {
-    ["Bandit"]                = CFrame.new(1038.5, 30, 1542.8),
-    ["Monkey"]                = CFrame.new(-1610.6, 35, 142.3),
-    ["Gorilla"]               = CFrame.new(-1237.7, 35, -486.3),
-    ["Pirate"]                = CFrame.new(-1205.1, 25, 3858.8),
-    ["Brute"]                 = CFrame.new(-1148.5, 25, 4253.6),
-    ["Desert Bandit"]         = CFrame.new(932.4, 20, 4438.3),
-    ["Desert Officer"]        = CFrame.new(1571.3, 20, 4381.1),
-    ["Snow Bandit"]           = CFrame.new(1288.2, 100, -1352.4),
-    ["Snowman"]               = CFrame.new(1228.6, 100, -1522.6),
-    ["Chief Petty Officer"]   = CFrame.new(-4881.9, 40, 4242.3),
-    ["Sky Bandit"]            = CFrame.new(-4972.3, 730, -2871.2),
-    ["Dark Master"]           = CFrame.new(-5223.1, 730, -2285.8),
-    ["Prisoner"]              = CFrame.new(542.1, 20, 482.9),
-    ["Dangerous Prisoner"]    = CFrame.new(480.2, 20, 1140.3),
-    ["Toga Warrior"]          = CFrame.new(-1805.1, 20, -2742.6),
-    ["Gladiator"]             = CFrame.new(-1323.8, 20, -3316.3),
-    ["Military Soldier"]      = CFrame.new(-5411.3, 30, 8512.4),
-    ["Military Spy"]          = CFrame.new(-5815.2, 90, 8821.5),
-    ["Fishman Warrior"]       = CFrame.new(60842.1, 30, 1531.2),
-    ["Fishman Commando"]      = CFrame.new(61812.5, 30, 1475.8),
-    ["God's Guard"]           = CFrame.new(-7725.4, 5560, -425.1),
-    ["Shanda"]                = CFrame.new(-7672.1, 5560, -1021.3),
-    ["Royal Squad"]           = CFrame.new(-7528.3, 5600, -1451.2),
-    ["Royal Soldier"]         = CFrame.new(-7812.6, 5600, -1820.5),
-    ["Galley Pirate"]         = CFrame.new(5582.3, 50, 3982.1),
-    ["Galley Captain"]        = CFrame.new(5641.8, 50, 4920.4)
+    ["Bandit"]                = CFrame.new(1038.5, 16.5, 1542.8),
+    ["Monkey"]                = CFrame.new(-1610.6, 36.8, 142.3),
+    ["Gorilla"]               = CFrame.new(-1237.7, 36.8, -486.3),
+    ["Pirate"]                = CFrame.new(-1205.1, 4.7, 3858.8),
+    ["Brute"]                 = CFrame.new(-1148.5, 4.7, 4253.6),
+    ["Desert Bandit"]         = CFrame.new(932.4, 6.4, 4438.3),
+    ["Desert Officer"]        = CFrame.new(1571.3, 6.4, 4381.1),
+    ["Snow Bandit"]           = CFrame.new(1288.2, 87.2, -1352.4),
+    ["Snowman"]               = CFrame.new(1228.6, 87.2, -1522.6),
+    ["Chief Petty Officer"]   = CFrame.new(-4881.9, 27.3, 4242.3),
+    ["Sky Bandit"]            = CFrame.new(-4972.3, 717.5, -2871.2),
+    ["Dark Master"]           = CFrame.new(-5223.1, 717.5, -2285.8),
+    ["Prisoner"]              = CFrame.new(542.1, 1.6, 482.9),
+    ["Dangerous Prisoner"]    = CFrame.new(480.2, 1.6, 1140.3),
+    ["Toga Warrior"]          = CFrame.new(-1805.1, 7.3, -2742.6),
+    ["Gladiator"]             = CFrame.new(-1323.8, 7.3, -3316.3),
+    ["Military Soldier"]      = CFrame.new(-5411.3, 8.5, 8512.4),
+    ["Military Spy"]          = CFrame.new(-5815.2, 83.5, 8821.5),
+    ["Fishman Warrior"]       = CFrame.new(60842.1, 18.5, 1531.2),
+    ["Fishman Commando"]      = CFrame.new(61812.5, 18.5, 1475.8),
+    ["God's Guard"]           = CFrame.new(-7725.4, 5545.5, -425.1),
+    ["Shanda"]                = CFrame.new(-7672.1, 5545.5, -1021.3),
+    ["Royal Squad"]           = CFrame.new(-7528.3, 5585.5, -1451.2),
+    ["Royal Soldier"]         = CFrame.new(-7812.6, 5585.5, -1820.5),
+    ["Galley Pirate"]         = CFrame.new(5582.3, 38.5, 3982.1),
+    ["Galley Captain"]        = CFrame.new(5641.8, 38.5, 4920.4)
 }
 
--- DATABASE CHUẨN LIÊN TỤC 1-700
 local QuestDatabase = {
     { MinLevel = 1,   MaxLevel = 9,   QuestName = "BanditQuest1",   QuestNumber = 1, EnemyName = "Bandit",               Island = "Pirate Starter" },
     { MinLevel = 10,  MaxLevel = 14,  QuestName = "JungleQuest",    QuestNumber = 1, EnemyName = "Monkey",               Island = "Jungle" },
@@ -582,7 +582,9 @@ local QuestDatabase = {
     { MinLevel = 650, MaxLevel = 700, QuestName = "FountainQuest",  QuestNumber = 2, EnemyName = "Galley Captain",       Island = "Fountain City" }
 }
 
--- Noclip xuyên tường khi farm
+-- ==========================================
+-- 2. HÀM BỔ TRỢ LOGIC FARM
+-- ==========================================
 RunService.Stepped:Connect(function()
     if AutoFarmLevelEnabled and LocalPlayer.Character then
         for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
@@ -604,7 +606,7 @@ local function smoothMoveTo(targetCFrame)
         return
     end
 
-    local speed = 300
+    local speed = 250
     local duration = distance / speed
     local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
     local tween = TweenService:Create(root, tweenInfo, {CFrame = targetCFrame})
@@ -650,7 +652,6 @@ local function AutoEquipWeapon()
     end
 end
 
--- 1. HÀM GOM QUÁI CHUẨN (BRING MOBS)
 local function BringMobs(targetEnemy, currentData)
     if not BringMobEnabled or not targetEnemy then return end
 
@@ -663,7 +664,7 @@ local function BringMobs(targetEnemy, currentData)
     
     if EnemiesFolder then
         local count = 0
-        local maxBring = 2 -- Giới hạn chỉ gom tối đa 2 con quái
+        local maxBring = 2
 
         for _, enemy in pairs(EnemiesFolder:GetChildren()) do
             if count >= maxBring then break end
@@ -675,14 +676,11 @@ local function BringMobs(targetEnemy, currentData)
                 if eHum and eHum.Health > 0 and eRoot then
                     if (eRoot.Position - root.Position).Magnitude <= 150 then
                         count = count + 1
-
-                        -- Tắt va chạm để quái không đẩy nhau
                         eRoot.CanCollide = false
                         if enemy:FindFirstChild("Head") then
                             enemy.Head.CanCollide = false
                         end
 
-                        -- Ép vị trí và khóa quái đứng yên không thể tung skill
                         eRoot.CFrame = bringPos
                         eRoot.Size = Vector3.new(15, 15, 15)
                         eHum.WalkSpeed = 0
@@ -698,7 +696,6 @@ local function BringMobs(targetEnemy, currentData)
     end
 end
 
--- 2. HÀM ĐÁNH TỐI ƯU COOLDOWN (FAST ATTACK)
 local lastAttackTime = 0
 local attackCooldown = 0.12
 
@@ -740,9 +737,9 @@ local function DoFastAttack(targetEnemy, Net)
     end)
 end
 
--- ====================================================================
--- LOGIC WORKER (CHẠY NGẦM)
--- ====================================================================
+-- ==========================================
+-- 3. LOGIC WORKER (CHẠY NGẦM FARM LEVEL)
+-- ==========================================
 task.spawn(function()
     local CommF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
     local Net = ReplicatedStorage:FindFirstChild("Modules") and ReplicatedStorage.Modules:FindFirstChild("Net")
@@ -852,8 +849,6 @@ task.spawn(function()
                                     end
 
                                     AutoEquipWeapon()
-                                    
-                                    -- Đứng cao 6m: Vừa đủ tầm chém kiếm vật lý vừa an toàn né đòn quái
                                     activeRoot.CFrame = CFrame.lookAt(eRoot.Position + Vector3.new(0, 6, 0), eRoot.Position)
 
                                     BringMobs(targetEnemy, currentData)
