@@ -454,7 +454,7 @@ local MainTab = Window:CreateTab("Main")
 local PlayerTab = Window:CreateTab("Player")
 
 -- ====================================================================
--- AUTO FARM LEVEL (FIX LỖI BẬT TOGGLE KHÔNG CHẠY)
+-- AUTO FARM LEVEL (FIX GIẬT + ĐÁNH ĐỦ QUẤT MỚI VỀ NHẬN QUEST)
 -- ====================================================================
 
 local TweenService = game:GetService("TweenService")
@@ -466,17 +466,17 @@ local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
 local NpcPositions = {
-    ["Pirate Starter"]  = CFrame.new(1059.37, 16.5, 1549.2),
-    ["Jungle"]          = CFrame.new(-1598.08, 36.85, 153.38),
-    ["Pirate Village"]  = CFrame.new(-1140.17, 4.75, 3827.42),
-    ["Desert"]          = CFrame.new(894.48, 6.44, 4392.43),
-    ["Frozen Village"]  = CFrame.new(1385.74, 87.27, -1298.07)
+    ["Pirate Starter"]  = CFrame.new(1059.37, 20, 1549.2),
+    ["Jungle"]          = CFrame.new(-1598.08, 40, 153.38),
+    ["Pirate Village"]  = CFrame.new(-1140.17, 10, 3827.42),
+    ["Desert"]          = CFrame.new(894.48, 10, 4392.43),
+    ["Frozen Village"]  = CFrame.new(1385.74, 90, -1298.07)
 }
 
 local EnemyPositions = {
-    ["Bandit"]   = CFrame.new(1038.5, 20, 1542.8),
-    ["Monkey"]   = CFrame.new(-1610.6, 25, 142.3),
-    ["Gorilla"]  = CFrame.new(-1237.7, 25, -486.3)
+    ["Bandit"]   = CFrame.new(1038.5, 30, 1542.8),
+    ["Monkey"]   = CFrame.new(-1610.6, 35, 142.3),
+    ["Gorilla"]  = CFrame.new(-1237.7, 35, -486.3)
 }
 
 local QuestDatabase = {
@@ -488,6 +488,7 @@ local QuestDatabase = {
 local AutoFarmLevelEnabled = false
 local noclipConnection = nil
 
+-- Tắt va chạm chuẩn giúp giữ nhân vật đứng yên trên không
 local function enableNoclip()
     if not noclipConnection then
         noclipConnection = RunService.Stepped:Connect(function()
@@ -509,18 +510,19 @@ local function disableNoclip()
     end
 end
 
+-- Bay mượt với tốc độ ổn định
 local function smoothMoveTo(targetCFrame)
     local char = LocalPlayer.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
     if not root then return end
 
     local distance = (root.Position - targetCFrame.Position).Magnitude
-    if distance < 10 then
+    if distance < 12 then
         root.CFrame = targetCFrame
         return
     end
 
-    local speed = 250
+    local speed = 280
     local duration = distance / speed
     local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
     
@@ -548,7 +550,6 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
     enableNoclip()
 
     task.spawn(function()
-        -- Tìm Remote an toàn không bị kẹt script
         local CommF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
         local Net = ReplicatedStorage:FindFirstChild("Modules") and ReplicatedStorage.Modules:FindFirstChild("Net")
 
@@ -559,7 +560,12 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
             return 1
         end
 
+        -- FIX: Kiểm tra chính xác xem UI Quest còn trên màn hình không
         local function hasActiveQuest()
+            local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+            if playerGui and playerGui:FindFirstChild("Main") and playerGui.Main:FindFirstChild("Quest") then
+                return playerGui.Main.Quest.Visible
+            end
             local questObj = LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Quest")
             return (questObj and questObj.Value ~= "" and questObj.Value ~= nil)
         end
@@ -583,7 +589,7 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                 end
 
                 if currentData then
-                    -- 1. LẤY QUEST
+                    -- 1. CHỈ NHẬN QUEST KHI HOÀN TOÀN KHÔNG CÓ QUEST HIỆN TẠI
                     if not hasActiveQuest() then
                         local npcPos = NpcPositions[currentData.Island]
                         if npcPos then
@@ -599,7 +605,7 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                         task.wait(0.5)
                     end
 
-                    -- 2. TÌM QUÁI
+                    -- 2. TÌM QUÁI BÃI
                     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
                     local targetEnemy = nil
 
@@ -616,17 +622,19 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                         end
                     end
 
-                    -- 3. DI CHUYỂN VÀ ĐÁNH QUÁI
+                    -- 3. TỎA ĐỘ CAO 13 STUDS TRÊN ĐẦU QUÁI (KHÔNG BỊ GIẬT / KHÔNG CHẠM NỀN)
                     if targetEnemy then
                         local eHum = targetEnemy:FindFirstChildOfClass("Humanoid")
                         local eRoot = targetEnemy:FindFirstChild("HumanoidRootPart")
 
-                        smoothMoveTo(eRoot.CFrame * CFrame.new(0, 7, 0))
+                        -- Bay đến điểm cao 13 studs và quay mặt xuống quái
+                        local targetFarmPos = eRoot.CFrame * CFrame.new(0, 13, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+                        smoothMoveTo(targetFarmPos)
 
-                        while targetEnemy and eHum and eHum.Health > 0 and AutoFarmLevelEnabled do
-                            RootPart.CFrame = eRoot.CFrame * CFrame.new(0, 7, 0)
+                        while targetEnemy and eHum and eHum.Health > 0 and AutoFarmLevelEnabled and hasActiveQuest() do
+                            -- Giữ cố định vị trí đứng im trên cao
+                            RootPart.CFrame = eRoot.CFrame * CFrame.new(0, 13, 0) * CFrame.Angles(math.rad(-90), 0, 0)
 
-                            -- Đánh quái an toàn
                             if Net then
                                 pcall(function()
                                     local RegAttack = Net:FindFirstChild("RE/RegisterAttack")
@@ -640,14 +648,15 @@ MainTab:CreateToggle("Auto Farm Level", false, function(state)
                                 end)
                             end
 
-                            task.wait(0.1)
+                            task.wait(0.08)
                         end
                     else
+                        -- Đứng chờ quái spawn ở độ cao an toàn
                         local enemySpot = EnemyPositions[currentData.EnemyName]
                         if enemySpot then
-                            smoothMoveTo(enemySpot)
+                            smoothMoveTo(enemySpot * CFrame.new(0, 15, 0))
                         end
-                        task.wait(0.5)
+                        task.wait(0.3)
                     end
                 end
             end
