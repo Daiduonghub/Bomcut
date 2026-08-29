@@ -454,17 +454,17 @@ local MainTab = Window:CreateTab("Main")
 local PlayerTab = Window:CreateTab("Player")
 
 -- ====================================================================
--- AUTO FARM LEVEL (BAY TỪ TỪ NÉ ANTI-CHEAT - BLOX FRUITS SEA 1)
+-- AUTO FARM LEVEL (FIX LỖI BẬT TOGGLE KHÔNG CHẠY)
 -- ====================================================================
 
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
 
--- Vị trí NPC nhận Quest
 local NpcPositions = {
     ["Pirate Starter"]  = CFrame.new(1059.37, 16.5, 1549.2),
     ["Jungle"]          = CFrame.new(-1598.08, 36.85, 153.38),
@@ -473,11 +473,10 @@ local NpcPositions = {
     ["Frozen Village"]  = CFrame.new(1385.74, 87.27, -1298.07)
 }
 
--- Vị trí bãi quái
 local EnemyPositions = {
-    ["Bandit"]   = CFrame.new(1038.5, 16.5, 1542.8),
-    ["Monkey"]   = CFrame.new(-1610.6, 22.8, 142.3),
-    ["Gorilla"]  = CFrame.new(-1237.7, 6.2, -486.3)
+    ["Bandit"]   = CFrame.new(1038.5, 20, 1542.8),
+    ["Monkey"]   = CFrame.new(-1610.6, 25, 142.3),
+    ["Gorilla"]  = CFrame.new(-1237.7, 25, -486.3)
 }
 
 local QuestDatabase = {
@@ -487,146 +486,173 @@ local QuestDatabase = {
 }
 
 local AutoFarmLevelEnabled = false
-local currentTween = nil
+local noclipConnection = nil
 
--- Hàm bay từ từ né Anti-Cheat (Chỉnh speed = 300 để bay an toàn)
-local function tweenTo(targetCFrame, speed)
-    speed = speed or 300
-    local char = LocalPlayer.Character
-    local root = char and char:FindFirstChild("HumanoidRootPart")
-    
-    if root then
-        local distance = (root.Position - targetCFrame.Position).Magnitude
-        local duration = distance / speed
-        
-        -- Nếu khoảng cách quá gần thì dịch chuyển nhẹ
-        if distance < 15 then
-            root.CFrame = targetCFrame
-            return
-        end
-
-        local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
-        currentTween = TweenService:Create(root, tweenInfo, {CFrame = targetCFrame})
-        currentTween:Play()
-        currentTween.Completed:Wait()
+local function enableNoclip()
+    if not noclipConnection then
+        noclipConnection = RunService.Stepped:Connect(function()
+            if AutoFarmLevelEnabled and LocalPlayer.Character then
+                for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end)
     end
 end
 
--- Hàm hủy bay khi tắt toggle
-local function stopTween()
-    if currentTween then
-        currentTween:Cancel()
-        currentTween = nil
+local function disableNoclip()
+    if noclipConnection then
+        noclipConnection:Disconnect()
+        noclipConnection = nil
     end
+end
+
+local function smoothMoveTo(targetCFrame)
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    local distance = (root.Position - targetCFrame.Position).Magnitude
+    if distance < 10 then
+        root.CFrame = targetCFrame
+        return
+    end
+
+    local speed = 250
+    local duration = distance / speed
+    local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
+    
+    local tween = TweenService:Create(root, tweenInfo, {CFrame = targetCFrame})
+    
+    local bv = Instance.new("BodyVelocity")
+    bv.Velocity = Vector3.zero
+    bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+    bv.Parent = root
+
+    tween:Play()
+    tween.Completed:Wait()
+
+    bv:Destroy()
 end
 
 MainTab:CreateToggle("Auto Farm Level", false, function(state)
     AutoFarmLevelEnabled = state
 
     if not AutoFarmLevelEnabled then
-        stopTween()
+        disableNoclip()
         return
     end
 
-    if AutoFarmLevelEnabled then
-        task.spawn(function()
-            local CommF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
-            local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
-            local RegisterAttack = Net:WaitForChild("RE/RegisterAttack")
-            local RegisterHit = Net:WaitForChild("RegisterHit") or Net:WaitForChild("RE/RegisterHit")
+    enableNoclip()
 
-            local function getPlayerLevel()
-                if LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Level") then
-                    return LocalPlayer.Data.Level.Value
-                end
-                return 1
+    task.spawn(function()
+        -- Tìm Remote an toàn không bị kẹt script
+        local CommF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
+        local Net = ReplicatedStorage:FindFirstChild("Modules") and ReplicatedStorage.Modules:FindFirstChild("Net")
+
+        local function getPlayerLevel()
+            if LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Level") then
+                return LocalPlayer.Data.Level.Value
             end
+            return 1
+        end
 
-            local function hasActiveQuest()
-                local questObj = LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Quest")
-                return (questObj and questObj.Value ~= "" and questObj.Value ~= nil)
-            end
+        local function hasActiveQuest()
+            local questObj = LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Quest")
+            return (questObj and questObj.Value ~= "" and questObj.Value ~= nil)
+        end
 
-            while AutoFarmLevelEnabled do
-                task.wait(0.1)
+        while AutoFarmLevelEnabled do
+            task.wait(0.1)
 
-                local Character = LocalPlayer.Character
-                local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
-                local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
+            local Character = LocalPlayer.Character
+            local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
+            local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
 
-                if Character and RootPart and Humanoid and Humanoid.Health > 0 then
-                    local currentLevel = getPlayerLevel()
-                    local currentData = nil
+            if Character and RootPart and Humanoid and Humanoid.Health > 0 then
+                local currentLevel = getPlayerLevel()
+                local currentData = nil
 
-                    for _, q in ipairs(QuestDatabase) do
-                        if currentLevel >= q.MinLevel and currentLevel <= q.MaxLevel then
-                            currentData = q
-                            break
-                        end
+                for _, q in ipairs(QuestDatabase) do
+                    if currentLevel >= q.MinLevel and currentLevel <= q.MaxLevel then
+                        currentData = q
+                        break
                     end
+                end
 
-                    if currentData then
-                        -- 1. BAY TỪ TỪ ĐẾN NPC NHẬN QUEST (NẾU CHƯA CÓ QUEST)
-                        if not hasActiveQuest() then
-                            local npcPos = NpcPositions[currentData.Island]
-                            if npcPos then
-                                tweenTo(npcPos, 250) -- Bay tốc độ 250 đến NPC
-                                task.wait(0.3)
-                            end
+                if currentData then
+                    -- 1. LẤY QUEST
+                    if not hasActiveQuest() then
+                        local npcPos = NpcPositions[currentData.Island]
+                        if npcPos then
+                            smoothMoveTo(npcPos)
+                            task.wait(0.2)
+                        end
 
-                            -- Gọi Remote nhận Quest
+                        if CommF then
                             pcall(function()
                                 CommF:InvokeServer("StartQuest", currentData.QuestName, currentData.QuestNumber)
                             end)
-                            task.wait(0.5)
                         end
+                        task.wait(0.5)
+                    end
 
-                        -- 2. TÌM QUÁI VÀ ĐÁNH
-                        local EnemiesFolder = Workspace:FindFirstChild("Enemies")
-                        local targetEnemy = nil
+                    -- 2. TÌM QUÁI
+                    local EnemiesFolder = Workspace:FindFirstChild("Enemies")
+                    local targetEnemy = nil
 
-                        if EnemiesFolder then
-                            for _, enemy in pairs(EnemiesFolder:GetChildren()) do
-                                if string.find(enemy.Name, currentData.EnemyName) then
-                                    local eHum = enemy:FindFirstChildOfClass("Humanoid")
-                                    local eRoot = enemy:FindFirstChild("HumanoidRootPart")
-                                    if eHum and eHum.Health > 0 and eRoot then
-                                        targetEnemy = enemy
-                                        break
-                                    end
+                    if EnemiesFolder then
+                        for _, enemy in pairs(EnemiesFolder:GetChildren()) do
+                            if string.find(enemy.Name, currentData.EnemyName) then
+                                local eHum = enemy:FindFirstChildOfClass("Humanoid")
+                                local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+                                if eHum and eHum.Health > 0 and eRoot then
+                                    targetEnemy = enemy
+                                    break
                                 end
                             end
                         end
+                    end
 
-                        if targetEnemy then
-                            local eHum = targetEnemy:FindFirstChildOfClass("Humanoid")
-                            local eRoot = targetEnemy:FindFirstChild("HumanoidRootPart")
+                    -- 3. DI CHUYỂN VÀ ĐÁNH QUÁI
+                    if targetEnemy then
+                        local eHum = targetEnemy:FindFirstChildOfClass("Humanoid")
+                        local eRoot = targetEnemy:FindFirstChild("HumanoidRootPart")
 
-                            -- Bay đến trên đầu quái
-                            tweenTo(eRoot.CFrame * CFrame.new(0, 8, 0), 350)
+                        smoothMoveTo(eRoot.CFrame * CFrame.new(0, 7, 0))
 
-                            while targetEnemy and eHum and eHum.Health > 0 and AutoFarmLevelEnabled do
-                                RootPart.CFrame = eRoot.CFrame * CFrame.new(0, 8, 0)
+                        while targetEnemy and eHum and eHum.Health > 0 and AutoFarmLevelEnabled do
+                            RootPart.CFrame = eRoot.CFrame * CFrame.new(0, 7, 0)
 
-                                RegisterAttack:FireServer(0.5, 1)
-                                local hitPart = targetEnemy:FindFirstChild("UpperTorso") or eRoot
-                                RegisterHit:FireServer(hitPart, {}, nil, "157beb64")
-
-                                task.wait(0.15)
+                            -- Đánh quái an toàn
+                            if Net then
+                                pcall(function()
+                                    local RegAttack = Net:FindFirstChild("RE/RegisterAttack")
+                                    local RegHit = Net:FindFirstChild("RegisterHit") or Net:FindFirstChild("RE/RegisterHit")
+                                    
+                                    if RegAttack then RegAttack:FireServer(0.5, 1) end
+                                    if RegHit then 
+                                        local hitPart = targetEnemy:FindFirstChild("UpperTorso") or eRoot
+                                        RegHit:FireServer(hitPart, {}, nil, "157beb64")
+                                    end
+                                end)
                             end
-                        else
-                            -- Nếu chưa thấy quái -> Bay từ từ ra bãi quái
-                            local enemySpot = EnemyPositions[currentData.EnemyName]
-                            if enemySpot then
-                                tweenTo(enemySpot, 250)
-                            end
-                            task.wait(0.5)
+
+                            task.wait(0.1)
                         end
+                    else
+                        local enemySpot = EnemyPositions[currentData.EnemyName]
+                        if enemySpot then
+                            smoothMoveTo(enemySpot)
+                        end
+                        task.wait(0.5)
                     end
                 end
             end
-        end)
-    end
+        end
+    end)
 end)
 
 MainTab:CreateToggle("Fast Attack", false, function(state)
