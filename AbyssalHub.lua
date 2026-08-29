@@ -658,30 +658,36 @@ local function BringMobs(targetEnemy, currentData)
     local root = char and char:FindFirstChild("HumanoidRootPart")
     if not root then return end
 
-    -- Vị trí kéo quái về (ngay dưới chân nhân vật)
-    local bringPos = root.CFrame * CFrame.new(0, -3, 0)
-
+    local bringPos = root.CFrame * CFrame.new(0, -4, -2)
     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
+    
     if EnemiesFolder then
+        local count = 0
+        local maxBring = 2 -- Giới hạn chỉ gom tối đa 2 con quái
+
         for _, enemy in pairs(EnemiesFolder:GetChildren()) do
+            if count >= maxBring then break end
+
             if enemy.Name == currentData.EnemyName then
                 local eHum = enemy:FindFirstChildOfClass("Humanoid")
                 local eRoot = enemy:FindFirstChild("HumanoidRootPart")
 
                 if eHum and eHum.Health > 0 and eRoot then
-                    if (eRoot.Position - root.Position).Magnitude <= 200 then
+                    if (eRoot.Position - root.Position).Magnitude <= 150 then
+                        count = count + 1
+
                         -- Tắt va chạm để quái không đẩy nhau
                         eRoot.CanCollide = false
                         if enemy:FindFirstChild("Head") then
                             enemy.Head.CanCollide = false
                         end
 
-                        -- Ép vị trí, mở rộng Hitbox và khóa di chuyển
+                        -- Ép vị trí và khóa quái đứng yên không thể tung skill
                         eRoot.CFrame = bringPos
-                        eRoot.Size = Vector3.new(20, 20, 20)
+                        eRoot.Size = Vector3.new(15, 15, 15)
                         eHum.WalkSpeed = 0
-                        
-                        -- Giữ NetworkOwnership để client điều khiển được CFrame của quái
+                        eHum:ChangeState(Enum.HumanoidStateType.Physics)
+
                         pcall(function()
                             eRoot:SetNetworkOwner(LocalPlayer)
                         end)
@@ -834,28 +840,27 @@ task.spawn(function()
                                 local eRoot = targetEnemy:FindFirstChild("HumanoidRootPart")
                                 local farmTime = tick()
 
-                                                                while targetEnemy and eHum and eHum.Health > 0 and AutoFarmLevelEnabled and hasActiveQuest() do
-                                    if tick() - farmTime > 12 then break end
+                                                                while targetEnemy and eHum and while targetEnemy and eHum and eHum.Health > 0 and AutoFarmLevelEnabled and hasActiveQuest() do
+    if tick() - farmTime > 12 then break end
 
-                                    local activeChar = LocalPlayer.Character
-                                    local activeRoot = activeChar and activeChar:FindFirstChild("HumanoidRootPart")
-                                    local activeHum = activeChar and activeChar:FindFirstChildOfClass("Humanoid")
+    local activeChar = LocalPlayer.Character
+    local activeRoot = activeChar and activeChar:FindFirstChild("HumanoidRootPart")
+    local activeHum = activeChar and activeChar:FindFirstChildOfClass("Humanoid")
 
-                                    if not activeChar or not activeRoot or not activeHum or activeHum.Health <= 0 then
-                                        break
-                                    end
+    if not activeChar or not activeRoot or not activeHum or activeHum.Health <= 0 then
+        break
+    end
 
-                                    AutoEquipWeapon()
-                                    
-                                    -- Đứng cao 8m né skill
-                                    activeRoot.CFrame = CFrame.lookAt(eRoot.Position + Vector3.new(0, 8, 0), eRoot.Position)
-                                    
-                                    -- Gom quái & Đánh Fast Attack
-                                    BringMobs(targetEnemy, currentData)
-                                    DoFastAttack(targetEnemy, Net)
+    AutoEquipWeapon()
+    
+    -- Đứng cao 6m: Vừa đủ tầm chém kiếm vật lý vừa an toàn né đòn quái
+    activeRoot.CFrame = CFrame.lookAt(eRoot.Position + Vector3.new(0, 6, 0), eRoot.Position)
 
-                                    task.wait(0.05)
-                                end
+    BringMobs(targetEnemy, currentData)
+    DoFastAttack(targetEnemy, Net)
+
+    task.wait(0.05)
+end
                             else
                                 if enemySpot then
                                     curRoot.CFrame = enemySpot * CFrame.new(0, 18, 0)
