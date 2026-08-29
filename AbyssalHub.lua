@@ -815,7 +815,8 @@ task.spawn(function()
                             end
 
                             local EnemiesFolder = Workspace:FindFirstChild("Enemies")
-                                                        -- Thay đoạn check quái cũ bằng đoạn đếm số lượng này:
+                            
+                            -- Đếm số lượng quái sống
                             local aliveCount = 0
                             if EnemiesFolder then
                                 for _, enemy in pairs(EnemiesFolder:GetChildren()) do
@@ -873,50 +874,7 @@ task.spawn(function()
                                 task.wait(0.3)
                             end
 
-                                while targetExists and AutoFarmLevelEnabled and hasActiveQuest() do
-                                    if tick() - farmTime > 12 then break end
-
-                                    local activeChar = LocalPlayer.Character
-                                    local activeRoot = activeChar and activeChar:FindFirstChild("HumanoidRootPart")
-                                    local activeHum = activeChar and activeChar:FindFirstChildOfClass("Humanoid")
-
-                                    if not activeChar or not activeRoot or not activeHum or activeHum.Health <= 0 then
-                                        break
-                                    end
-
-                                    AutoEquipWeapon()
-                                    
-                                    -- Người chơi đứng yên trên cao thẳng xuống vị trí bãi quái
-                                    if enemySpot then
-                                        activeRoot.CFrame = enemySpot * CFrame.new(0, FarmHeight, 0)
-                                    end
-
-                                    BringMobs(enemySpot, currentData)
-                                    DoFastAttack(Net)
-
-                                    task.wait(0.05)
-                                    
-                                    -- Kiểm tra lại xem quái còn sống không
-                                    targetExists = false
-                                    if EnemiesFolder then
-                                        for _, enemy in pairs(EnemiesFolder:GetChildren()) do
-                                            if enemy.Name == currentData.EnemyName then
-                                                local eHum = enemy:FindFirstChildOfClass("Humanoid")
-                                                if eHum and eHum.Health > 0 then
-                                                    targetExists = true
-                                                    break
-                                                end
-                                            end
-                                        end
-                                    end
-                                end
-                            else
-                                if enemySpot then
-                                    curRoot.CFrame = enemySpot * CFrame.new(0, FarmHeight, 0)
-                                end
-                                task.wait(0.3)
-                            end
-                        end
+                        end -- Kết thúc vòng lặp while hasActiveQuest
                     end
                 end
             end
