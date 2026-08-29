@@ -823,20 +823,74 @@ end)
 
 -- SEA 1 TELEPORT LOCATIONS
 local IslandTeleports = {
-    ["Pirate Starter"]  = CFrame.new(1059.37, 40, 1549.2),
-    ["Jungle"]          = CFrame.new(-1610.6, 50, 142.3),
-    ["Pirate Village"]  = CFrame.new(-1140.17, 30, 3827.42),
-    ["Desert"]          = CFrame.new(894.48, 30, 4392.43),
-    ["Frozen Village"]  = CFrame.new(1385.74, 110, -1298.07),
-    ["Marine Fortress"] = CFrame.new(-5039.59, 50, 4324.58),
-    ["Skylands"]        = CFrame.new(-4839.53, 730, -2619.44),
-    ["Prison"]          = CFrame.new(485.63, 20, 736.61),
-    ["Colosseum"]       = CFrame.new(-1422.01, 30, -3015.68),
-    ["Magma Village"]   = CFrame.new(-5232.9, 30, 8533.8),
-    ["Underwater City"] = CFrame.new(61163.85, 40, 1569.25),
-    ["Upper Skylands"]  = CFrame.new(-7859.1, 5560, -380.3),
-    ["Fountain City"]   = CFrame.new(5259.82, 60, 4050.0)
+    ["Pirate Starter"]  = Vector3.new(1059.37, 40, 1549.2),
+    ["Jungle"]          = Vector3.new(-1610.6, 50, 142.3),
+    ["Pirate Village"]  = Vector3.new(-1140.17, 30, 3827.42),
+    ["Desert"]          = Vector3.new(894.48, 30, 4392.43),
+    ["Frozen Village"]  = Vector3.new(1385.74, 110, -1298.07),
+    ["Marine Fortress"] = Vector3.new(-5039.59, 50, 4324.58),
+    ["Skylands"]        = Vector3.new(-4839.53, 730, -2619.44),
+    ["Prison"]          = Vector3.new(485.63, 20, 736.61),
+    ["Colosseum"]       = Vector3.new(-1422.01, 30, -3015.68),
+    ["Magma Village"]   = Vector3.new(-5232.9, 30, 8533.8),
+    ["Underwater City"] = Vector3.new(61163.85, 40, 1569.25),
+    ["Upper Skylands"]  = Vector3.new(-7859.1, 5560, -380.3),
+    ["Fountain City"]   = Vector3.new(5259.82, 60, 4050.0)
 }
+
+-- SMOOTH TELEPORT SYSTEM (Straight line & High altitude to prevent water drop/stutter)
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local function smoothMoveTo(targetPos)
+    local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    -- Giữ độ cao an toàn (300) để không bị rơi xuống biển khi di chuyển
+    local safeHeight = math.max(hrp.Position.Y, targetPos.Y, 300)
+    
+    -- Điểm trung gian để di chuyển trên không
+    local startAir = Vector3.new(hrp.Position.X, safeHeight, hrp.Position.Z)
+    local targetAir = Vector3.new(targetPos.X, safeHeight, targetPos.Z)
+    
+    local speed = 350 -- Tốc độ bay (điều chỉnh nếu muốn nhanh/chậm hơn)
+
+    -- Tắt va chạm tạm thời để không bị giật khi đụng vật cản
+    for _, part in ipairs(character:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = false
+        end
+    end
+
+    -- Bước 1: Bay thẳng lên độ cao an toàn
+    local dist1 = (startAir - hrp.Position).Magnitude
+    if dist1 > 10 then
+        local tween1 = TweenService:Create(hrp, TweenInfo.new(dist1 / speed, Enum.EasingStyle.Linear), {CFrame = CFrame.new(startAir)})
+        tween1:Play()
+        tween1.Completed:Wait()
+    end
+
+    -- Bước 2: Bay ngang thẳng tới đảo
+    local dist2 = (targetAir - startAir).Magnitude
+    local tween2 = TweenService:Create(hrp, TweenInfo.new(dist2 / speed, Enum.EasingStyle.Linear), {CFrame = CFrame.new(targetAir)})
+    tween2:Play()
+    tween2.Completed:Wait()
+
+    -- Bước 3: Hạ cánh xuống vị trí chính xác của đảo
+    local dist3 = (targetPos - targetAir).Magnitude
+    local tween3 = TweenService:Create(hrp, TweenInfo.new(dist3 / speed, Enum.EasingStyle.Linear), {CFrame = CFrame.new(targetPos)})
+    tween3:Play()
+    tween3.Completed:Wait()
+
+    -- Bật lại va chạm sau khi đến nơi
+    for _, part in ipairs(character:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = true
+        end
+    end
+end
 
 -- ====================================================================
 -- GIAO DIỆN UI
@@ -845,7 +899,7 @@ local Window = Library:CreateWindow("ABYSSAL HUB")
 local MainTab = Window:CreateTab("Farming Tab")
 local SettingTab = Window:CreateTab("Settings")
 local PlayerTab = Window:CreateTab("Player")
-local TeleportTab = Window:CreateTab("Teleport (Sea 1)")
+local TeleportTab = Window:CreateTab("Teleport (Sea1)")
 
 MainTab:CreateToggle("Auto Farm Level", false, function(state)
     AutoFarmLevelEnabled = state
@@ -874,7 +928,9 @@ end)
 TeleportTab:CreateButton("Teleport to Island", function()
     local pos = IslandTeleports[selectedIsland]
     if pos then
-        smoothMoveTo(pos)
+        task.spawn(function()
+            smoothMoveTo(pos)
+        end)
     end
 end)
 
