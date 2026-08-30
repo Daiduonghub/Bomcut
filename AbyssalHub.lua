@@ -219,12 +219,13 @@ function Library:CreateWindow(hubName)
 
         -- TOGGLE
         function TabElements:CreateToggle(text, defaultState, callback)
+    -- Ép cứng trạng thái, đảm bảo false là false, không bao giờ bị lỗi tự bật xanh
+    local state = (defaultState == true) and true or false
+
     local toggleFrame = Instance.new("Frame")
     local toggleTitle = Instance.new("TextLabel")
     local toggleBtn = Instance.new("TextButton")
-    
-    -- Đảm bảo mỗi toggle có trạng thái riêng biệt, không bị dính chung biến
-    local state = defaultState and true or false
+    local circle = Instance.new("Frame")
 
     toggleFrame.Name = text .. "_Toggle"
     toggleFrame.Size = UDim2.new(1, -6, 0, 36)
@@ -246,38 +247,40 @@ function Library:CreateWindow(hubName)
     toggleTitle.TextSize = 12
     toggleTitle.Parent = toggleFrame
 
-    -- Khung nút gạt (Switch)
-    toggleBtn.Size = UDim2.new(0, 40, 0, 20)
-    toggleBtn.Position = UDim2.new(1, -50, 0.5, -10)
+    -- Nút gạt chính (Hình viên thuốc bo tròn)
+    toggleBtn.Size = UDim2.new(0, 44, 0, 22)
+    toggleBtn.Position = UDim2.new(1, -54, 0.5, -11)
+    toggleBtn.BackgroundColor3 = state and Color3.fromRGB(0, 210, 255) or Color3.fromRGB(35, 40, 50)
     toggleBtn.Text = ""
     toggleBtn.Parent = toggleFrame
 
     local BtnCorner = Instance.new("UICorner")
-    BtnCorner.CornerRadius = UDim.new(1, 0)
+    BtnCorner.CornerRadius = UDim.new(1, 0) -- Bo tròn 100% thành hình viên thuốc
     BtnCorner.Parent = toggleBtn
 
-    -- Chấm tròn bên trong
-    local circle = Instance.new("Frame")
+    -- Chấm tròn bên trong nút gạt
     circle.Size = UDim2.new(0, 16, 0, 16)
+    -- Nếu bật thì nằm bên phải, tắt thì nằm bên trái
+    circle.Position = state and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
     circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     circle.Parent = toggleBtn
 
     local CircleCorner = Instance.new("UICorner")
-    CircleCorner.CornerRadius = UDim.new(1, 0)
+    CircleCorner.CornerRadius = UDim.new(1, 0) -- Bo tròn thành hình tròn vo
     CircleCorner.Parent = circle
 
-    -- Hàm cập nhật màu sắc chuẩn xác theo biến state hiện tại
-    local function updateVisual(instant)
+    -- Hàm cập nhật hiệu ứng chuyển màu và trượt chấm tròn
+    local function updateVisual()
         if state then
-            toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 210, 255) -- Xanh (Bật)
-            circle.Position = UDim2.new(1, -18, 0.5, -8)
+            toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 210, 255) -- Xanh khi bật
+            circle.Position = UDim2.new(1, -19, 0.5, -8)
         else
-            toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 45, 55)  -- Xám tối (Tắt)
-            circle.Position = UDim2.new(0, 2, 0.5, -8)
+            toggleBtn.BackgroundColor3 = Color3.fromRGB(35, 40, 50)  -- Xám tối khi tắt
+            circle.Position = UDim2.new(0, 3, 0.5, -8)
         end
     end
 
-    -- Khởi động lên là set màu đúng với giá trị truyền vào ngay lập tức
+    -- Khởi tạo giao diện chuẩn theo giá trị truyền vào
     updateVisual()
 
     -- Sự kiện click đổi trạng thái
@@ -287,7 +290,6 @@ function Library:CreateWindow(hubName)
         if callback then pcall(callback, state) end
     end)
 end
-
         -- SLIDER
         function TabElements:CreateSlider(sliderName, min, max, default, callback)
             local value = default or min
