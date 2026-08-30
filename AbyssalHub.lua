@@ -736,7 +736,7 @@ local function DoFastAttack(Net)
 end
 
 -- ==========================================
--- 3. LOGIC WORKER (BẢN GỐC CHUẨN - MƯỢT MÀ, KHÔNG LỖI)
+-- 3. LOGIC WORKER (FIX TRIỆT ĐỂ LỖI ĐỨNG HÌNH, KHÔNG BAO GIỜ BỊ TREO)
 -- ==========================================
 task.spawn(function()
     local CommF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
@@ -764,7 +764,7 @@ task.spawn(function()
     end
 
     while true do
-        task.wait(0.1)
+        task.wait(0.2)
 
         if AutoFarmLevelEnabled then
             local Character = LocalPlayer.Character
@@ -783,11 +783,15 @@ task.spawn(function()
                 end
 
                 if currentData then
+                    -- 1. Nếu chưa có Quest, bắt buộc bay đến NPC nhận
                     if not hasActiveQuest() then
                         local npcPos = NpcPositions[currentData.Island]
                         if npcPos then
-                            smoothMoveTo(npcPos)
-                            task.wait(0.2)
+                            -- Dùng pcall chống lỗi treo tween
+                            pcall(function()
+                                smoothMoveTo(npcPos)
+                            end)
+                            task.wait(0.5)
                         end
 
                         if CommF and not hasActiveQuest() then
@@ -795,17 +799,29 @@ task.spawn(function()
                                 CommF:InvokeServer("StartQuest", currentData.QuestName, currentData.QuestNumber)
                             end)
                         end
-                        task.wait(0.5)
+                        task.wait(1)
                     end
 
+                    -- 2. Nếu đã có Quest, tiến hành săn tìm quái
                     if hasActiveQuest() then
                         local enemySpot = EnemyPositions[currentData.EnemyName]
-                        if enemySpot and (RootPart.Position - enemySpot.Position).Magnitude > 150 then
-                            smoothMoveTo(enemySpot * CFrame.new(0, 50, 0))
+                        
+                        -- Nếu ở xa bãi quái thì bay đến (có bọc pcall chống treo)
+                        if enemySpot and (RootPart.Position - enemySpot.Position).Magnitude > 80 then
+                            pcall(function()
+                                smoothMoveTo(enemySpot * CFrame.new(0, 50, 0))
+                            end)
                         end
 
+                        -- Vòng lặp farm quái với bộ đếm chống kẹt
+                        local farmTimeout = tick()
                         while hasActiveQuest() and AutoFarmLevelEnabled do
                             task.wait(0.05)
+
+                            -- Quá 20 giây mà kẹt quest hoặc không tìm thấy quái thì tự break để reset lại từ đầu, chống đơ
+                            if tick() - farmTimeout > 20 then 
+                                break 
+                            end
 
                             local curChar = LocalPlayer.Character
                             local curRoot = curChar and curChar:FindFirstChild("HumanoidRootPart")
@@ -816,7 +832,6 @@ task.spawn(function()
                             end
 
                             local EnemiesFolder = Workspace:FindFirstChild("Enemies")
-                            
                             local aliveCount = 0
                             local targetEnemyRoot = nil
 
@@ -829,10 +844,6 @@ task.spawn(function()
                                             aliveCount = aliveCount + 1
                                             if not targetEnemyRoot then
                                                 targetEnemyRoot = eRoot
-                                            else
-                                                if (eRoot.Position - curRoot.Position).Magnitude < (targetEnemyRoot.Position - curRoot.Position).Magnitude then
-                                                    targetEnemyRoot = eRoot
-                                                end
                                             end
                                         end
                                     end
@@ -840,57 +851,22 @@ task.spawn(function()
                             end
 
                             if aliveCount > 0 then
-                                local farmTime = tick()
-
-                                while aliveCount > 0 and AutoFarmLevelEnabled and hasActiveQuest() do
-                                    if tick() - farmTime > 15 then break end
-
-                                    local activeChar = LocalPlayer.Character
-                                    local activeRoot = activeChar and activeChar:FindFirstChild("HumanoidRootPart")
-                                    local activeHum = activeChar and activeChar:FindFirstChildOfClass("Humanoid")
-
-                                    if not activeChar or not activeRoot or not activeHum or activeHum.Health <= 0 then
-                                        break
-                                    end
-
-                                    AutoEquipWeapon()
-                                    
-                                    if BringMobEnabled then
-                                        BringMobs(enemySpot, currentData)
-                                    else
-                                        if targetEnemyRoot and targetEnemyRoot.Parent then
-                                            activeRoot.CFrame = targetEnemyRoot.CFrame * CFrame.new(0, 10, 3)
-                                        elseif enemySpot then
-                                            activeRoot.CFrame = enemySpot * CFrame.new(0, 50, 0)
-                                        end
-                                    end
-
-                                    DoFastAttack(Net)
-
-                                    task.wait(0.05)
-
-                                    aliveCount = 0
-                                    targetEnemyRoot = nil
-                                    if EnemiesFolder then
-                                        for _, enemy in pairs(EnemiesFolder:GetChildren()) do
-                                            if enemy.Name == currentData.EnemyName then
-                                                local eHum = enemy:FindFirstChildOfClass("Humanoid")
-                                                local eRoot = enemy:FindFirstChild("HumanoidRootPart")
-                                                if eHum and eHum.Health > 0 and eRoot then
-                                                    aliveCount = aliveCount + 1
-                                                    if not targetEnemyRoot then
-                                                        targetEnemyRoot = eRoot
-                                                    else
-                                                        if (eRoot.Position - activeRoot.Position).Magnitude < (targetEnemyRoot.Position - activeRoot.Position).Magnitude then
-                                                            targetEnemyRoot = eRoot
-                                                        end
-                                                    end
-                                                end
-                                            end
-                                        end
+                                farmTimeout = tick() -- Reset lại thời gian chống kẹt khi thấy quái
+                                AutoEquipWeapon()
+                                
+                                if BringMobEnabled then
+                                    BringMobs(enemySpot, currentData)
+                                else
+                                    if targetEnemyRoot and targetEnemyRoot.Parent then
+                                        curRoot.CFrame = targetEnemyRoot.CFrame * CFrame.new(0, 10, 3)
+                                    elseif enemySpot then
+                                        curRoot.CFrame = enemySpot * CFrame.new(0, 50, 0)
                                     end
                                 end
+
+                                DoFastAttack(Net)
                             else
+                                -- Không thấy quái thì bay đến bãi chờ
                                 if enemySpot then
                                     curRoot.CFrame = enemySpot * CFrame.new(0, 50, 0)
                                 end
