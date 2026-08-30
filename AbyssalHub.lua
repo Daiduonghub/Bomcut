@@ -888,12 +888,12 @@ task.spawn(function()
                     end
 
                 -- ==========================================
-                -- CHẾ ĐỘ 2: FARM QUÁI GẦN NHẤT (KHÔNG CẦN QUEST)
+                -- CHẾ ĐỘ 2: FARM QUÁI GẦN NHẤT (ĐÃ GIỚI HẠN BÁN KÍNH 400 BUỔI, KHÔNG BAY LẠC ĐẢO)
                 -- ==========================================
                 elseif AutoFarmMode == "Nearest" then
                     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
                     local nearestEnemyRoot = nil
-                    local shortestDist = math.huge
+                    local shortestDist = 400 -- Chỉ quét quái trong vòng 400 studs quanh người
 
                     if EnemiesFolder then
                         for _, enemy in pairs(EnemiesFolder:GetChildren()) do
@@ -914,7 +914,8 @@ task.spawn(function()
                         RootPart.CFrame = nearestEnemyRoot.CFrame * CFrame.new(0, 10, 3)
                         DoFastAttack(Net)
                     else
-                        task.wait(0.2)
+                        -- Nếu xung quanh 400 studs không có con quái nào thì đứng chờ, không bay lung tung
+                        task.wait(0.3)
                     end
                 end
 
@@ -1063,16 +1064,16 @@ local PlayerTab = Window:CreateTab("Player")
 local TeleportTab = Window:CreateTab("Teleport (Sea1)")
 local AutoTab = Window:CreateTab("Auto stats")
 
-MainTab:CreateToggle("Auto Farm Level", false, function(state)
-    AutoFarmLevelEnabled = state
-end)
-
 MainTab:CreateDropdown("Chế Độ Farm", {"Farm Theo Level", "Farm Quái Gần Nhất"}, "Farm Theo Level", function(selected)
     if selected == "Farm Theo Level" then
         AutoFarmMode = "Level"
     elseif selected == "Farm Quái Gần Nhất" then
         AutoFarmMode = "Nearest"
     end
+end)
+
+MainTab:CreateToggle("Auto Farm Level", false, function(state)
+    AutoFarmLevelEnabled = state
 end)
 
 local selectedIsland = "Pirate Starter"
