@@ -790,8 +790,244 @@ local function SmoothFarmPosition(root, targetRoot)
     root.CFrame = root.CFrame:Lerp(targetCFrame, 0.25)
 end
 
+if not game:IsLoaded() then game.Loaded:Wait() end
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+local LocalPlayer = Players.LocalPlayer
+
 -- ==========================================
--- LOGIC WORKER ĐÃ FIX: TỰ ĐỘNG NHẬN VÀ LAO VÀO CHIẾN ĐẤU TRỰC TIẾP
+-- 1. BIẾN TRẠNG THÁI & DATABASE CHUẨN (SEA 1)
+-- ==========================================
+local AutoFarmLevelEnabled = false
+local FastAttackEnabled = true
+local AutoFarmMode = "Level"
+local BringMobEnabled = false
+local SelectedWeapon = "Melee"
+
+-- Độ cao đứng farm so với mặt đất/bãi quái
+local FarmHeight = 70
+
+local NpcPositions = {
+    ["Pirate Starter"]  = CFrame.new(1059.37, 16.45, 1549.2),
+    ["Jungle"]          = CFrame.new(-1598.08, 36.85, 153.38),
+    ["Pirate Village"]  = CFrame.new(-1140.17, 4.75, 3827.42),
+    ["Desert"]          = CFrame.new(894.48, 6.44, 4392.43),
+    ["Frozen Village"]  = CFrame.new(1385.74, 87.27, -1298.07),
+    ["Marine Fortress"] = CFrame.new(-5039.59, 27.35, 4324.58),
+    ["Skylands"]        = CFrame.new(-4839.53, 717.5, -2619.44),
+    ["Prison"]          = CFrame.new(485.63, 1.65, 736.61),
+    ["Colosseum"]       = CFrame.new(-1422.01, 7.38, -3015.68),
+    ["Magma Village"]   = CFrame.new(-5232.9, 8.58, 8533.8),
+    ["Underwater City"] = CFrame.new(61163.85, 11.68, 1569.25),
+    ["Upper Skylands"]  = CFrame.new(-7859.1, 5545.49, -380.3),
+    ["Fountain City"]   = CFrame.new(5259.82, 38.5, 4050.0)
+}
+
+local EnemyPositions = {
+    ["Bandit"]                = CFrame.new(1038.5, 16.5, 1542.8),
+    ["Monkey"]                = CFrame.new(-1610.6, 36.8, 142.3),
+    ["Gorilla"]               = CFrame.new(-1237.7, 36.8, -486.3),
+    ["Pirate"]                = CFrame.new(-1205.1, 4.7, 3858.8),
+    ["Brute"]                 = CFrame.new(-1148.5, 4.7, 4253.6),
+    ["Desert Bandit"]         = CFrame.new(932.4, 6.4, 4438.3),
+    ["Desert Officer"]        = CFrame.new(1571.3, 6.4, 4381.1),
+    ["Snow Bandit"]           = CFrame.new(1288.2, 87.2, -1352.4),
+    ["Snowman"]               = CFrame.new(1228.6, 87.2, -1522.6),
+    ["Chief Petty Officer"]   = CFrame.new(-4881.9, 27.3, 4242.3),
+    ["Sky Bandit"]            = CFrame.new(-4972.3, 717.5, -2871.2),
+    ["Dark Master"]           = CFrame.new(-5223.1, 717.5, -2285.8),
+    ["Prisoner"]              = CFrame.new(542.1, 1.6, 482.9),
+    ["Dangerous Prisoner"]    = CFrame.new(480.2, 1.6, 1140.3),
+    ["Toga Warrior"]          = CFrame.new(-1805.1, 7.3, -2742.6),
+    ["Gladiator"]             = CFrame.new(-1323.8, 7.3, -3316.3),
+    ["Military Soldier"]      = CFrame.new(-5411.3, 8.5, 8512.4),
+    ["Military Spy"]          = CFrame.new(-5815.2, 83.5, 8821.5),
+    ["Fishman Warrior"]       = CFrame.new(60842.1, 18.5, 1531.2),
+    ["Fishman Commando"]      = CFrame.new(61812.5, 18.5, 1475.8),
+    ["God's Guard"]           = CFrame.new(-7725.4, 5545.5, -425.1),
+    ["Shanda"]                = CFrame.new(-7672.1, 5545.5, -1021.3),
+    ["Royal Squad"]           = CFrame.new(-7528.3, 5585.5, -1451.2),
+    ["Royal Soldier"]         = CFrame.new(-7812.6, 5585.5, -1820.5),
+    ["Galley Pirate"]         = CFrame.new(5582.3, 38.5, 3982.1),
+    ["Galley Captain"]        = CFrame.new(5641.8, 38.5, 4920.4)
+}
+
+local QuestDatabase = {
+    { MinLevel = 1,   MaxLevel = 9,   QuestName = "BanditQuest1",   QuestNumber = 1, EnemyName = "Bandit",               Island = "Pirate Starter" },
+    { MinLevel = 10,  MaxLevel = 14,  QuestName = "JungleQuest",    QuestNumber = 1, EnemyName = "Monkey",               Island = "Jungle" },
+    { MinLevel = 15,  MaxLevel = 29,  QuestName = "JungleQuest",    QuestNumber = 2, EnemyName = "Gorilla",              Island = "Jungle" },
+    { MinLevel = 30,  MaxLevel = 39,  QuestName = "BuggyQuest1",    QuestNumber = 1, EnemyName = "Pirate",               Island = "Pirate Village" },
+    { MinLevel = 40,  MaxLevel = 59,  QuestName = "BuggyQuest1",    QuestNumber = 2, EnemyName = "Brute",                Island = "Pirate Village" },
+    { MinLevel = 60,  MaxLevel = 74,  QuestName = "DesertQuest",    QuestNumber = 1, EnemyName = "Desert Bandit",        Island = "Desert" },
+    { MinLevel = 75,  MaxLevel = 89,  QuestName = "DesertQuest",    QuestNumber = 2, EnemyName = "Desert Officer",       Island = "Desert" },
+    { MinLevel = 90,  MaxLevel = 99,  QuestName = "SnowQuest",      QuestNumber = 1, EnemyName = "Snow Bandit",          Island = "Frozen Village" },
+    { MinLevel = 100, MaxLevel = 119, QuestName = "SnowQuest",      QuestNumber = 2, EnemyName = "Snowman",              Island = "Frozen Village" },
+    { MinLevel = 120, MaxLevel = 149, QuestName = "MarineQuest2",   QuestNumber = 1, EnemyName = "Chief Petty Officer",  Island = "Marine Fortress" },
+    { MinLevel = 150, MaxLevel = 174, QuestName = "SkyQuest",       QuestNumber = 1, EnemyName = "Sky Bandit",           Island = "Skylands" },
+    { MinLevel = 175, MaxLevel = 189, QuestName = "SkyQuest",       QuestNumber = 2, EnemyName = "Dark Master",          Island = "Skylands" },
+    { MinLevel = 190, MaxLevel = 209, QuestName = "PrisonerQuest",  QuestNumber = 1, EnemyName = "Prisoner",             Island = "Prison" },
+    { MinLevel = 210, MaxLevel = 249, QuestName = "PrisonerQuest",  QuestNumber = 2, EnemyName = "Dangerous Prisoner",   Island = "Prison" },
+    { MinLevel = 250, MaxLevel = 274, QuestName = "ColosseumQuest", QuestNumber = 1, EnemyName = "Toga Warrior",         Island = "Colosseum" },
+    { MinLevel = 275, MaxLevel = 299, QuestName = "ColosseumQuest", QuestNumber = 2, EnemyName = "Gladiator",            Island = "Colosseum" },
+    { MinLevel = 300, MaxLevel = 324, QuestName = "MagmaQuest",     QuestNumber = 1, EnemyName = "Military Soldier",     Island = "Magma Village" },
+    { MinLevel = 325, MaxLevel = 374, QuestName = "MagmaQuest",     QuestNumber = 2, EnemyName = "Military Spy",         Island = "Magma Village" },
+    { MinLevel = 375, MaxLevel = 399, QuestName = "FishmanQuest",   QuestNumber = 1, EnemyName = "Fishman Warrior",      Island = "Underwater City" },
+    { MinLevel = 400, MaxLevel = 449, QuestName = "FishmanQuest",   QuestNumber = 2, EnemyName = "Fishman Commando",     Island = "Underwater City" },
+    { MinLevel = 450, MaxLevel = 474, QuestName = "SkyExp1Quest",   QuestNumber = 1, EnemyName = "God's Guard",          Island = "Upper Skylands" },
+    { MinLevel = 475, MaxLevel = 524, QuestName = "SkyExp1Quest",   QuestNumber = 2, EnemyName = "Shanda",               Island = "Upper Skylands" },
+    { MinLevel = 525, MaxLevel = 549, QuestName = "SkyExp2Quest",   QuestNumber = 1, EnemyName = "Royal Squad",          Island = "Upper Skylands" },
+    { MinLevel = 550, MaxLevel = 624, QuestName = "SkyExp2Quest",   QuestNumber = 2, EnemyName = "Royal Soldier",        Island = "Upper Skylands" },
+    { MinLevel = 625, MaxLevel = 649, QuestName = "FountainQuest",  QuestNumber = 1, EnemyName = "Galley Pirate",        Island = "Fountain City" },
+    { MinLevel = 650, MaxLevel = 700, QuestName = "FountainQuest",  QuestNumber = 2, EnemyName = "Galley Captain",       Island = "Fountain City" }
+}
+
+-- ==========================================
+-- 2. HÀM BỔ TRỢ LOGIC FARM
+-- ==========================================
+RunService.Stepped:Connect(function()
+    if not AutoFarmLevelEnabled then return end
+    local char = LocalPlayer.Character
+    if not char then return end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if root then root.CanCollide = false end
+end)
+
+local function smoothMoveTo(targetCFrame)
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    local distance = (root.Position - targetCFrame.Position).Magnitude
+    if distance < 10 then
+        root.CFrame = targetCFrame
+        return
+    end
+
+    local speed = 250
+    local duration = distance / speed
+    local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
+    local tween = TweenService:Create(root, tweenInfo, {CFrame = targetCFrame})
+    
+    local bv = Instance.new("BodyVelocity")
+    bv.Velocity = Vector3.zero
+    bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+    bv.Parent = root
+
+    tween:Play()
+    tween.Completed:Wait()
+    bv:Destroy()
+end
+
+local function AutoEquipWeapon()
+    local char = LocalPlayer.Character
+    if not char then return end
+
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    local backpack = LocalPlayer:FindFirstChild("Backpack")
+    if not humanoid or not backpack then return end
+
+    local currentTool = char:FindFirstChildOfClass("Tool")
+    if currentTool then
+        if SelectedWeapon == "Melee" and (currentTool.Name == "Combat" or currentTool:FindFirstChild("Melee")) then return end
+        if SelectedWeapon == "Sword" and (currentTool.Name ~= "Combat" and currentTool:FindFirstChild("EquipEvent")) then return end
+    end
+
+    for _, tool in pairs(backpack:GetChildren()) do
+        if tool:IsA("Tool") then
+            local isTarget = false
+            if SelectedWeapon == "Melee" and tool.Name == "Combat" then
+                isTarget = true
+            elseif SelectedWeapon == "Sword" and tool.Name ~= "Combat" then
+                isTarget = true
+            end
+
+            if isTarget then
+                humanoid:EquipTool(tool)
+                break
+            end
+        end
+    end
+end
+
+local function BringMobs(enemySpot, currentData)
+    local EnemiesFolder = Workspace:FindFirstChild("Enemies")
+    if not EnemiesFolder or not enemySpot or not currentData then return end
+
+    for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
+        if enemy.Name == currentData.EnemyName then
+            local eHum = enemy:FindFirstChildOfClass("Humanoid")
+            local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+            local head = enemy:FindFirstChild("Head")
+
+            if eHum and eRoot and eHum.Health > 0 then
+                local dist = (eRoot.Position - enemySpot.Position).Magnitude
+                if BringMobEnabled and dist <= 300 then
+                    eRoot.CanCollide = false
+                    if head then head.CanCollide = false end
+                    if dist > 8 then eRoot.CFrame = enemySpot end
+                else
+                    eRoot.CanCollide = true
+                    if head then head.CanCollide = true end
+                end
+            end
+        end
+    end
+end
+
+local lastAttackTime = 0
+local attackCooldown = 0.1
+
+local function DoFastAttack(Net)
+    if not FastAttackEnabled then return end
+    if tick() - lastAttackTime < attackCooldown then return end
+    lastAttackTime = tick()
+
+    local char = LocalPlayer.Character
+    if not char then return end
+
+    local RegAttack = Net and Net:FindFirstChild("RE/RegisterAttack")
+    local RegHit = Net and (Net:FindFirstChild("RegisterHit") or Net:FindFirstChild("RE/RegisterHit"))
+
+    local hitTargets = {}
+    local EnemiesFolder = Workspace:FindFirstChild("Enemies")
+    local myRoot = char:FindFirstChild("HumanoidRootPart")
+
+    if EnemiesFolder and myRoot then
+        for _, enemy in pairs(EnemiesFolder:GetChildren()) do
+            local eHum = enemy:FindFirstChildOfClass("Humanoid")
+            local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+            if eHum and eHum.Health > 0 and eRoot then
+                if (eRoot.Position - myRoot.Position).Magnitude <= 65 then
+                    local hitPart = enemy:FindFirstChild("UpperTorso") or enemy:FindFirstChild("Head") or eRoot
+                    table.insert(hitTargets, {enemy, hitPart})
+                end
+            end
+        end
+    end
+
+    pcall(function()
+        if RegAttack then RegAttack:FireServer(0, 1) end
+        if RegHit and #hitTargets > 0 then
+            for _, data in ipairs(hitTargets) do
+                RegHit:FireServer(data[2], {}, nil, "157beb64")
+            end
+        end
+    end)
+end
+
+local function SmoothFarmPosition(root, targetRoot)
+    if not root or not targetRoot or not targetRoot.Parent then return end
+    local targetCFrame = targetRoot.CFrame * CFrame.new(0, FarmHeight, 0)
+    root.CFrame = root.CFrame:Lerp(targetCFrame, 0.25)
+end
+
+-- ==========================================
+-- 3. LOGIC WORKER HOÀN CHỈNH (ĐÃ FIX LỖI TÊN HÀM)
 -- ==========================================
 task.spawn(function()
     local CommF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
@@ -814,9 +1050,6 @@ task.spawn(function()
 
             if Character and RootPart and Humanoid and Humanoid.Health > 0 then
                 
-                -- ==========================================
-                -- CHẾ ĐỘ 1: FARM THEO LEVEL (LEVEL FARM)
-                -- ==========================================
                 if AutoFarmMode == "Level" then
                     local currentLevel = getPlayerLevel()
                     local currentData = nil
@@ -832,7 +1065,6 @@ task.spawn(function()
                         local npcPos = NpcPositions[currentData.Island]
                         local enemySpot = EnemyPositions[currentData.EnemyName]
 
-                        -- 1. Tự động bay đến NPC và gửi lệnh nhận quest (gọi 1 lần chắc chắn)
                         if npcPos then
                             pcall(function() smoothMoveTo(npcPos) end)
                             task.wait(0.2)
@@ -845,34 +1077,29 @@ task.spawn(function()
                             task.wait(0.3)
                         end
 
-                        -- 2. Bay thẳng tới bãi quái chuẩn bị xả skill
                         if enemySpot then
                             pcall(function()
                                 smoothMoveTo(enemySpot * CFrame.new(0, FarmHeight, 0))
                             end)
                         end
 
-                        -- 3. Vòng lặp chiến đấu liên tục tại bãi quái
                         local farmDuration = tick()
                         while AutoFarmLevelEnabled and AutoFarmMode == "Level" do
                             task.wait(0.05)
 
-                            -- Cứ mỗi 35 giây tự động quay lại nhận lại quest để tránh mất tiến độ
-                            if tick() - farmDuration > 35 then 
-                                break 
-                            end
+                            if tick() - farmDuration > 35 then break end
 
                             local curChar = LocalPlayer.Character
                             local curRoot = curChar and curChar:FindFirstChild("HumanoidRootPart")
-                            local curHum = curChar and curChar:FindFirstChild_OfClass("Humanoid") -- Lưu ý: giữ nguyên Class("Humanoid")
+                            local curHum = curChar and curChar:FindFirstChildOfClass("Humanoid")
 
                             if not curChar or not curRoot or not curHum or curHum.Health <= 0 then
                                 break
                             end
 
                             local EnemiesFolder = Workspace:FindFirstChild("Enemies")
-                            local aliveCount = 0
                             local targetEnemyRoot = nil
+                            local minDist = 9999
 
                             if EnemiesFolder then
                                 local targetName = currentData.EnemyName
@@ -881,8 +1108,9 @@ task.spawn(function()
                                         local eHum = enemy:FindFirstChildOfClass("Humanoid")
                                         local eRoot = enemy:FindFirstChild("HumanoidRootPart")
                                         if eHum and eHum.Health > 0 and eRoot then
-                                            aliveCount = aliveCount + 1
-                                            if not targetEnemyRoot then
+                                            local dist = (eRoot.Position - curRoot.Position).Magnitude
+                                            if dist < minDist then
+                                                minDist = dist
                                                 targetEnemyRoot = eRoot
                                             end
                                         end
@@ -890,38 +1118,26 @@ task.spawn(function()
                                 end
                             end
 
-                            if aliveCount > 0 then
+                            if targetEnemyRoot and targetEnemyRoot.Parent then
+                                farmDuration = tick()
                                 AutoEquipWeapon()
-                                
+
                                 if BringMobEnabled then
                                     BringMobs(enemySpot, currentData)
-                                    if enemySpot then
-                                        local targetCF = enemySpot * CFrame.new(0, FarmHeight, 0)
-                                        curRoot.CFrame = curRoot.CFrame:Lerp(targetCF, 0.25)
-                                    end
-                                else
-                                    if targetEnemyRoot and targetEnemyRoot.Parent then
-                                        SmoothFarmPosition(curRoot, targetEnemyRoot)
-                                    elseif enemySpot then
-                                        local targetCF = enemySpot * CFrame.new(0, FarmHeight, 0)
-                                        curRoot.CFrame = curRoot.CFrame:Lerp(targetCF, 0.25)
-                                    end
                                 end
 
+                                SmoothFarmPosition(curRoot, targetEnemyRoot)
                                 DoFastAttack(Net)
                             else
                                 if enemySpot then
                                     local targetCF = enemySpot * CFrame.new(0, FarmHeight, 0)
-                                    curRoot.CFrame = curRoot.CFrame:Lerp(targetCF, 0.25)
+                                    curRoot.CFrame = curRoot.CFrame:Lerp(targetCF, 0.3)
                                 end
-                                task.wait(0.3)
+                                task.wait(0.2)
                             end
                         end
                     end
 
-                -- ==========================================
-                -- CHẾ ĐỘ 2: FARM QUÁI GẦN NHẤT (NEAREST)
-                -- ==========================================
                 elseif AutoFarmMode == "Nearest" then
                     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
                     local nearestEnemyRoot = nil
