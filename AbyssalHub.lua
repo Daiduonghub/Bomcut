@@ -782,12 +782,9 @@ end
 -- BỔ SUNG HÀM SMOOTH FARM POSITION CÒN THIẾU
 -- ==========================================
 local function SmoothFarmPosition(root, targetRoot)
-    if not root or not targetRoot or not targetRoot.Parent then
-        return
-    end
-
-    local targetCFrame = targetRoot.CFrame * CFrame.new(0, FarmHeight, 0)
-    root.CFrame = root.CFrame:Lerp(targetCFrame, 0.25)
+    if not root or not targetRoot or not targetRoot.Parent then return end
+    -- Teleport thẳng lên độ cao FarmHeight so với đầu quái, không lê lết từ từ nữa
+    root.CFrame = targetRoot.CFrame * CFrame.new(0, FarmHeight, 0)
 end
 
 if not game:IsLoaded() then game.Loaded:Wait() end
@@ -1155,15 +1152,13 @@ task.spawn(function()
 
                                 SmoothFarmPosition(curRoot, targetEnemyRoot)
                                 DoFastAttack(Net)
-                            else
-                                if enemySpot then
-                                    local targetCF = enemySpot * CFrame.new(0, FarmHeight, 0)
-                                    curRoot.CFrame = curRoot.CFrame:Lerp(targetCF, 0.3)
-                                end
-                                task.wait(0.2)
-                            end
-                        end
-                    end
+else
+    if enemySpot then
+        -- Teleport thẳng tới bãi quái luôn, không dùng Lerp từ từ nữa
+        curRoot.CFrame = enemySpot * CFrame.new(0, FarmHeight, 0)
+    end
+    task.wait(0.2)
+end
 
                 elseif AutoFarmMode == "Nearest" then
                     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
