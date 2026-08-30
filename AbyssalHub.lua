@@ -736,7 +736,7 @@ local function DoFastAttack(Net)
 end
 
 -- ==========================================
--- 3. LOGIC WORKER (CHẠY NGẦM FARM LEVEL - ĐÃ FIX CHỐNG GIẬT)
+-- 3. LOGIC WORKER (CHẠY NGẦM FARM LEVEL - ĐÃ FIX KHÔNG BỊ RƠI XUỐNG ĐẤT)
 -- ==========================================
 task.spawn(function()
     local CommF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
@@ -818,8 +818,6 @@ task.spawn(function()
                             local EnemiesFolder = Workspace:FindFirstChild("Enemies")
                             
                             local aliveCount = 0
-                            local targetEnemyRoot = nil
-
                             if EnemiesFolder then
                                 for _, enemy in pairs(EnemiesFolder:GetChildren()) do
                                     if enemy.Name == currentData.EnemyName then
@@ -827,13 +825,6 @@ task.spawn(function()
                                         local eRoot = enemy:FindFirstChild("HumanoidRootPart")
                                         if eHum and eHum.Health > 0 and eRoot then
                                             aliveCount = aliveCount + 1
-                                            if not targetEnemyRoot then
-                                                targetEnemyRoot = eRoot
-                                            else
-                                                if (eRoot.Position - curRoot.Position).Magnitude < (targetEnemyRoot.Position - curRoot.Position).Magnitude then
-                                                    targetEnemyRoot = eRoot
-                                                end
-                                            end
                                         end
                                     end
                                 end
@@ -841,12 +832,6 @@ task.spawn(function()
 
                             if aliveCount > 0 then
                                 local farmTime = tick()
-
-                                -- Cố định vị trí 1 lần khi bắt đầu đánh để chống giật rung
-                                if enemySpot then
-                                    curRoot.CFrame = enemySpot * CFrame.new(0, 50, 0)
-                                    curRoot.AssemblyLinearVelocity = Vector3.zero
-                                end
 
                                 while aliveCount > 0 and AutoFarmLevelEnabled and hasActiveQuest() do
                                     if tick() - farmTime > 15 then break end
@@ -859,6 +844,13 @@ task.spawn(function()
                                         break
                                     end
 
+                                    -- [ĐÃ FIX]: Giữ chặt vị trí trên cao liên tục, chống rơi xuống đất và chống giật
+                                    if enemySpot then
+                                        activeRoot.CFrame = enemySpot * CFrame.new(0, 50, 0)
+                                        activeRoot.AssemblyLinearVelocity = Vector3.zero
+                                        activeRoot.AssemblyAngularVelocity = Vector3.zero
+                                    end
+
                                     AutoEquipWeapon()
                                     
                                     if BringMobEnabled then
@@ -867,8 +859,9 @@ task.spawn(function()
 
                                     DoFastAttack(Net)
 
-                                    task.wait(0.1)
+                                    task.wait(0.05)
 
+                                    -- Kiểm tra lại số lượng quái
                                     aliveCount = 0
                                     if EnemiesFolder then
                                         for _, enemy in pairs(EnemiesFolder:GetChildren()) do
