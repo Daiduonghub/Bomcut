@@ -980,7 +980,7 @@ local function BringMobs(enemySpot, currentData)
 end
 
 local lastAttackTime = 0
-local attackCooldown = 0.1
+local attackCooldown = 0.05
 
 local function DoFastAttack(Net)
     if not FastAttackEnabled then return end
@@ -990,8 +990,20 @@ local function DoFastAttack(Net)
     local char = LocalPlayer.Character
     if not char then return end
 
-    local RegAttack = Net and Net:FindFirstChild("RE/RegisterAttack")
-    local RegHit = Net and (Net:FindFirstChild("RegisterHit") or Net:FindFirstChild("RE/RegisterHit"))
+    -- Tự động tìm kiếm remote RegisterAttack và RegisterHit ở mọi ngóc ngách ReplicatedStorage
+    local RegAttack, RegHit = nil, nil
+    
+    pcall(function()
+        for _, v in pairs(ReplicatedStorage:GetDescendants()) do
+            if v:IsA("RemoteEvent") then
+                if v.Name == "RegisterAttack" or v.Name == "RE/RegisterAttack" then
+                    RegAttack = v
+                elseif v.Name == "RegisterHit" or v.Name == "RE/RegisterHit" then
+                    RegHit = v
+                end
+            end
+        end
+    end)
 
     local hitTargets = {}
     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
@@ -1011,7 +1023,9 @@ local function DoFastAttack(Net)
     end
 
     pcall(function()
-        if RegAttack then RegAttack:FireServer(0, 1) end
+        if RegAttack then 
+            RegAttack:FireServer(0, 1) 
+        end
         if RegHit and #hitTargets > 0 then
             for _, data in ipairs(hitTargets) do
                 RegHit:FireServer(data[2], {}, nil, "157beb64")
