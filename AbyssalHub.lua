@@ -547,7 +547,7 @@ local BringMobEnabled = false
 local SelectedWeapon = "Melee"
 
 -- Độ cao đứng farm so với mặt đất/bãi quái
-local FarmHeight = 70
+local FarmHeight = 18
 
 local NpcPositions = {
     ["Pirate Starter"]  = CFrame.new(1059.37, 16.45, 1549.2),
@@ -1076,7 +1076,7 @@ task.spawn(function()
                         local npcPos = NpcPositions[currentData.Island]
                         local enemySpot = EnemyPositions[currentData.EnemyName]
 
-                        -- BƯỚC CHECK XEM ĐÃ CÓ QUEST HAY CHƯA TRƯỚC KHI ĐI NHẬN
+                        -- Check xem đã có quest chưa
                         local hasActiveQuest = false
                         pcall(function()
                             local questGui = LocalPlayer.PlayerGui:FindFirstChild("Main") and LocalPlayer.PlayerGui.Main:FindFirstChild("Quest")
@@ -1085,12 +1085,10 @@ task.spawn(function()
                             end
                         end)
 
-                        -- Chỉ khi nào CHƯA CÓ QUEST thì mới bay đi nhận
+                        -- Chưa có thì bay mượt (Tween) đến NPC nhận quest
                         if not hasActiveQuest then
                             if npcPos then
-                                pcall(function() 
-                                    RootPart.CFrame = npcPos 
-                                end)
+                                pcall(function() smoothMoveTo(npcPos) end)
                                 task.wait(0.2)
                             end
 
@@ -1102,10 +1100,10 @@ task.spawn(function()
                             end
                         end
 
-                        -- Bay thẳng tới bãi quái chuẩn bị chiến đấu
+                        -- Bay mượt (Tween) tới bãi quái chuẩn bị chiến đấu
                         if enemySpot then
                             pcall(function()
-                                RootPart.CFrame = enemySpot * CFrame.new(0, FarmHeight, 0)
+                                smoothMoveTo(enemySpot * CFrame.new(0, FarmHeight, 0))
                             end)
                         end
 
@@ -1123,7 +1121,7 @@ task.spawn(function()
                                 break
                             end
 
-                            -- Khóa cứng trạng thái không cho rơi xuống đất
+                            -- Chống rơi rớt khi đánh quái
                             curRoot.CanCollide = false
                             if curChar:FindFirstChild("Humanoid") then
                                 curChar.Humanoid.PlatformStand = true
@@ -1158,7 +1156,7 @@ task.spawn(function()
                                     BringMobs(enemySpot, currentData)
                                 end
 
-                                -- Gán cứng vị trí ngay lập tức trên đầu quái, tuyệt đối không trôi từ từ
+                                -- Giữ nhân vật bám sát ở độ cao vừa phải trên đầu quái
                                 curRoot.CFrame = targetEnemyRoot.CFrame * CFrame.new(0, FarmHeight, 0)
                                 DoFastAttack(Net)
                             else
