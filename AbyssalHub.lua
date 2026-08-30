@@ -736,7 +736,7 @@ local function DoFastAttack(Net)
 end
 
 -- ==========================================
--- 3. LOGIC WORKER (CHẠY NGẦM FARM LEVEL - FIX LỖI ĐỨNG HÌNH KHI QUÁI SPAWN)
+-- 3. LOGIC WORKER (CHẠY NGẦM FARM LEVEL - FIX TỰ ĐỘNG TÌM & ĐÁNH QUÁI)
 -- ==========================================
 task.spawn(function()
     local CommF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
@@ -783,6 +783,7 @@ task.spawn(function()
                 end
 
                 if currentData then
+                    -- 1. Nếu chưa nhận Quest thì bay đi nhận Quest
                     if not hasActiveQuest() then
                         local npcPos = NpcPositions[currentData.Island]
                         if npcPos then
@@ -798,8 +799,11 @@ task.spawn(function()
                         task.wait(0.5)
                     end
 
+                    -- 2. Nếu đã có Quest thì tiến hành tìm quái và farm
                     if hasActiveQuest() then
                         local enemySpot = EnemyPositions[currentData.EnemyName]
+                        
+                        -- Nếu ở quá xa bãi quái thì mượt mà bay đến đó
                         if enemySpot and (RootPart.Position - enemySpot.Position).Magnitude > 150 then
                             smoothMoveTo(enemySpot * CFrame.new(0, 50, 0))
                         end
@@ -816,9 +820,6 @@ task.spawn(function()
                             end
 
                             local EnemiesFolder = Workspace:FindFirstChild("Enemies")
-                            
-                            -- Kiểm tra quái xuất hiện
-                            local targetEnemyRoot = nil
                             local aliveCount = 0
 
                             if EnemiesFolder then
@@ -828,35 +829,29 @@ task.spawn(function()
                                         local eRoot = enemy:FindFirstChild("HumanoidRootPart")
                                         if eHum and eHum.Health > 0 and eRoot then
                                             aliveCount = aliveCount + 1
-                                            if not targetEnemyRoot then
-                                                targetEnemyRoot = eRoot
-                                            end
                                         end
                                     end
                                 end
                             end
 
-                            if aliveCount > 0 then
-                                -- Bay lên đỉnh bãi quái
-                                if enemySpot then
-                                    curRoot.CFrame = enemySpot * CFrame.new(0, 50, 0)
-                                    curRoot.AssemblyLinearVelocity = Vector3.zero
-                                end
+                            -- Luôn túc trực trên đầu bãi quái (dù có quái hay chưa)
+                            if enemySpot then
+                                curRoot.CFrame = enemySpot * CFrame.new(0, 50, 0)
+                                curRoot.AssemblyLinearVelocity = Vector3.zero
+                            end
 
+                            -- Nếu có quái xuất hiện thì chiến ngay
+                            if aliveCount > 0 then
                                 AutoEquipWeapon()
                                 
                                 if BringMobEnabled then
                                     BringMobs(enemySpot, currentData)
                                 end
 
-                                -- Tấn công liên tục khi có quái
                                 DoFastAttack(Net)
                             else
-                                -- Nếu chưa có quái hoặc quái đã chết hết, lượn về bãi chờ spawn
-                                if enemySpot then
-                                    curRoot.CFrame = enemySpot * CFrame.new(0, 50, 0)
-                                    curRoot.AssemblyLinearVelocity = Vector3.zero
-                                end
+                                -- Nếu quái chưa spawn hoặc đã chết sạch, đứng chờ trên bãi để đón đợt tiếp theo
+                                task.wait(0.2)
                             end
                         end
                     end
