@@ -736,7 +736,7 @@ local function DoFastAttack(Net)
 end
 
 -- ==========================================
--- 3. LOGIC WORKER (CHẠY NGẦM FARM LEVEL - CHUẨN KHÔNG BỊ ĐỨNG HÌNH)
+-- 3. LOGIC WORKER (BẢN GỐC CHUẨN - MƯỢT MÀ, KHÔNG LỖI)
 -- ==========================================
 task.spawn(function()
     local CommF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
@@ -783,7 +783,6 @@ task.spawn(function()
                 end
 
                 if currentData then
-                    -- 1. Nhận Quest
                     if not hasActiveQuest() then
                         local npcPos = NpcPositions[currentData.Island]
                         if npcPos then
@@ -799,12 +798,9 @@ task.spawn(function()
                         task.wait(0.5)
                     end
 
-                    -- 2. Farm quái
                     if hasActiveQuest() then
                         local enemySpot = EnemyPositions[currentData.EnemyName]
-                        
-                        -- Bay đến bãi quái đúng 1 lần bằng Tween mượt mà
-                        if enemySpot then
+                        if enemySpot and (RootPart.Position - enemySpot.Position).Magnitude > 150 then
                             smoothMoveTo(enemySpot * CFrame.new(0, 50, 0))
                         end
 
@@ -820,7 +816,9 @@ task.spawn(function()
                             end
 
                             local EnemiesFolder = Workspace:FindFirstChild("Enemies")
+                            
                             local aliveCount = 0
+                            local targetEnemyRoot = nil
 
                             if EnemiesFolder then
                                 for _, enemy in pairs(EnemiesFolder:GetChildren()) do
@@ -829,26 +827,74 @@ task.spawn(function()
                                         local eRoot = enemy:FindFirstChild("HumanoidRootPart")
                                         if eHum and eHum.Health > 0 and eRoot then
                                             aliveCount = aliveCount + 1
+                                            if not targetEnemyRoot then
+                                                targetEnemyRoot = eRoot
+                                            else
+                                                if (eRoot.Position - curRoot.Position).Magnitude < (targetEnemyRoot.Position - curRoot.Position).Magnitude then
+                                                    targetEnemyRoot = eRoot
+                                                end
+                                            end
                                         end
                                     end
                                 end
                             end
 
-                            -- Nếu có quái thì trang bị vũ khí, gom quái và chém
                             if aliveCount > 0 then
-                                AutoEquipWeapon()
-                                
-                                if BringMobEnabled then
-                                    BringMobs(enemySpot, currentData)
-                                end
+                                local farmTime = tick()
 
-                                DoFastAttack(Net)
+                                while aliveCount > 0 and AutoFarmLevelEnabled and hasActiveQuest() do
+                                    if tick() - farmTime > 15 then break end
+
+                                    local activeChar = LocalPlayer.Character
+                                    local activeRoot = activeChar and activeChar:FindFirstChild("HumanoidRootPart")
+                                    local activeHum = activeChar and activeChar:FindFirstChildOfClass("Humanoid")
+
+                                    if not activeChar or not activeRoot or not activeHum or activeHum.Health <= 0 then
+                                        break
+                                    end
+
+                                    AutoEquipWeapon()
+                                    
+                                    if BringMobEnabled then
+                                        BringMobs(enemySpot, currentData)
+                                    else
+                                        if targetEnemyRoot and targetEnemyRoot.Parent then
+                                            activeRoot.CFrame = targetEnemyRoot.CFrame * CFrame.new(0, 10, 3)
+                                        elseif enemySpot then
+                                            activeRoot.CFrame = enemySpot * CFrame.new(0, 50, 0)
+                                        end
+                                    end
+
+                                    DoFastAttack(Net)
+
+                                    task.wait(0.05)
+
+                                    aliveCount = 0
+                                    targetEnemyRoot = nil
+                                    if EnemiesFolder then
+                                        for _, enemy in pairs(EnemiesFolder:GetChildren()) do
+                                            if enemy.Name == currentData.EnemyName then
+                                                local eHum = enemy:FindFirstChildOfClass("Humanoid")
+                                                local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+                                                if eHum and eHum.Health > 0 and eRoot then
+                                                    aliveCount = aliveCount + 1
+                                                    if not targetEnemyRoot then
+                                                        targetEnemyRoot = eRoot
+                                                    else
+                                                        if (eRoot.Position - activeRoot.Position).Magnitude < (targetEnemyRoot.Position - activeRoot.Position).Magnitude then
+                                                            targetEnemyRoot = eRoot
+                                                        end
+                                                    end
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
                             else
-                                -- Không có quái thì bay hờ hững đúng vị trí bãi chờ, không bị khóa cứng đơ
                                 if enemySpot then
                                     curRoot.CFrame = enemySpot * CFrame.new(0, 50, 0)
                                 end
-                                task.wait(0.5)
+                                task.wait(0.3)
                             end
                         end
                     end
