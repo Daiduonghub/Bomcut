@@ -736,7 +736,7 @@ local function DoFastAttack(Net)
 end
 
 -- ==========================================
--- 3. LOGIC WORKER (CHẠY NGẦM FARM LEVEL - ĐÃ FIX KHÔNG BỊ RƠI XUỐNG ĐẤT)
+-- 3. LOGIC WORKER (CHẠY NGẦM FARM LEVEL - FIX LỖI ĐỨNG HÌNH KHI QUÁI SPAWN)
 -- ==========================================
 task.spawn(function()
     local CommF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
@@ -817,7 +817,10 @@ task.spawn(function()
 
                             local EnemiesFolder = Workspace:FindFirstChild("Enemies")
                             
+                            -- Kiểm tra quái xuất hiện
+                            local targetEnemyRoot = nil
                             local aliveCount = 0
+
                             if EnemiesFolder then
                                 for _, enemy in pairs(EnemiesFolder:GetChildren()) do
                                     if enemy.Name == currentData.EnemyName then
@@ -825,61 +828,35 @@ task.spawn(function()
                                         local eRoot = enemy:FindFirstChild("HumanoidRootPart")
                                         if eHum and eHum.Health > 0 and eRoot then
                                             aliveCount = aliveCount + 1
+                                            if not targetEnemyRoot then
+                                                targetEnemyRoot = eRoot
+                                            end
                                         end
                                     end
                                 end
                             end
 
                             if aliveCount > 0 then
-                                local farmTime = tick()
-
-                                while aliveCount > 0 and AutoFarmLevelEnabled and hasActiveQuest() do
-                                    if tick() - farmTime > 15 then break end
-
-                                    local activeChar = LocalPlayer.Character
-                                    local activeRoot = activeChar and activeChar:FindFirstChild("HumanoidRootPart")
-                                    local activeHum = activeChar and activeChar:FindFirstChildOfClass("Humanoid")
-
-                                    if not activeChar or not activeRoot or not activeHum or activeHum.Health <= 0 then
-                                        break
-                                    end
-
-                                    -- [ĐÃ FIX]: Giữ chặt vị trí trên cao liên tục, chống rơi xuống đất và chống giật
-                                    if enemySpot then
-                                        activeRoot.CFrame = enemySpot * CFrame.new(0, 50, 0)
-                                        activeRoot.AssemblyLinearVelocity = Vector3.zero
-                                        activeRoot.AssemblyAngularVelocity = Vector3.zero
-                                    end
-
-                                    AutoEquipWeapon()
-                                    
-                                    if BringMobEnabled then
-                                        BringMobs(enemySpot, currentData)
-                                    end
-
-                                    DoFastAttack(Net)
-
-                                    task.wait(0.05)
-
-                                    -- Kiểm tra lại số lượng quái
-                                    aliveCount = 0
-                                    if EnemiesFolder then
-                                        for _, enemy in pairs(EnemiesFolder:GetChildren()) do
-                                            if enemy.Name == currentData.EnemyName then
-                                                local eHum = enemy:FindFirstChildOfClass("Humanoid")
-                                                if eHum and eHum.Health > 0 then
-                                                    aliveCount = aliveCount + 1
-                                                end
-                                            end
-                                        end
-                                    end
-                                end
-                            else
+                                -- Bay lên đỉnh bãi quái
                                 if enemySpot then
                                     curRoot.CFrame = enemySpot * CFrame.new(0, 50, 0)
                                     curRoot.AssemblyLinearVelocity = Vector3.zero
                                 end
-                                task.wait(0.3)
+
+                                AutoEquipWeapon()
+                                
+                                if BringMobEnabled then
+                                    BringMobs(enemySpot, currentData)
+                                end
+
+                                -- Tấn công liên tục khi có quái
+                                DoFastAttack(Net)
+                            else
+                                -- Nếu chưa có quái hoặc quái đã chết hết, lượn về bãi chờ spawn
+                                if enemySpot then
+                                    curRoot.CFrame = enemySpot * CFrame.new(0, 50, 0)
+                                    curRoot.AssemblyLinearVelocity = Vector3.zero
+                                end
                             end
                         end
                     end
