@@ -627,12 +627,18 @@ local QuestDatabase = {
 -- 2. HÀM BỔ TRỢ LOGIC FARM
 -- ==========================================
 RunService.Stepped:Connect(function()
-    if AutoFarmLevelEnabled and LocalPlayer.Character then
-        for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = false
-            end
-        end
+    if not AutoFarmLevelEnabled then
+        return
+    end
+
+    local char = LocalPlayer.Character
+    if not char then
+        return
+    end
+
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if root then
+        root.CanCollide = false
     end
 end)
 
@@ -695,30 +701,33 @@ end
 
 local function BringMobs(enemySpot, currentData)
     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
-    if not EnemiesFolder or not enemySpot then return end
+    if not EnemiesFolder or not enemySpot or not currentData then
+        return
+    end
 
     for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
         if enemy.Name == currentData.EnemyName then
             local eHum = enemy:FindFirstChildOfClass("Humanoid")
             local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+            local head = enemy:FindFirstChild("Head")
 
             if eHum and eRoot and eHum.Health > 0 then
                 local dist = (eRoot.Position - enemySpot.Position).Magnitude
 
-                if BringMobEnabled and dist <= 300 and dist > 5 then
+                if BringMobEnabled and dist <= 300 then
                     eRoot.CanCollide = false
 
-                    local head = enemy:FindFirstChild("Head")
                     if head then
                         head.CanCollide = false
                     end
 
-                    -- Chỉ đổi vị trí, không khóa velocity
-                    eRoot.CFrame = enemySpot
+                    -- Chỉ kéo mob khi nó thực sự lệch khỏi điểm gom
+                    if dist > 8 then
+                        eRoot.CFrame = enemySpot
+                    end
                 else
                     eRoot.CanCollide = true
 
-                    local head = enemy:FindFirstChild("Head")
                     if head then
                         head.CanCollide = true
                     end
@@ -729,7 +738,7 @@ local function BringMobs(enemySpot, currentData)
 end
 
 local lastAttackTime = 0
-local attackCooldown = 0.05
+local attackCooldown = 0.1
 
 local function DoFastAttack(Net)
     if not FastAttackEnabled then return end
@@ -882,17 +891,24 @@ task.spawn(function()
                                     farmTimeout = tick()
                                     AutoEquipWeapon()
                                     
-                                    if BringMobEnabled then
-                                        BringMobs(enemySpot, currentData)
-                                    else
-                                        if targetEnemyRoot and targetEnemyRoot.Parent then
-                                            curRoot.CFrame = targetEnemyRoot.CFrame * CFrame.new(0, 10, 3)
-                                        elseif enemySpot then
-                                            curRoot.CFrame = enemySpot * CFrame.new(0, 50, 0)
-                                        end
-                                    end
+if BringMobEnabled then
+    BringMobs(enemySpot, currentData)
 
-                                    DoFastAttack(Net)
+    -- Khi đã gom mob, đứng cố định phía trên điểm gom
+    if enemySpot then
+        local targetCF = enemySpot * CFrame.new(0, FarmHeight, 0)
+        curRoot.CFrame = curRoot.CFrame:Lerp(targetCF, 0.25)
+    end
+else
+    if targetEnemyRoot and targetEnemyRoot.Parent then
+        SmoothFarmPosition(curRoot, targetEnemyRoot)
+    elseif enemySpot then
+        local targetCF = enemySpot * CFrame.new(0, FarmHeight, 0)
+        curRoot.CFrame = curRoot.CFrame:Lerp(targetCF, 0.25)
+    end
+end
+
+DoFastAttack(Net)
                                 else
                                     if enemySpot then
                                         curRoot.CFrame = enemySpot * CFrame.new(0, 50, 0)
@@ -927,8 +943,8 @@ task.spawn(function()
 
                     if nearestEnemyRoot and nearestEnemyRoot.Parent then
                         AutoEquipWeapon()
-                        RootPart.CFrame = nearestEnemyRoot.CFrame * CFrame.new(0, 10, 3)
-                        DoFastAttack(Net)
+                        SmoothFarmPosition(RootPart, nearestEnemyRoot)
+DoFastAttack(Net)
                     else
                         -- Nếu xung quanh 400 studs không có con quái nào thì đứng chờ, không bay lung tung
                         task.wait(0.3)
@@ -966,6 +982,17 @@ local function smoothMoveTo(targetPos)
     local hrp = character:FindFirstChild("HumanoidRootPart")
     local humanoid = character:FindFirstChild("Humanoid")
     if not hrp or not humanoid then return end
+
+local function SmoothFarmPosition(root, targetRoot)
+    if not root or not targetRoot or not targetRoot.Parent then
+        return
+    end
+
+    local targetCFrame = targetRoot.CFrame * CFrame.new(0, FarmHeight, 0)
+
+    -- Di chuyển mềm thay vì teleport mỗi frame
+    root.CFrame = root.CFrame:Lerp(targetCFrame, 0.22)
+end
 
     -- Tốc độ giảm nhẹ lại để anticheat không kéo văng về biển
     local speed = 250 
