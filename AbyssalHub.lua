@@ -779,7 +779,19 @@ local function DoFastAttack(Net)
 end
 
 -- ==========================================
--- 3. LOGIC WORKER (TÍCH HỢP 2 CHẾ ĐỘ: LEVEL VÀ NEAREST)
+-- BỔ SUNG HÀM SMOOTH FARM POSITION CÒN THIẾU
+-- ==========================================
+local function SmoothFarmPosition(root, targetRoot)
+    if not root or not targetRoot or not targetRoot.Parent then
+        return
+    end
+
+    local targetCFrame = targetRoot.CFrame * CFrame.new(0, FarmHeight, 0)
+    root.CFrame = root.CFrame:Lerp(targetCFrame, 0.25)
+end
+
+-- ==========================================
+-- 3. LOGIC WORKER (ĐÃ SỬA LỖI ĐỨNG HÌNH, NHẬN QUEST XONG LÀ LAO VÀO ĐÁNH)
 -- ==========================================
 task.spawn(function()
     local CommF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
@@ -831,6 +843,7 @@ task.spawn(function()
                     end
 
                     if currentData then
+                        -- Nếu chưa nhận nhiệm vụ thì bay đi nhận
                         if not hasActiveQuest() then
                             local npcPos = NpcPositions[currentData.Island]
                             if npcPos then
@@ -846,11 +859,12 @@ task.spawn(function()
                             task.wait(0.5)
                         end
 
+                        -- Sau khi đã nhận nhiệm vụ, lao thẳng vào bãi quái chiến đấu
                         if hasActiveQuest() then
                             local enemySpot = EnemyPositions[currentData.EnemyName]
-                            if enemySpot and (RootPart.Position - enemySpot.Position).Magnitude > 80 then
+                            if enemySpot and (RootPart.Position - enemySpot.Position).Magnitude > 120 then
                                 pcall(function()
-                                    smoothMoveTo(enemySpot * CFrame.new(0, 50, 0))
+                                    smoothMoveTo(enemySpot * CFrame.new(0, FarmHeight, 0))
                                 end)
                             end
 
@@ -858,7 +872,7 @@ task.spawn(function()
                             while hasActiveQuest() and AutoFarmLevelEnabled and AutoFarmMode == "Level" do
                                 task.wait(0.05)
 
-                                if tick() - farmTimeout > 20 then break end
+                                if tick() - farmTimeout > 25 then break end
 
                                 local curChar = LocalPlayer.Character
                                 local curRoot = curChar and curChar:FindFirstChild("HumanoidRootPart")
@@ -891,27 +905,26 @@ task.spawn(function()
                                     farmTimeout = tick()
                                     AutoEquipWeapon()
                                     
-if BringMobEnabled then
-    BringMobs(enemySpot, currentData)
+                                    if BringMobEnabled then
+                                        BringMobs(enemySpot, currentData)
+                                        if enemySpot then
+                                            local targetCF = enemySpot * CFrame.new(0, FarmHeight, 0)
+                                            curRoot.CFrame = curRoot.CFrame:Lerp(targetCF, 0.25)
+                                        end
+                                    else
+                                        if targetEnemyRoot and targetEnemyRoot.Parent then
+                                            SmoothFarmPosition(curRoot, targetEnemyRoot)
+                                        elseif enemySpot then
+                                            local targetCF = enemySpot * CFrame.new(0, FarmHeight, 0)
+                                            curRoot.CFrame = curRoot.CFrame:Lerp(targetCF, 0.25)
+                                        end
+                                    end
 
-    -- Khi đã gom mob, đứng cố định phía trên điểm gom
-    if enemySpot then
-        local targetCF = enemySpot * CFrame.new(0, FarmHeight, 0)
-        curRoot.CFrame = curRoot.CFrame:Lerp(targetCF, 0.25)
-    end
-else
-    if targetEnemyRoot and targetEnemyRoot.Parent then
-        SmoothFarmPosition(curRoot, targetEnemyRoot)
-    elseif enemySpot then
-        local targetCF = enemySpot * CFrame.new(0, FarmHeight, 0)
-        curRoot.CFrame = curRoot.CFrame:Lerp(targetCF, 0.25)
-    end
-end
-
-DoFastAttack(Net)
+                                    DoFastAttack(Net)
                                 else
                                     if enemySpot then
-                                        curRoot.CFrame = enemySpot * CFrame.new(0, 50, 0)
+                                        local targetCF = enemySpot * CFrame.new(0, FarmHeight, 0)
+                                        curRoot.CFrame = curRoot.CFrame:Lerp(targetCF, 0.25)
                                     end
                                     task.wait(0.3)
                                 end
@@ -920,12 +933,12 @@ DoFastAttack(Net)
                     end
 
                 -- ==========================================
-                -- CHẾ ĐỘ 2: FARM QUÁI GẦN NHẤT (ĐÃ GIỚI HẠN BÁN KÍNH 400 BUỔI, KHÔNG BAY LẠC ĐẢO)
+                -- CHẾ ĐỘ 2: FARM QUÁI GẦN NHẤT
                 -- ==========================================
                 elseif AutoFarmMode == "Nearest" then
                     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
                     local nearestEnemyRoot = nil
-                    local shortestDist = 400 -- Chỉ quét quái trong vòng 400 studs quanh người
+                    local shortestDist = 400
 
                     if EnemiesFolder then
                         for _, enemy in pairs(EnemiesFolder:GetChildren()) do
@@ -944,9 +957,8 @@ DoFastAttack(Net)
                     if nearestEnemyRoot and nearestEnemyRoot.Parent then
                         AutoEquipWeapon()
                         SmoothFarmPosition(RootPart, nearestEnemyRoot)
-DoFastAttack(Net)
+                        DoFastAttack(Net)
                     else
-                        -- Nếu xung quanh 400 studs không có con quái nào thì đứng chờ, không bay lung tung
                         task.wait(0.3)
                     end
                 end
@@ -955,7 +967,7 @@ DoFastAttack(Net)
         end
     end
 end)
-         
+
 -- SEA 1 TELEPORT LOCATIONS
 local IslandTeleports = {
     ["Pirate Starter"]  = Vector3.new(1059.37, 40, 1549.2),
@@ -982,17 +994,6 @@ local function smoothMoveTo(targetPos)
     local hrp = character:FindFirstChild("HumanoidRootPart")
     local humanoid = character:FindFirstChild("Humanoid")
     if not hrp or not humanoid then return end
-
-local function SmoothFarmPosition(root, targetRoot)
-    if not root or not targetRoot or not targetRoot.Parent then
-        return
-    end
-
-    local targetCFrame = targetRoot.CFrame * CFrame.new(0, FarmHeight, 0)
-
-    -- Di chuyển mềm thay vì teleport mỗi frame
-    root.CFrame = root.CFrame:Lerp(targetCFrame, 0.22)
-end
 
     -- Tốc độ giảm nhẹ lại để anticheat không kéo văng về biển
     local speed = 250 
