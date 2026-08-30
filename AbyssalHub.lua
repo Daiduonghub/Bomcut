@@ -1066,31 +1066,44 @@ task.spawn(function()
                 
                 if AutoFarmMode == "Level" then
                     local currentLevel = getPlayerLevel()
-local currentData = nil
+                    local currentData = nil
 
-for _, q in ipairs(QuestDatabase) do
-    if currentLevel >= q.MinLevel and currentLevel <= q.MaxLevel then
-        currentData = q
-        break
-    end
-end
+                    for _, q in ipairs(QuestDatabase) do
+                        if currentLevel >= q.MinLevel and currentLevel <= q.MaxLevel then
+                            currentData = q
+                            break
+                        end
+                    end
 
                     if currentData then
                         local npcPos = NpcPositions[currentData.Island]
                         local enemySpot = EnemyPositions[currentData.EnemyName]
 
-                        if npcPos then
-                            pcall(function() smoothMoveTo(npcPos) end)
-                            task.wait(0.2)
+                        -- BƯỚC CHECK XEM ĐÃ CÓ QUEST HAY CHƯA TRƯỚC KHI ĐI NHẬN
+                        local hasActiveQuest = false
+                        pcall(function()
+                            local questGui = LocalPlayer.PlayerGui:FindFirstChild("Main") and LocalPlayer.PlayerGui.Main:FindFirstChild("Quest")
+                            if questGui and questGui.Visible then
+                                hasActiveQuest = true
+                            end
+                        end)
+
+                        -- Chỉ khi nào CHƯA CÓ QUEST thì mới bay đi nhận
+                        if not hasActiveQuest then
+                            if npcPos then
+                                pcall(function() smoothMoveTo(npcPos) end)
+                                task.wait(0.2)
+                            end
+
+                            if CommF then
+                                pcall(function()
+                                    CommF:InvokeServer("StartQuest", currentData.QuestName, currentData.QuestNumber)
+                                end)
+                                task.wait(0.3)
+                            end
                         end
 
-                        if CommF then
-                            pcall(function()
-                                CommF:InvokeServer("StartQuest", currentData.QuestName, currentData.QuestNumber)
-                            end)
-                            task.wait(0.3)
-                        end
-
+                        -- Bay thẳng tới bãi quái chuẩn bị chiến đấu
                         if enemySpot then
                             pcall(function()
                                 smoothMoveTo(enemySpot * CFrame.new(0, FarmHeight, 0))
