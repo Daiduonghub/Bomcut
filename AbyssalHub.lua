@@ -218,49 +218,75 @@ function Library:CreateWindow(hubName)
         end
 
         -- TOGGLE
-        function TabElements:CreateToggle(toggleName, default, callback)
-            local toggled = default or false
+        function TabElements:CreateToggle(text, defaultState, callback)
+    local toggleFrame = Instance.new("Frame")
+    local toggleTitle = Instance.new("TextLabel")
+    local toggleBtn = Instance.new("TextButton")
+    
+    -- Đảm bảo mỗi toggle có trạng thái riêng biệt, không bị dính chung biến
+    local state = defaultState and true or false
 
-            local ToggleBtn = Instance.new("TextButton")
-            ToggleBtn.Parent = TabPage
-            ToggleBtn.Size = UDim2.new(1, -6, 0, 36)
-            ToggleBtn.BackgroundColor3 = Color3.fromRGB(21, 27, 36)
-            ToggleBtn.Text = ""
+    toggleFrame.Name = text .. "_Toggle"
+    toggleFrame.Size = UDim2.new(1, -6, 0, 36)
+    toggleFrame.BackgroundColor3 = Color3.fromRGB(21, 27, 36)
+    toggleFrame.BorderSizePixel = 0
+    toggleFrame.Parent = TabPage
 
-            local Corner = Instance.new("UICorner")
-            Corner.CornerRadius = UDim.new(0, 6)
-            Corner.Parent = ToggleBtn
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 6)
+    Corner.Parent = toggleFrame
 
-            local Label = Instance.new("TextLabel")
-            Label.Parent = ToggleBtn
-            Label.Position = UDim2.new(0, 10, 0, 0)
-            Label.Size = UDim2.new(0.7, 0, 1, 0)
-            Label.Text = toggleName
-            Label.TextColor3 = Color3.fromRGB(240, 240, 240)
-            Label.Font = Enum.Font.GothamMedium
-            Label.TextSize = 12
-            Label.TextXAlignment = Enum.TextXAlignment.Left
-            Label.BackgroundTransparency = 1
-            Label.Active = false
+    toggleTitle.Size = UDim2.new(0.7, 0, 1, 0)
+    toggleTitle.Position = UDim2.new(0, 10, 0, 0)
+    toggleTitle.BackgroundTransparency = 1
+    toggleTitle.Text = text
+    toggleTitle.TextColor3 = Color3.fromRGB(240, 240, 240)
+    toggleTitle.TextXAlignment = Enum.TextXAlignment.Left
+    toggleTitle.Font = Enum.Font.GothamMedium
+    toggleTitle.TextSize = 12
+    toggleTitle.Parent = toggleFrame
 
-            local Switch = Instance.new("Frame")
-            Switch.Parent = ToggleBtn
-            Switch.Position = UDim2.new(1, -38, 0.5, -9)
-            Switch.Size = UDim2.new(0, 28, 0, 18)
-            Switch.BackgroundColor3 = toggled and Color3.fromRGB(0, 210, 255) or Color3.fromRGB(13, 17, 23)
+    -- Khung nút gạt (Switch)
+    toggleBtn.Size = UDim2.new(0, 40, 0, 20)
+    toggleBtn.Position = UDim2.new(1, -50, 0.5, -10)
+    toggleBtn.Text = ""
+    toggleBtn.Parent = toggleFrame
 
-            local SwitchCorner = Instance.new("UICorner")
-            SwitchCorner.CornerRadius = UDim.new(0, 4)
-            SwitchCorner.Parent = Switch
+    local BtnCorner = Instance.new("UICorner")
+    BtnCorner.CornerRadius = UDim.new(1, 0)
+    BtnCorner.Parent = toggleBtn
 
-            ToggleBtn.MouseButton1Click:Connect(function()
-                toggled = not toggled
-                TweenService:Create(Switch, TweenInfo.new(0.15), {
-                    BackgroundColor3 = toggled and Color3.fromRGB(0, 210, 255) or Color3.fromRGB(13, 17, 23)
-                }):Play()
-                pcall(callback, toggled)
-            end)
+    -- Chấm tròn bên trong
+    local circle = Instance.new("Frame")
+    circle.Size = UDim2.new(0, 16, 0, 16)
+    circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    circle.Parent = toggleBtn
+
+    local CircleCorner = Instance.new("UICorner")
+    CircleCorner.CornerRadius = UDim.new(1, 0)
+    CircleCorner.Parent = circle
+
+    -- Hàm cập nhật màu sắc chuẩn xác theo biến state hiện tại
+    local function updateVisual(instant)
+        if state then
+            toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 210, 255) -- Xanh (Bật)
+            circle.Position = UDim2.new(1, -18, 0.5, -8)
+        else
+            toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 45, 55)  -- Xám tối (Tắt)
+            circle.Position = UDim2.new(0, 2, 0.5, -8)
         end
+    end
+
+    -- Khởi động lên là set màu đúng với giá trị truyền vào ngay lập tức
+    updateVisual()
+
+    -- Sự kiện click đổi trạng thái
+    toggleBtn.MouseButton1Click:Connect(function()
+        state = not state
+        updateVisual()
+        if callback then pcall(callback, state) end
+    end)
+end
 
         -- SLIDER
         function TabElements:CreateSlider(sliderName, min, max, default, callback)
@@ -1064,10 +1090,10 @@ local PlayerTab = Window:CreateTab("Player")
 local TeleportTab = Window:CreateTab("Teleport (Sea1)")
 local AutoTab = Window:CreateTab("Auto stats")
 
-MainTab:CreateDropdown("Chế Độ Farm", {"Farm Theo Level", "Farm Quái Gần Nhất"}, "Farm Theo Level", function(selected)
-    if selected == "Farm Theo Level" then
+MainTab:CreateDropdown("Chế Độ Farm", {"Level", "Nearest"}, "Level", function(selected)
+    if selected == "Level" then
         AutoFarmMode = "Level"
-    elseif selected == "Farm Quái Gần Nhất" then
+    elseif selected == "Nearest" then
         AutoFarmMode = "Nearest"
     end
 end)
@@ -1137,22 +1163,22 @@ SettingTab:CreateToggle("Bring Mobs(Đang lỗi)", true, function(state)
     BringMobEnabled = state
 end)
 
-AutoTab:CreateButton("Auto Melee", function(state)
+AutoTab:CreateToggle("Auto Melee", function(state)
     AutoMeleeEnabled = state
 end)
 
-AutoTab:CreateButton("Auto Defense", function(state)
+AutoTab:CreateToggle("Auto Defense", function(state)
     AutoDefenseEnabled = state
 end)
 
-AutoTab:CreateButton("Auto Sword", function(state)
+AutoTab:CreateToggle("Auto Sword", function(state)
     AutoSwordEnabled = state
 end)
 
-AutoTab:CreateButton("Auto Gun", function(state)
+AutoTab:CreateToggle("Auto Gun", function(state)
     AutoGunEnabled = state
 end)
 
-AutoTab:CreateButton("Auto Demon Fruit", function(state)
+AutoTab:CreateToggle("Auto Demon Fruit", function(state)
     AutoFruitEnabled = state
 end)
