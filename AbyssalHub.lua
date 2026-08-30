@@ -388,97 +388,119 @@ function Library:CreateWindow(hubName)
 
         -- DROPDOWN (Đã fix gộp vào TabElements chuẩn)
         function TabElements:CreateDropdown(text, options, defaultOption, callback)
-            local dropdownFrame = Instance.new("Frame")
-            local dropdownTitle = Instance.new("TextLabel")
-            local dropdownBtn = Instance.new("TextButton")
-            local optionsHolder = Instance.new("ScrollingFrame")
-            local UIListLayout = Instance.new("UIListLayout")
+    local dropdownFrame = Instance.new("Frame")
+    local dropdownTitle = Instance.new("TextLabel")
+    local dropdownBtn = Instance.new("TextButton")
+    local optionsHolder = Instance.new("ScrollingFrame")
+    local UIListLayout = Instance.new("UIListLayout")
 
-            local selected = defaultOption or options[1]
-            local isOpened = false
+    local selected = defaultOption or options[1]
+    local isOpened = false
 
-            dropdownFrame.Name = text .. "_Dropdown"
-            dropdownFrame.Size = UDim2.new(1, -6, 0, 36)
-            dropdownFrame.BackgroundColor3 = Color3.fromRGB(21, 27, 36)
-            dropdownFrame.BorderSizePixel = 0
-            dropdownFrame.Parent = TabPage
+    dropdownFrame.Name = text .. "_Dropdown"
+    dropdownFrame.Size = UDim2.new(1, -6, 0, 36)
+    dropdownFrame.BackgroundColor3 = Color3.fromRGB(21, 27, 36)
+    dropdownFrame.BorderSizePixel = 0
+    dropdownFrame.Parent = TabPage
 
-            local Corner = Instance.new("UICorner")
-            Corner.CornerRadius = UDim.new(0, 6)
-            Corner.Parent = dropdownFrame
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 6)
+    Corner.Parent = dropdownFrame
 
-            dropdownTitle.Size = UDim2.new(0.5, 0, 1, 0)
-            dropdownTitle.Position = UDim2.new(0, 10, 0, 0)
-            dropdownTitle.BackgroundTransparency = 1
-            dropdownTitle.Text = text
-            dropdownTitle.TextColor3 = Color3.fromRGB(240, 240, 240)
-            dropdownTitle.TextXAlignment = Enum.TextXAlignment.Left
-            dropdownTitle.Font = Enum.Font.GothamMedium
-            dropdownTitle.TextSize = 12
-            dropdownTitle.Parent = dropdownFrame
+    dropdownTitle.Size = UDim2.new(0.5, 0, 1, 0)
+    dropdownTitle.Position = UDim2.new(0, 10, 0, 0)
+    dropdownTitle.BackgroundTransparency = 1
+    dropdownTitle.Text = text
+    dropdownTitle.TextColor3 = Color3.fromRGB(240, 240, 240)
+    dropdownTitle.TextXAlignment = Enum.TextXAlignment.Left
+    dropdownTitle.Font = Enum.Font.GothamMedium
+    dropdownTitle.TextSize = 12
+    dropdownTitle.Parent = dropdownFrame
 
-            dropdownBtn.Size = UDim2.new(0.4, 0, 0, 24)
-            dropdownBtn.Position = UDim2.new(0.58, 0, 0.5, -12)
-            dropdownBtn.BackgroundColor3 = Color3.fromRGB(13, 17, 23)
+    dropdownBtn.Size = UDim2.new(0.4, 0, 0, 24)
+    dropdownBtn.Position = UDim2.new(0.58, 0, 0.5, -12)
+    dropdownBtn.BackgroundColor3 = Color3.fromRGB(13, 17, 23)
+    dropdownBtn.Text = tostring(selected) .. " ▼"
+    dropdownBtn.TextColor3 = Color3.fromRGB(0, 210, 255)
+    dropdownBtn.Font = Enum.Font.Gotham
+    dropdownBtn.TextSize = 11
+    dropdownBtn.Parent = dropdownFrame
+
+    local BtnCorner = Instance.new("UICorner")
+    BtnCorner.CornerRadius = UDim.new(0, 4)
+    BtnCorner.Parent = dropdownBtn
+
+    optionsHolder.Size = UDim2.new(1, 0, 0, 0)
+    optionsHolder.Position = UDim2.new(0, 0, 1, 5)
+    optionsHolder.BackgroundColor3 = Color3.fromRGB(17, 22, 30)
+    optionsHolder.Visible = false
+    optionsHolder.BorderSizePixel = 0
+    
+    -- TỐI ƯU: Tự động co giãn kích thước cuộn chuẩn xác tuyệt đối
+    optionsHolder.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    optionsHolder.CanvasSize = UDim2.new(0, 0, 0, 0)
+    optionsHolder.ScrollBarThickness = 3
+    optionsHolder.ScrollingDirection = Enum.ScrollingDirection.Y
+    optionsHolder.ZIndex = 10
+    optionsHolder.Parent = dropdownFrame
+
+    local HolderCorner = Instance.new("UICorner")
+    HolderCorner.CornerRadius = UDim.new(0, 4)
+    HolderCorner.Parent = optionsHolder
+
+    UIListLayout.Parent = optionsHolder
+    UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    UIListLayout.Padding = UDim.new(0, 2) -- Thêm khoảng cách nhỏ giữa các lựa chọn
+
+    local function toggleDropdown()
+        isOpened = not isOpened
+        optionsHolder.Visible = isOpened
+        if isOpened then
+            dropdownBtn.Text = tostring(selected) .. " ▲"
+            
+            -- Lấy chiều cao thực tế của nội dung, giới hạn tối đa 120px để kích hoạt thanh cuộn vuốt xuống
+            task.wait() -- Đợi 1 nhịp để layout render chuẩn kích thước
+            local contentHeight = UIListLayout.AbsoluteContentSize.Y
+            local targetHeight = math.min(contentHeight + 4, 120)
+            
+            optionsHolder.Size = UDim2.new(1, 0, 0, targetHeight)
+            dropdownFrame.Size = UDim2.new(1, -6, 0, 36 + targetHeight + 10)
+        else
             dropdownBtn.Text = tostring(selected) .. " ▼"
-            dropdownBtn.TextColor3 = Color3.fromRGB(0, 210, 255)
-            dropdownBtn.Font = Enum.Font.Gotham
-            dropdownBtn.TextSize = 11
-            dropdownBtn.Parent = dropdownFrame
-
-            local BtnCorner = Instance.new("UICorner")
-            BtnCorner.CornerRadius = UDim.new(0, 4)
-            BtnCorner.Parent = dropdownBtn
-
             optionsHolder.Size = UDim2.new(1, 0, 0, 0)
-            optionsHolder.Position = UDim2.new(0, 0, 1, 5)
-            optionsHolder.BackgroundColor3 = Color3.fromRGB(17, 22, 30)
-            optionsHolder.Visible = false
-            optionsHolder.CanvasSize = UDim2.new(0, 0, 0, #options * 25)
-            optionsHolder.ScrollBarThickness = 2
-            optionsHolder.ZIndex = 10
-            optionsHolder.Parent = dropdownFrame
-
-            UIListLayout.Parent = optionsHolder
-            UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-
-            local function toggleDropdown()
-                isOpened = not isOpened
-                optionsHolder.Visible = isOpened
-                if isOpened then
-                    dropdownBtn.Text = tostring(selected) .. " ▲"
-                    optionsHolder.Size = UDim2.new(1, 0, 0, math.min(#options * 25, 100))
-                    dropdownFrame.Size = UDim2.new(1, -6, 0, 36 + optionsHolder.Size.Y.Offset + 5)
-                else
-                    dropdownBtn.Text = tostring(selected) .. " ▼"
-                    optionsHolder.Size = UDim2.new(1, 0, 0, 0)
-                    dropdownFrame.Size = UDim2.new(1, -6, 0, 36)
-                end
-            end
-
-            dropdownBtn.MouseButton1Click:Connect(toggleDropdown)
-
-            for _, opt in ipairs(options) do
-                local optBtn = Instance.new("TextButton")
-                optBtn.Size = UDim2.new(1, 0, 0, 25)
-                optBtn.BackgroundColor3 = Color3.fromRGB(21, 27, 36)
-                optBtn.BackgroundTransparency = 0.2
-                optBtn.Text = tostring(opt)
-                optBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
-                optBtn.Font = Enum.Font.Gotham
-                optBtn.TextSize = 11
-                optBtn.ZIndex = 11
-                optBtn.Parent = optionsHolder
-
-                optBtn.MouseButton1Click:Connect(function()
-                    selected = opt
-                    toggleDropdown()
-                    if callback then pcall(callback, selected) end
-                end)
-            end
-
-            if callback then pcall(callback, selected) end
+            dropdownFrame.Size = UDim2.new(1, -6, 0, 36)
         end
+    end
+
+    dropdownBtn.MouseButton1Click:Connect(toggleDropdown)
+
+    for _, opt in ipairs(options) do
+        local optBtn = Instance.new("TextButton")
+        optBtn.Size = UDim2.new(1, 0, 0, 25)
+        optBtn.BackgroundColor3 = Color3.fromRGB(21, 27, 36)
+        optBtn.BackgroundTransparency = 0.5
+        optBtn.Text = "  " .. tostring(opt) -- Thêm khoảng lùi chữ cho đẹp
+        optBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
+        optBtn.Font = Enum.Font.Gotham
+        optBtn.TextSize = 11
+        optBtn.TextXAlignment = Enum.TextXAlignment.Left
+        optBtn.ZIndex = 11
+        optBtn.Parent = optionsHolder
+
+        local optCorner = Instance.new("UICorner")
+        optCorner.CornerRadius = UDim.new(0, 4)
+        optCorner.Parent = optBtn
+
+        optBtn.MouseButton1Click:Connect(function()
+            selected = opt
+            dropdownBtn.Text = tostring(selected) .. " ▼"
+            toggleDropdown()
+            if callback then pcall(callback, selected) end
+        end)
+    end
+
+    if callback then pcall(callback, selected) end
+end
 
         return TabElements
     end
@@ -504,7 +526,8 @@ local LocalPlayer = Players.LocalPlayer
 -- ==========================================
 local AutoFarmLevelEnabled = false
 local FastAttackEnabled = true
-local BringMobEnabled = false -- Đặt mặc định là false hoặc true tùy cậu chỉnh
+local AutoFarmMode = "Level"
+local BringMobEnabled = false
 local SelectedWeapon = "Melee"
 
 -- Độ cao đứng farm so với mặt đất/bãi quái
@@ -656,38 +679,33 @@ end
 
 local function BringMobs(enemySpot, currentData)
     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
-    if not EnemiesFolder then return end
+    if not EnemiesFolder or not enemySpot then return end
 
-    for _, enemy in pairs(EnemiesFolder:GetChildren()) do
+    for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
         if enemy.Name == currentData.EnemyName then
             local eHum = enemy:FindFirstChildOfClass("Humanoid")
             local eRoot = enemy:FindFirstChild("HumanoidRootPart")
 
             if eHum and eRoot and eHum.Health > 0 then
-                -- Ép game nhường quyền quản lý con quái này cho client của cậu
-                pcall(function()
-                    if sethiddenproperty then
-                        sethiddenproperty(enemy, "NetworkOwner", LocalPlayer)
-                    elseif requestnetworkownership then
-                        requestnetworkownership(enemy)
-                    end
-                end)
+                local dist = (eRoot.Position - enemySpot.Position).Magnitude
 
-                -- Sau khi đã giành được quyền, cậu kéo quái về bãi thoải mái không sợ đơ
-                if BringMobEnabled and enemySpot then
-                    local dist = (eRoot.Position - enemySpot.Position).Magnitude
-                    if dist <= 300 and dist > 3 then
-                        eRoot.CanCollide = false
-                        if enemy:FindFirstChild("Head") then
-                            enemy.Head.CanCollide = false
-                        end
+                if BringMobEnabled and dist <= 300 and dist > 5 then
+                    eRoot.CanCollide = false
 
-                        eRoot.CFrame = enemySpot
-                        eRoot.AssemblyLinearVelocity = Vector3.zero
-                        eRoot.AssemblyAngularVelocity = Vector3.zero
+                    local head = enemy:FindFirstChild("Head")
+                    if head then
+                        head.CanCollide = false
                     end
+
+                    -- Chỉ đổi vị trí, không khóa velocity
+                    eRoot.CFrame = enemySpot
                 else
                     eRoot.CanCollide = true
+
+                    local head = enemy:FindFirstChild("Head")
+                    if head then
+                        head.CanCollide = true
+                    end
                 end
             end
         end
@@ -736,7 +754,7 @@ local function DoFastAttack(Net)
 end
 
 -- ==========================================
--- 3. LOGIC WORKER (FIX TRIỆT ĐỂ LỖI ĐỨNG HÌNH, KHÔNG BAO GIỜ BỊ TREO)
+-- 3. LOGIC WORKER (TÍCH HỢP 2 CHẾ ĐỘ: LEVEL VÀ NEAREST)
 -- ==========================================
 task.spawn(function()
     local CommF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
@@ -764,7 +782,7 @@ task.spawn(function()
     end
 
     while true do
-        task.wait(0.2)
+        task.wait(0.1)
 
         if AutoFarmLevelEnabled then
             local Character = LocalPlayer.Character
@@ -772,109 +790,134 @@ task.spawn(function()
             local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
 
             if Character and RootPart and Humanoid and Humanoid.Health > 0 then
-                local currentLevel = getPlayerLevel()
-                local currentData = nil
+                
+                -- ==========================================
+                -- CHẾ ĐỘ 1: FARM THEO LEVEL (LÀM NHIỆM VỤ CHUẨN CHỈ)
+                -- ==========================================
+                if AutoFarmMode == "Level" then
+                    local currentLevel = getPlayerLevel()
+                    local currentData = nil
 
-                for _, q in ipairs(QuestDatabase) do
-                    if currentLevel >= q.MinLevel and currentLevel <= q.MaxLevel then
-                        currentData = q
-                        break
+                    for _, q in ipairs(QuestDatabase) do
+                        if currentLevel >= q.MinLevel and currentLevel <= q.MaxLevel then
+                            currentData = q
+                            break
+                        end
                     end
-                end
 
-                if currentData then
-                    -- 1. Nếu chưa có Quest, bắt buộc bay đến NPC nhận
-                    if not hasActiveQuest() then
-                        local npcPos = NpcPositions[currentData.Island]
-                        if npcPos then
-                            -- Dùng pcall chống lỗi treo tween
-                            pcall(function()
-                                smoothMoveTo(npcPos)
-                            end)
+                    if currentData then
+                        if not hasActiveQuest() then
+                            local npcPos = NpcPositions[currentData.Island]
+                            if npcPos then
+                                pcall(function() smoothMoveTo(npcPos) end)
+                                task.wait(0.2)
+                            end
+
+                            if CommF and not hasActiveQuest() then
+                                pcall(function()
+                                    CommF:InvokeServer("StartQuest", currentData.QuestName, currentData.QuestNumber)
+                                end)
+                            end
                             task.wait(0.5)
                         end
 
-                        if CommF and not hasActiveQuest() then
-                            pcall(function()
-                                CommF:InvokeServer("StartQuest", currentData.QuestName, currentData.QuestNumber)
-                            end)
-                        end
-                        task.wait(1)
-                    end
-
-                    -- 2. Nếu đã có Quest, tiến hành săn tìm quái
-                    if hasActiveQuest() then
-                        local enemySpot = EnemyPositions[currentData.EnemyName]
-                        
-                        -- Nếu ở xa bãi quái thì bay đến (có bọc pcall chống treo)
-                        if enemySpot and (RootPart.Position - enemySpot.Position).Magnitude > 80 then
-                            pcall(function()
-                                smoothMoveTo(enemySpot * CFrame.new(0, 50, 0))
-                            end)
-                        end
-
-                        -- Vòng lặp farm quái với bộ đếm chống kẹt
-                        local farmTimeout = tick()
-                        while hasActiveQuest() and AutoFarmLevelEnabled do
-                            task.wait(0.05)
-
-                            -- Quá 20 giây mà kẹt quest hoặc không tìm thấy quái thì tự break để reset lại từ đầu, chống đơ
-                            if tick() - farmTimeout > 20 then 
-                                break 
+                        if hasActiveQuest() then
+                            local enemySpot = EnemyPositions[currentData.EnemyName]
+                            if enemySpot and (RootPart.Position - enemySpot.Position).Magnitude > 80 then
+                                pcall(function()
+                                    smoothMoveTo(enemySpot * CFrame.new(0, 50, 0))
+                                end)
                             end
 
-                            local curChar = LocalPlayer.Character
-                            local curRoot = curChar and curChar:FindFirstChild("HumanoidRootPart")
-                            local curHum = curChar and curChar:FindFirstChildOfClass("Humanoid")
+                            local farmTimeout = tick()
+                            while hasActiveQuest() and AutoFarmLevelEnabled and AutoFarmMode == "Level" do
+                                task.wait(0.05)
 
-                            if not curChar or not curRoot or not curHum or curHum.Health <= 0 then
-                                break
-                            end
+                                if tick() - farmTimeout > 20 then break end
 
-                            local EnemiesFolder = Workspace:FindFirstChild("Enemies")
-                            local aliveCount = 0
-                            local targetEnemyRoot = nil
+                                local curChar = LocalPlayer.Character
+                                local curRoot = curChar and curChar:FindFirstChild("HumanoidRootPart")
+                                local curHum = curChar and curChar:FindFirstChildOfClass("Humanoid")
 
-                            if EnemiesFolder then
-                                for _, enemy in pairs(EnemiesFolder:GetChildren()) do
-                                    if enemy.Name == currentData.EnemyName then
-                                        local eHum = enemy:FindFirstChildOfClass("Humanoid")
-                                        local eRoot = enemy:FindFirstChild("HumanoidRootPart")
-                                        if eHum and eHum.Health > 0 and eRoot then
-                                            aliveCount = aliveCount + 1
-                                            if not targetEnemyRoot then
-                                                targetEnemyRoot = eRoot
+                                if not curChar or not curRoot or not curHum or curHum.Health <= 0 then
+                                    break
+                                end
+
+                                local EnemiesFolder = Workspace:FindFirstChild("Enemies")
+                                local aliveCount = 0
+                                local targetEnemyRoot = nil
+
+                                if EnemiesFolder then
+                                    for _, enemy in pairs(EnemiesFolder:GetChildren()) do
+                                        if enemy.Name == currentData.EnemyName then
+                                            local eHum = enemy:FindFirstChildOfClass("Humanoid")
+                                            local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+                                            if eHum and eHum.Health > 0 and eRoot then
+                                                aliveCount = aliveCount + 1
+                                                if not targetEnemyRoot then
+                                                    targetEnemyRoot = eRoot
+                                                end
                                             end
                                         end
                                     end
                                 end
-                            end
 
-                            if aliveCount > 0 then
-                                farmTimeout = tick() -- Reset lại thời gian chống kẹt khi thấy quái
-                                AutoEquipWeapon()
-                                
-                                if BringMobEnabled then
-                                    BringMobs(enemySpot, currentData)
+                                if aliveCount > 0 then
+                                    farmTimeout = tick()
+                                    AutoEquipWeapon()
+                                    
+                                    if BringMobEnabled then
+                                        BringMobs(enemySpot, currentData)
+                                    else
+                                        if targetEnemyRoot and targetEnemyRoot.Parent then
+                                            curRoot.CFrame = targetEnemyRoot.CFrame * CFrame.new(0, 10, 3)
+                                        elseif enemySpot then
+                                            curRoot.CFrame = enemySpot * CFrame.new(0, 50, 0)
+                                        end
+                                    end
+
+                                    DoFastAttack(Net)
                                 else
-                                    if targetEnemyRoot and targetEnemyRoot.Parent then
-                                        curRoot.CFrame = targetEnemyRoot.CFrame * CFrame.new(0, 10, 3)
-                                    elseif enemySpot then
+                                    if enemySpot then
                                         curRoot.CFrame = enemySpot * CFrame.new(0, 50, 0)
                                     end
+                                    task.wait(0.3)
                                 end
-
-                                DoFastAttack(Net)
-                            else
-                                -- Không thấy quái thì bay đến bãi chờ
-                                if enemySpot then
-                                    curRoot.CFrame = enemySpot * CFrame.new(0, 50, 0)
-                                end
-                                task.wait(0.3)
                             end
                         end
                     end
+
+                -- ==========================================
+                -- CHẾ ĐỘ 2: FARM QUÁI GẦN NHẤT (KHÔNG CẦN QUEST)
+                -- ==========================================
+                elseif AutoFarmMode == "Nearest" then
+                    local EnemiesFolder = Workspace:FindFirstChild("Enemies")
+                    local nearestEnemyRoot = nil
+                    local shortestDist = math.huge
+
+                    if EnemiesFolder then
+                        for _, enemy in pairs(EnemiesFolder:GetChildren()) do
+                            local eHum = enemy:FindFirstChildOfClass("Humanoid")
+                            local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+                            if eHum and eHum.Health > 0 and eRoot then
+                                local dist = (eRoot.Position - RootPart.Position).Magnitude
+                                if dist < shortestDist then
+                                    shortestDist = dist
+                                    nearestEnemyRoot = eRoot
+                                end
+                            end
+                        end
+                    end
+
+                    if nearestEnemyRoot and nearestEnemyRoot.Parent then
+                        AutoEquipWeapon()
+                        RootPart.CFrame = nearestEnemyRoot.CFrame * CFrame.new(0, 10, 3)
+                        DoFastAttack(Net)
+                    else
+                        task.wait(0.2)
+                    end
                 end
+
             end
         end
     end
@@ -1022,6 +1065,14 @@ local AutoTab = Window:CreateTab("Auto stats")
 
 MainTab:CreateToggle("Auto Farm Level", false, function(state)
     AutoFarmLevelEnabled = state
+end)
+
+MainTab:CreateDropdown("Chế Độ Farm", {"Farm Theo Level", "Farm Quái Gần Nhất"}, "Farm Theo Level", function(selected)
+    if selected == "Farm Theo Level" then
+        AutoFarmMode = "Level"
+    elseif selected == "Farm Quái Gần Nhất" then
+        AutoFarmMode = "Nearest"
+    end
 end)
 
 local selectedIsland = "Pirate Starter"
