@@ -736,7 +736,7 @@ local function DoFastAttack(Net)
 end
 
 -- ==========================================
--- 3. LOGIC WORKER (CHẠY NGẦM FARM LEVEL - FIX TỰ ĐỘNG TÌM & ĐÁNH QUÁI)
+-- 3. LOGIC WORKER (CHẠY NGẦM FARM LEVEL - ĐÃ FIX LỖI KHÔNG CHỊU BAY ĐẾN BÃI)
 -- ==========================================
 task.spawn(function()
     local CommF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
@@ -783,7 +783,7 @@ task.spawn(function()
                 end
 
                 if currentData then
-                    -- 1. Nếu chưa nhận Quest thì bay đi nhận Quest
+                    -- 1. Nếu chưa nhận Quest thì bay đến NPC nhận Quest
                     if not hasActiveQuest() then
                         local npcPos = NpcPositions[currentData.Island]
                         if npcPos then
@@ -799,12 +799,12 @@ task.spawn(function()
                         task.wait(0.5)
                     end
 
-                    -- 2. Nếu đã có Quest thì tiến hành tìm quái và farm
+                    -- 2. Nếu đã có Quest thì bay thẳng đến bãi quái và farm
                     if hasActiveQuest() then
                         local enemySpot = EnemyPositions[currentData.EnemyName]
                         
-                        -- Nếu ở quá xa bãi quái thì mượt mà bay đến đó
-                        if enemySpot and (RootPart.Position - enemySpot.Position).Magnitude > 150 then
+                        -- BẮT BUỘC BAY ĐẾN BÃI QUÁI MƯỢT MÀ BẰNG TWEEN (KHÔNG BỊ KẸT KHOẢNG CÁCH NỮA)
+                        if enemySpot then
                             smoothMoveTo(enemySpot * CFrame.new(0, 50, 0))
                         end
 
@@ -834,13 +834,13 @@ task.spawn(function()
                                 end
                             end
 
-                            -- Luôn túc trực trên đầu bãi quái (dù có quái hay chưa)
+                            -- Ghim ở trên đầu bãi quái để chờ hoặc đánh
                             if enemySpot then
                                 curRoot.CFrame = enemySpot * CFrame.new(0, 50, 0)
                                 curRoot.AssemblyLinearVelocity = Vector3.zero
                             end
 
-                            -- Nếu có quái xuất hiện thì chiến ngay
+                            -- Nếu có quái thì chiến
                             if aliveCount > 0 then
                                 AutoEquipWeapon()
                                 
@@ -850,7 +850,6 @@ task.spawn(function()
 
                                 DoFastAttack(Net)
                             else
-                                -- Nếu quái chưa spawn hoặc đã chết sạch, đứng chờ trên bãi để đón đợt tiếp theo
                                 task.wait(0.2)
                             end
                         end
