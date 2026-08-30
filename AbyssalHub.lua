@@ -1052,7 +1052,7 @@ task.spawn(function()
     end
 
     while true do
-        task.wait(0.1)
+        task.wait(0.05)
 
         if AutoFarmLevelEnabled then
             local Character = LocalPlayer.Character
@@ -1088,7 +1088,9 @@ task.spawn(function()
                         -- Chỉ khi nào CHƯA CÓ QUEST thì mới bay đi nhận
                         if not hasActiveQuest then
                             if npcPos then
-                                pcall(function() smoothMoveTo(npcPos) end)
+                                pcall(function() 
+                                    RootPart.CFrame = npcPos 
+                                end)
                                 task.wait(0.2)
                             end
 
@@ -1103,13 +1105,13 @@ task.spawn(function()
                         -- Bay thẳng tới bãi quái chuẩn bị chiến đấu
                         if enemySpot then
                             pcall(function()
-                                smoothMoveTo(enemySpot * CFrame.new(0, FarmHeight, 0))
+                                RootPart.CFrame = enemySpot * CFrame.new(0, FarmHeight, 0)
                             end)
                         end
 
                         local farmDuration = tick()
                         while AutoFarmLevelEnabled and AutoFarmMode == "Level" do
-                            task.wait(0.05)
+                            task.wait(0.02)
 
                             if tick() - farmDuration > 35 then break end
 
@@ -1119,6 +1121,12 @@ task.spawn(function()
 
                             if not curChar or not curRoot or not curHum or curHum.Health <= 0 then
                                 break
+                            end
+
+                            -- Khóa cứng trạng thái không cho rơi xuống đất
+                            curRoot.CanCollide = false
+                            if curChar:FindFirstChild("Humanoid") then
+                                curChar.Humanoid.PlatformStand = true
                             end
 
                             local EnemiesFolder = Workspace:FindFirstChild("Enemies")
@@ -1150,15 +1158,17 @@ task.spawn(function()
                                     BringMobs(enemySpot, currentData)
                                 end
 
-                                SmoothFarmPosition(curRoot, targetEnemyRoot)
+                                -- Gán cứng vị trí ngay lập tức trên đầu quái, tuyệt đối không trôi từ từ
+                                curRoot.CFrame = targetEnemyRoot.CFrame * CFrame.new(0, FarmHeight, 0)
                                 DoFastAttack(Net)
-else
-    if enemySpot then
-        -- Teleport thẳng tới bãi quái luôn, không dùng Lerp từ từ nữa
-        curRoot.CFrame = enemySpot * CFrame.new(0, FarmHeight, 0)
-    end
-    task.wait(0.2)
-end
+                            else
+                                if enemySpot then
+                                    curRoot.CFrame = enemySpot * CFrame.new(0, FarmHeight, 0)
+                                end
+                                task.wait(0.1)
+                            end
+                        end
+                    end
 
                 elseif AutoFarmMode == "Nearest" then
                     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
@@ -1180,11 +1190,12 @@ end
                     end
 
                     if nearestEnemyRoot and nearestEnemyRoot.Parent then
+                        RootPart.CanCollide = false
                         AutoEquipWeapon()
-                        SmoothFarmPosition(RootPart, nearestEnemyRoot)
+                        RootPart.CFrame = nearestEnemyRoot.CFrame * CFrame.new(0, FarmHeight, 0)
                         DoFastAttack(Net)
                     else
-                        task.wait(0.3)
+                        task.wait(0.2)
                     end
                 end
 
