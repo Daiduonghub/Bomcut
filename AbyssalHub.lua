@@ -791,7 +791,7 @@ local function SmoothFarmPosition(root, targetRoot)
 end
 
 -- ==========================================
--- 3. LOGIC WORKER (ĐÃ SỬA LỖI ĐỨNG HÌNH, NHẬN QUEST XONG LÀ LAO VÀO ĐÁNH)
+-- LOGIC WORKER ĐÃ FIX: TỰ ĐỘNG NHẬN VÀ LAO VÀO CHIẾN ĐẤU TRỰC TIẾP
 -- ==========================================
 task.spawn(function()
     local CommF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
@@ -802,20 +802,6 @@ task.spawn(function()
             return LocalPlayer.Data.Level.Value
         end
         return 1
-    end
-
-    local function hasActiveQuest()
-        local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-        if playerGui then
-            local mainGui = playerGui:FindFirstChild("Main")
-            if mainGui then
-                local questFrame = mainGui:FindFirstChild("Quest")
-                if questFrame and questFrame.Visible then
-                    return true
-                end
-            end
-        end
-        return false
     end
 
     while true do
@@ -829,7 +815,7 @@ task.spawn(function()
             if Character and RootPart and Humanoid and Humanoid.Health > 0 then
                 
                 -- ==========================================
-                -- CHẾ ĐỘ 1: FARM THEO LEVEL (LÀM NHIỆM VỤ CHUẨN CHỈ)
+                -- CHẾ ĐỘ 1: FARM THEO LEVEL (LEVEL FARM)
                 -- ==========================================
                 if AutoFarmMode == "Level" then
                     local currentLevel = getPlayerLevel()
@@ -843,97 +829,98 @@ task.spawn(function()
                     end
 
                     if currentData then
-                        -- Nếu chưa nhận nhiệm vụ thì bay đi nhận
-                        if not hasActiveQuest() then
-                            local npcPos = NpcPositions[currentData.Island]
-                            if npcPos then
-                                pcall(function() smoothMoveTo(npcPos) end)
-                                task.wait(0.2)
-                            end
+                        local npcPos = NpcPositions[currentData.Island]
+                        local enemySpot = EnemyPositions[currentData.EnemyName]
 
-                            if CommF and not hasActiveQuest() then
-                                pcall(function()
-                                    CommF:InvokeServer("StartQuest", currentData.QuestName, currentData.QuestNumber)
-                                end)
-                            end
-                            task.wait(0.5)
+                        -- 1. Tự động bay đến NPC và gửi lệnh nhận quest (gọi 1 lần chắc chắn)
+                        if npcPos then
+                            pcall(function() smoothMoveTo(npcPos) end)
+                            task.wait(0.2)
                         end
 
-                        -- Sau khi đã nhận nhiệm vụ, lao thẳng vào bãi quái chiến đấu
-                        if hasActiveQuest() then
-                            local enemySpot = EnemyPositions[currentData.EnemyName]
-                            if enemySpot and (RootPart.Position - enemySpot.Position).Magnitude > 120 then
-                                pcall(function()
-                                    smoothMoveTo(enemySpot * CFrame.new(0, FarmHeight, 0))
-                                end)
+                        if CommF then
+                            pcall(function()
+                                CommF:InvokeServer("StartQuest", currentData.QuestName, currentData.QuestNumber)
+                            end)
+                            task.wait(0.3)
+                        end
+
+                        -- 2. Bay thẳng tới bãi quái chuẩn bị xả skill
+                        if enemySpot then
+                            pcall(function()
+                                smoothMoveTo(enemySpot * CFrame.new(0, FarmHeight, 0))
+                            end)
+                        end
+
+                        -- 3. Vòng lặp chiến đấu liên tục tại bãi quái
+                        local farmDuration = tick()
+                        while AutoFarmLevelEnabled and AutoFarmMode == "Level" do
+                            task.wait(0.05)
+
+                            -- Cứ mỗi 35 giây tự động quay lại nhận lại quest để tránh mất tiến độ
+                            if tick() - farmDuration > 35 then 
+                                break 
                             end
 
-                            local farmTimeout = tick()
-                            while hasActiveQuest() and AutoFarmLevelEnabled and AutoFarmMode == "Level" do
-                                task.wait(0.05)
+                            local curChar = LocalPlayer.Character
+                            local curRoot = curChar and curChar:FindFirstChild("HumanoidRootPart")
+                            local curHum = curChar and curChar:FindFirstChild_OfClass("Humanoid") -- Lưu ý: giữ nguyên Class("Humanoid")
 
-                                if tick() - farmTimeout > 25 then break end
+                            if not curChar or not curRoot or not curHum or curHum.Health <= 0 then
+                                break
+                            end
 
-                                local curChar = LocalPlayer.Character
-                                local curRoot = curChar and curChar:FindFirstChild("HumanoidRootPart")
-                                local curHum = curChar and curChar:FindFirstChildOfClass("Humanoid")
+                            local EnemiesFolder = Workspace:FindFirstChild("Enemies")
+                            local aliveCount = 0
+                            local targetEnemyRoot = nil
 
-                                if not curChar or not curRoot or not curHum or curHum.Health <= 0 then
-                                    break
-                                end
-
-                                local EnemiesFolder = Workspace:FindFirstChild("Enemies")
-                                local aliveCount = 0
-                                local targetEnemyRoot = nil
-
-                                if EnemiesFolder then
-                                    for _, enemy in pairs(EnemiesFolder:GetChildren()) do
-                                        if enemy.Name == currentData.EnemyName then
-                                            local eHum = enemy:FindFirstChildOfClass("Humanoid")
-                                            local eRoot = enemy:FindFirstChild("HumanoidRootPart")
-                                            if eHum and eHum.Health > 0 and eRoot then
-                                                aliveCount = aliveCount + 1
-                                                if not targetEnemyRoot then
-                                                    targetEnemyRoot = eRoot
-                                                end
+                            if EnemiesFolder then
+                                local targetName = currentData.EnemyName
+                                for _, enemy in pairs(EnemiesFolder:GetChildren()) do
+                                    if enemy.Name == targetName then
+                                        local eHum = enemy:FindFirstChildOfClass("Humanoid")
+                                        local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+                                        if eHum and eHum.Health > 0 and eRoot then
+                                            aliveCount = aliveCount + 1
+                                            if not targetEnemyRoot then
+                                                targetEnemyRoot = eRoot
                                             end
                                         end
                                     end
                                 end
+                            end
 
-                                if aliveCount > 0 then
-                                    farmTimeout = tick()
-                                    AutoEquipWeapon()
-                                    
-                                    if BringMobEnabled then
-                                        BringMobs(enemySpot, currentData)
-                                        if enemySpot then
-                                            local targetCF = enemySpot * CFrame.new(0, FarmHeight, 0)
-                                            curRoot.CFrame = curRoot.CFrame:Lerp(targetCF, 0.25)
-                                        end
-                                    else
-                                        if targetEnemyRoot and targetEnemyRoot.Parent then
-                                            SmoothFarmPosition(curRoot, targetEnemyRoot)
-                                        elseif enemySpot then
-                                            local targetCF = enemySpot * CFrame.new(0, FarmHeight, 0)
-                                            curRoot.CFrame = curRoot.CFrame:Lerp(targetCF, 0.25)
-                                        end
-                                    end
-
-                                    DoFastAttack(Net)
-                                else
+                            if aliveCount > 0 then
+                                AutoEquipWeapon()
+                                
+                                if BringMobEnabled then
+                                    BringMobs(enemySpot, currentData)
                                     if enemySpot then
                                         local targetCF = enemySpot * CFrame.new(0, FarmHeight, 0)
                                         curRoot.CFrame = curRoot.CFrame:Lerp(targetCF, 0.25)
                                     end
-                                    task.wait(0.3)
+                                else
+                                    if targetEnemyRoot and targetEnemyRoot.Parent then
+                                        SmoothFarmPosition(curRoot, targetEnemyRoot)
+                                    elseif enemySpot then
+                                        local targetCF = enemySpot * CFrame.new(0, FarmHeight, 0)
+                                        curRoot.CFrame = curRoot.CFrame:Lerp(targetCF, 0.25)
+                                    end
                                 end
+
+                                DoFastAttack(Net)
+                            else
+                                if enemySpot then
+                                    local targetCF = enemySpot * CFrame.new(0, FarmHeight, 0)
+                                    curRoot.CFrame = curRoot.CFrame:Lerp(targetCF, 0.25)
+                                end
+                                task.wait(0.3)
                             end
                         end
                     end
 
                 -- ==========================================
-                -- CHẾ ĐỘ 2: FARM QUÁI GẦN NHẤT
+                -- CHẾ ĐỘ 2: FARM QUÁI GẦN NHẤT (NEAREST)
                 -- ==========================================
                 elseif AutoFarmMode == "Nearest" then
                     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
