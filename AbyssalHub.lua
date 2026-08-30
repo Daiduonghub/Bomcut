@@ -1112,22 +1112,22 @@ SettingTab:CreateToggle("Bring Mobs(Đang lỗi)", true, function(state)
     BringMobEnabled = state
 end)
 
-AutoTab:CreateToggle("Auto Melee", function(state)
+AutoTab:CreateButton("Auto Melee", function(state)
     AutoMeleeEnabled = state
 end)
 
-AutoTab:CreateToggle("Auto Defense", function(state)
+AutoTab:CreateButton("Auto Defense", function(state)
     AutoDefenseEnabled = state
 end)
 
-AutoTab:CreateToggle("Auto Sword", function(state)
+AutoTab:CreateButton("Auto Sword", function(state)
     AutoSwordEnabled = state
 end)
 
-AutoTab:CreateToggle("Auto Gun", function(state)
+AutoTab:CreateButton("Auto Gun", function(state)
     AutoGunEnabled = state
 end)
 
-AutoTab:CreateToggle("Auto Demon Fruit", function(state)
+AutoTab:CreateButton("Auto Demon Fruit", function(state)
     AutoFruitEnabled = state
 end)
