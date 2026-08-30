@@ -1059,7 +1059,7 @@ end)
 -- ====================================================================
 local Window = Library:CreateWindow("ABYSSAL HUB")
 local MainTab = Window:CreateTab("Farming Tab")
-local SettingTab = Window:CreateTab("Settings")
+local SettingTab = Window:CreateTab("Farm settings")
 local PlayerTab = Window:CreateTab("Player")
 local TeleportTab = Window:CreateTab("Teleport (Sea1)")
 local AutoTab = Window:CreateTab("Auto stats")
