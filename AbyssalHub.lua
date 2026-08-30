@@ -219,13 +219,12 @@ function Library:CreateWindow(hubName)
 
         -- TOGGLE
         function TabElements:CreateToggle(text, defaultState, callback)
-    -- Ép cứng trạng thái, đảm bảo false là false, không bao giờ bị lỗi tự bật xanh
+    -- Ép cứng trạng thái chuẩn boolean để không bao giờ bị lỗi tự bật xanh
     local state = (defaultState == true) and true or false
 
     local toggleFrame = Instance.new("Frame")
     local toggleTitle = Instance.new("TextLabel")
     local toggleBtn = Instance.new("TextButton")
-    local circle = Instance.new("Frame")
 
     toggleFrame.Name = text .. "_Toggle"
     toggleFrame.Size = UDim2.new(1, -6, 0, 36)
@@ -247,40 +246,28 @@ function Library:CreateWindow(hubName)
     toggleTitle.TextSize = 12
     toggleTitle.Parent = toggleFrame
 
-    -- Nút gạt chính (Hình viên thuốc bo tròn)
-    toggleBtn.Size = UDim2.new(0, 44, 0, 22)
-    toggleBtn.Position = UDim2.new(1, -54, 0.5, -11)
+    -- Nút bấm hình tròn độc lập ở góc phải
+    toggleBtn.Size = UDim2.new(0, 24, 0, 24)
+    toggleBtn.Position = UDim2.new(1, -34, 0.5, -12)
+    -- Nếu bật thì hiện màu xanh, tắt thì hiện màu xám tối
     toggleBtn.BackgroundColor3 = state and Color3.fromRGB(0, 210, 255) or Color3.fromRGB(35, 40, 50)
     toggleBtn.Text = ""
     toggleBtn.Parent = toggleFrame
 
     local BtnCorner = Instance.new("UICorner")
-    BtnCorner.CornerRadius = UDim.new(1, 0) -- Bo tròn 100% thành hình viên thuốc
+    BtnCorner.CornerRadius = UDim.new(1, 0) -- Bo tròn 100% thành hình tròn vo
     BtnCorner.Parent = toggleBtn
 
-    -- Chấm tròn bên trong nút gạt
-    circle.Size = UDim2.new(0, 16, 0, 16)
-    -- Nếu bật thì nằm bên phải, tắt thì nằm bên trái
-    circle.Position = state and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
-    circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    circle.Parent = toggleBtn
-
-    local CircleCorner = Instance.new("UICorner")
-    CircleCorner.CornerRadius = UDim.new(1, 0) -- Bo tròn thành hình tròn vo
-    CircleCorner.Parent = circle
-
-    -- Hàm cập nhật hiệu ứng chuyển màu và trượt chấm tròn
+    -- Hàm cập nhật màu sắc khi thay đổi trạng thái
     local function updateVisual()
         if state then
             toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 210, 255) -- Xanh khi bật
-            circle.Position = UDim2.new(1, -19, 0.5, -8)
         else
             toggleBtn.BackgroundColor3 = Color3.fromRGB(35, 40, 50)  -- Xám tối khi tắt
-            circle.Position = UDim2.new(0, 3, 0.5, -8)
         end
     end
 
-    -- Khởi tạo giao diện chuẩn theo giá trị truyền vào
+    -- Khởi tạo đồng bộ màu ngay từ đầu theo defaultState
     updateVisual()
 
     -- Sự kiện click đổi trạng thái
@@ -290,6 +277,7 @@ function Library:CreateWindow(hubName)
         if callback then pcall(callback, state) end
     end)
 end
+
         -- SLIDER
         function TabElements:CreateSlider(sliderName, min, max, default, callback)
             local value = default or min
@@ -1031,53 +1019,35 @@ local function smoothMoveTo(targetPos)
 end
 
 -- ==========================================
--- AUTO STATS ĐA TOGGLE (CHUẨN FIX DÙNG WAITFORCHILD)
+-- HÀM AUTO STATS (CỘNG ĐIỂM CHUẨN XÁC)
 -- ==========================================
-AutoMeleeEnabled = false
-AutoDefenseEnabled = false
-AutoSwordEnabled = false
-AutoGunEnabled = false
-AutoFruitEnabled = false
-StatsAmount = 3 -- Số điểm cộng mỗi lần
+local AutoStatsEnabled = false -- Biến bật tắt auto stats (cậu có thể tạo toggle cho nó)
+local SelectedStatsTable = {"Melee", "Defense", "Sword"} -- Các chỉ số muốn ưu tiên cộng
 
 task.spawn(function()
-    local ReplicatedStorage = game:GetService("ReplicatedStorage")
-    local Players = game:GetService("Players")
-    local LocalPlayer = Players.LocalPlayer
-    
-    local CommF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
-    local points = LocalPlayer:WaitForChild("Data"):WaitForChild("Points")
+    local CommF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
     
     while true do
-        task.wait(1) -- Check mỗi 1 giây cho nhẹ máy
+        task.wait(1) -- Kiểm tra mỗi 1 giây để tránh spam quá tải server
         
-        if points.Value > 0 then
-            pcall(function()
-                if AutoMeleeEnabled then
-                    CommF:InvokeServer("AddPoint", "Melee", StatsAmount)
-                    task.wait(0.2)
+        if AutoStatsEnabled and CommF then
+            -- Lấy số điểm stat hiện tại còn dư của nhân vật
+            local playerStats = LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Points")
+            
+            if playerStats and playerStats.Value > 0 then
+                -- Lặp qua các chỉ số người chơi muốn cộng
+                for _, statName in ipairs(SelectedStatsTable) do
+                    if playerStats.Value > 0 then
+                        pcall(function()
+                            -- Gọi Remote Event CommF_ để cộng điểm (Thường là truyền tên stat và số lượng điểm muốn cộng, ví dụ 1 hoặc 3)
+                            CommF:InvokeServer("AddPoint", statName, 1)
+                        end)
+                        task.wait(0.1)
+                    else
+                        break
+                    end
                 end
-                
-                if AutoDefenseEnabled then
-                    CommF:InvokeServer("AddPoint", "Defense", StatsAmount)
-                    task.wait(0.2)
-                end
-                
-                if AutoSwordEnabled then
-                    CommF:InvokeServer("AddPoint", "Sword", StatsAmount)
-                    task.wait(0.2)
-                end
-                
-                if AutoGunEnabled then
-                    CommF:InvokeServer("AddPoint", "Gun", StatsAmount)
-                    task.wait(0.2)
-                end
-                
-                if AutoFruitEnabled then
-                    CommF:InvokeServer("AddPoint", "Demon Fruit", StatsAmount)
-                    task.wait(0.2)
-                end
-            end)
+            end
         end
     end
 end)
@@ -1165,22 +1135,23 @@ SettingTab:CreateToggle("Bring Mobs(Đang lỗi)", true, function(state)
     BringMobEnabled = state
 end)
 
-AutoTab:CreateToggle("Auto Melee", function(state)
-    AutoMeleeEnabled = state
+local chosenStatToUpgrade = "Melee" -- Biến lưu lựa chọn từ dropdown
+
+-- 1. Dropdown để đổi hướng chọn stat
+AutoTab:CreateDropdown("Chọn Stat Để Cộng", {"Melee", "Defense", "Sword", "Demon Fruit", "Gun"}, "Melee", function(selected)
+    chosenStatToUpgrade = selected
 end)
 
-AutoTab:CreateToggle("Auto Defense", function(state)
-    AutoDefenseEnabled = state
-end)
-
-AutoTab:CreateToggle("Auto Sword", function(state)
-    AutoSwordEnabled = state
-end)
-
-AutoTab:CreateToggle("Auto Gun", function(state)
-    AutoGunEnabled = state
-end)
-
-AutoTab:CreateToggle("Auto Demon Fruit", function(state)
-    AutoFruitEnabled = state
+-- 2. Button để thực hiện lệnh cộng điểm theo cái vừa chọn
+AutoTab:CreateButton("Cộng Điểm Đã Chọn", function()
+    local CommF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
+    local playerStats = LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Points")
+    
+    if CommF and playerStats and playerStats.Value > 0 then
+        -- Gọi server cộng điểm vào đúng cái môn đang chọn trong dropdown (cộng toàn bộ số điểm dư)
+        CommF:InvokeServer("AddPoint", chosenStatToUpgrade, playerStats.Value)
+        print("Đã cộng toàn bộ điểm vào: " .. chosenStatToUpgrade)
+    else
+        print("Không có điểm dư để cộng!")
+    end
 end)
