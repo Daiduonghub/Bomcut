@@ -736,7 +736,7 @@ local function DoFastAttack(Net)
 end
 
 -- ==========================================
--- 3. LOGIC WORKER (CHẠY NGẦM FARM LEVEL)
+-- 3. LOGIC WORKER (CHẠY NGẦM FARM LEVEL - ĐÃ FIX CHỐNG GIẬT)
 -- ==========================================
 task.spawn(function()
     local CommF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
@@ -801,7 +801,7 @@ task.spawn(function()
                     if hasActiveQuest() then
                         local enemySpot = EnemyPositions[currentData.EnemyName]
                         if enemySpot and (RootPart.Position - enemySpot.Position).Magnitude > 150 then
-                            smoothMoveTo(enemySpot * CFrame.new(0, 50, 0)) -- Đã chỉnh độ cao lên 50
+                            smoothMoveTo(enemySpot * CFrame.new(0, 50, 0))
                         end
 
                         while hasActiveQuest() and AutoFarmLevelEnabled do
@@ -842,6 +842,12 @@ task.spawn(function()
                             if aliveCount > 0 then
                                 local farmTime = tick()
 
+                                -- Cố định vị trí 1 lần khi bắt đầu đánh để chống giật rung
+                                if enemySpot then
+                                    curRoot.CFrame = enemySpot * CFrame.new(0, 50, 0)
+                                    curRoot.AssemblyLinearVelocity = Vector3.zero
+                                end
+
                                 while aliveCount > 0 and AutoFarmLevelEnabled and hasActiveQuest() do
                                     if tick() - farmTime > 15 then break end
 
@@ -856,38 +862,20 @@ task.spawn(function()
                                     AutoEquipWeapon()
                                     
                                     if BringMobEnabled then
-                                        if enemySpot then
-                                            activeRoot.CFrame = enemySpot * CFrame.new(0, 50, 0) -- Đứng cao tít trên bãi quái
-                                        end
                                         BringMobs(enemySpot, currentData)
-                                    else
-                                        if targetEnemyRoot and targetEnemyRoot.Parent then
-                                            activeRoot.CFrame = targetEnemyRoot.CFrame * CFrame.new(0, 10, 3)
-                                        elseif enemySpot then
-                                            activeRoot.CFrame = enemySpot * CFrame.new(0, 50, 0)
-                                        end
                                     end
 
                                     DoFastAttack(Net)
 
-                                    task.wait(0.05)
+                                    task.wait(0.1)
 
                                     aliveCount = 0
-                                    targetEnemyRoot = nil
                                     if EnemiesFolder then
                                         for _, enemy in pairs(EnemiesFolder:GetChildren()) do
                                             if enemy.Name == currentData.EnemyName then
                                                 local eHum = enemy:FindFirstChildOfClass("Humanoid")
-                                                local eRoot = enemy:FindFirstChild("HumanoidRootPart")
-                                                if eHum and eHum.Health > 0 and eRoot then
+                                                if eHum and eHum.Health > 0 then
                                                     aliveCount = aliveCount + 1
-                                                    if not targetEnemyRoot then
-                                                        targetEnemyRoot = eRoot
-                                                    else
-                                                        if (eRoot.Position - activeRoot.Position).Magnitude < (targetEnemyRoot.Position - activeRoot.Position).Magnitude then
-                                                            targetEnemyRoot = eRoot
-                                                        end
-                                                    end
                                                 end
                                             end
                                         end
@@ -896,6 +884,7 @@ task.spawn(function()
                             else
                                 if enemySpot then
                                     curRoot.CFrame = enemySpot * CFrame.new(0, 50, 0)
+                                    curRoot.AssemblyLinearVelocity = Vector3.zero
                                 end
                                 task.wait(0.3)
                             end
