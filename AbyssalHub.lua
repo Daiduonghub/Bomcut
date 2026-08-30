@@ -1066,14 +1066,14 @@ task.spawn(function()
                 
                 if AutoFarmMode == "Level" then
                     local currentLevel = getPlayerLevel()
-                    local currentData = nil
+local currentData = nil
 
-                    for _, q in ipairs(QuestDatabase) do
-                        if currentLevel >= q.MinLevel and currentLevel <= q.MaxLevel then
-                            currentData = q
-                            break
-                        end
-                    end
+for _, q in ipairs(QuestDatabase) do
+    if currentLevel >= q.MinLevel and currentLevel <= q.MaxLevel then
+        currentData = q
+        break
+    end
+end
 
                     if currentData then
                         local npcPos = NpcPositions[currentData.Island]
