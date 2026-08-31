@@ -788,17 +788,22 @@ task.spawn(function()
     while true do
         task.wait(0.05)
 
-        if _G.AutoFarmLevelEnabled then
+        -- Hỗ trợ cả 3 dạng bật/tắt của UI
+        local isRunning = _G.AutoFarmLevelEnabled or _G.AutoFarmNearestEnabled or _G.AutoFarmEnabled
+
+        if isRunning then
             local Character = LocalPlayer.Character
             local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
             local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
 
             if Character and RootPart and Humanoid and Humanoid.Health > 0 then
                 
+                local currentMode = string.lower(tostring(_G.AutoFarmMode or ""))
+
                 -- ==========================================
                 -- 1. CHẾ ĐỘ FARM THEO LEVEL (CÓ NHẬN QUEST)
                 -- ==========================================
-                if _G.AutoFarmMode == "Level" then
+                if currentMode == "level" then
                     local currentLevel = getPlayerLevel()
                     local currentData = nil
 
@@ -839,7 +844,7 @@ task.spawn(function()
                         end
 
                         local farmDuration = tick()
-                        while _G.AutoFarmLevelEnabled and _G.AutoFarmMode == "Level" do
+                        while (_G.AutoFarmLevelEnabled or _G.AutoFarmEnabled) and string.lower(tostring(_G.AutoFarmMode or "")) == "level" do
                             task.wait(0.04)
 
                             if tick() - farmDuration > 35 then break end
@@ -903,7 +908,7 @@ task.spawn(function()
                 -- ==========================================
                 -- 2. CHẾ ĐỘ FARM QUÁI GẦN NHẤT (KHÔNG QUEST)
                 -- ==========================================
-                elseif _G.AutoFarmMode == "Nearest" or _G.AutoFarmMode == "Near" then
+                elseif string.find(currentMode, "near") or _G.AutoFarmNearestEnabled then
                     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
                     local targetEnemy = nil
                     local minDist = 99999
@@ -924,8 +929,14 @@ task.spawn(function()
 
                     if targetEnemy then
                         local enemyName = targetEnemy.Name
+                        local targetRoot = targetEnemy:FindFirstChild("HumanoidRootPart")
 
-                        while _G.AutoFarmLevelEnabled and (_G.AutoFarmMode == "Nearest" or _G.AutoFarmMode == "Near") do
+                        -- Nếu quái ở xa > 60 studs thì dùng smoothMoveTo bay tới
+                        if targetRoot and (targetRoot.Position - RootPart.Position).Magnitude > 60 then
+                            pcall(function() smoothMoveTo(targetRoot.CFrame * CFrame.new(0, FarmHeight, 0)) end)
+                        end
+
+                        while (_G.AutoFarmLevelEnabled or _G.AutoFarmNearestEnabled or _G.AutoFarmEnabled) and (string.find(string.lower(tostring(_G.AutoFarmMode or "")), "near") or _G.AutoFarmNearestEnabled) do
                             task.wait(0.04)
 
                             local curChar = LocalPlayer.Character
