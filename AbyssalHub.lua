@@ -1180,43 +1180,120 @@ end)
 
 -- 2. Vòng lặp Auto Skill & Auto Bounty Target
 -- Vòng lặp Auto Skill & Auto Bounty Target (Đã sửa sang BAY)
+-- Hàm tìm Target hợp lệ (Ưu tiên người đã chọn trong Dropdown, nếu không có sẽ tự tìm người gần nhất)
+local function GetAutoBountyTarget()
+    if _G.SelectedPlayer and _G.SelectedPlayer ~= "" then
+        local p = Players:FindFirstChild(_G.SelectedPlayer)
+        if p and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            local hum = p.Character:FindFirstChildOfClass("Humanoid")
+            if hum and hum.Health > 0 then return p end
+        end
+    end
+
+    -- Tự động tìm người chơi sống gần nhất trong Server
+    local nearest = nil
+    local minDist = math.huge
+    local myChar = LocalPlayer.Character
+    local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+
+    if myRoot then
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                local hum = p.Character:FindFirstChildOfClass("Humanoid")
+                if hum and hum.Health > 0 then
+                    local dist = (p.Character.HumanoidRootPart.Position - myRoot.Position).Magnitude
+                    if dist < minDist then
+                        minDist = dist
+                        nearest = p
+                    end
+                end
+            end
+        end
+    end
+    return nearest
+end
+
+-- Hàm Equip vũ khí cải tiến (Không lo trượt tên)
+local function SmartEquipWeapon(wType)
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    local bp = LocalPlayer:FindFirstChild("Backpack")
+    if not hum or not bp then return end
+
+    local equipped = char:FindFirstChildOfClass("Tool")
+    if equipped then
+        if wType == "Melee" and (equipped:FindFirstChild("Melee") or equipped.ToolTip == "Melee" or equipped.Name == "Combat") then return end
+        if wType == "Fruit" and (equipped:FindFirstChild("Fruit") or equipped.ToolTip == "Blox Fruit" or string.find(equipped.Name, "Fruit")) then return end
+    end
+
+    for _, t in ipairs(bp:GetChildren()) do
+        if t:IsA("Tool") then
+            local isMatch = false
+            if wType == "Melee" and (t:FindFirstChild("Melee") or t.ToolTip == "Melee" or t.Name == "Combat") then
+                isMatch = true
+            elseif wType == "Fruit" and (t:FindFirstChild("Fruit") or t.ToolTip == "Blox Fruit" or string.find(t.Name, "Fruit")) then
+                isMatch = true
+            end
+
+            if isMatch then
+                hum:EquipTool(t)
+                break
+            end
+        end
+    end
+end
+
+-- Vòng lặp Auto Bounty & Skill không bị nghẽn
+local isMovingToTarget = false
+
 task.spawn(function()
     while task.wait(0.1) do
-        if _G.AutoBountyEnabled and _G.SelectedPlayer ~= "" then
-            local target = Players:FindFirstChild(_G.SelectedPlayer)
-            local char = LocalPlayer.Character
-            local root = char and char:FindFirstChild("HumanoidRootPart")
+        if _G.AutoBountyEnabled then
+            local targetPlayer = GetAutoBountyTarget()
 
-            if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-                local tRoot = target.Character.HumanoidRootPart
-                local tHum = target.Character:FindFirstChildOfClass("Humanoid")
+            if targetPlayer and targetPlayer.Character then
+                local tRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+                local tHum = targetPlayer.Character:FindFirstChildOfClass("Humanoid")
+                local char = LocalPlayer.Character
+                local root = char and char:FindFirstChild("HumanoidRootPart")
 
-                if tHum and tHum.Health > 0 and root then
-                    local targetCF = tRoot.CFrame * CFrame.new(0, 3, 3)
+                if tRoot and tHum and tHum.Health > 0 and root then
+                    local targetCF = tRoot.CFrame * CFrame.new(0, 4, 2)
                     local dist = (root.Position - targetCF.Position).Magnitude
 
-                    -- Nếu ở xa thì bay mượt lại gần, ở gần thì giữ vị trí
-                    if dist > 15 then
-                        smoothMoveTo(targetCF)
+                    -- Bật Noclip cho nhân vật
+                    root.CanCollide = false
+
+                    -- Nếu ở quá xa thì dùng smoothMoveTo ở dạng không nghẽn thread
+                    if dist > 20 then
+                        if not isMovingToTarget then
+                            isMovingToTarget = true
+                            task.spawn(function()
+                                smoothMoveTo(targetCF)
+                                isMovingToTarget = false
+                            end)
+                        end
                     else
                         root.CFrame = targetCF
+                        root.AssemblyLinearVelocity = Vector3.zero
                     end
 
-                    -- Auto Skill Võ (Melee)
+                    -- Auto Skill Võ
                     if _G.AutoSkillMeleeEnabled then
-                        EquipWeaponType("Melee")
-                        if string.find(_G.SelectedMeleeSkill, "Z") then PressKey("Z") task.wait(0.15) end
-                        if string.find(_G.SelectedMeleeSkill, "X") then PressKey("X") task.wait(0.15) end
-                        if string.find(_G.SelectedMeleeSkill, "C") then PressKey("C") task.wait(0.15) end
+                        SmartEquipWeapon("Melee")
+                        if string.find(_G.SelectedMeleeSkill or "", "Z") then PressKey("Z") end
+                        if string.find(_G.SelectedMeleeSkill or "", "X") then PressKey("X") end
+                        if string.find(_G.SelectedMeleeSkill or "", "C") then PressKey("C") end
                     end
 
-                    -- Auto Skill Trái (Blox Fruit)
+                    -- Auto Skill Trái
                     if _G.AutoSkillFruitEnabled then
-                        EquipWeaponType("Blox Fruit")
-                        if string.find(_G.SelectedFruitSkill, "Z") then PressKey("Z") task.wait(0.15) end
-                        if string.find(_G.SelectedFruitSkill, "X") then PressKey("X") task.wait(0.15) end
-                        if string.find(_G.SelectedFruitSkill, "C") then PressKey("C") task.wait(0.15) end
-                        if string.find(_G.SelectedFruitSkill, "V") then PressKey("V") task.wait(0.15) end
+                        SmartEquipWeapon("Fruit")
+                        if string.find(_G.SelectedFruitSkill or "", "Z") then PressKey("Z") end
+                        if string.find(_G.SelectedFruitSkill or "", "X") then PressKey("X") end
+                        if string.find(_G.SelectedFruitSkill or "", "C") then PressKey("C") end
+                        if string.find(_G.SelectedFruitSkill or "", "V") then PressKey("V") end
                     end
                 end
             end
