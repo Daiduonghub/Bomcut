@@ -1133,7 +1133,7 @@ _G.AutoSkillFruitEnabled = false
 _G.SelectedMeleeSkill = "Z-X-C"
 _G.SelectedFruitSkill = "Z-X-C-V"
 _G.AutoBountyEnabled = false
-_G.AutoAttackPlayerEnabled = false
+_G.VirtualAttackPlayerEnabled = false
 
 -- Hàm lấy danh sách Player trong Server
 local function GetPlayerList()
@@ -1352,28 +1352,33 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- TASK RIÊNG: AUTO REGISTER HIT PLAYER
+-- AUTO ATTACK PLAYER BẰNG VIRTUAL INPUT
 -- ==========================================
-task.spawn(function()
-    while task.wait(0.05) do
-        if _G.AutoAttackPlayerEnabled and _G.SelectedPlayer and _G.SelectedPlayer ~= "" then
-            local target = game:GetService("Players"):FindFirstChild(_G.SelectedPlayer)
-            
-            if target and target.Character then
-                local hum = target.Character:FindFirstChildOfClass("Humanoid")
-                -- Ưu tiên LeftLowerLeg theo đúng mẫu của cậu, nếu không có thì lấy HumanoidRootPart hoặc Head
-                local targetPart = target.Character:FindFirstChild("LeftLowerLeg") 
-                                or target.Character:FindFirstChild("HumanoidRootPart") 
-                                or target.Character:FindFirstChild("Head")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local RunService = game:GetService("RunService")
 
-                if hum and hum.Health > 0 and targetPart then
+task.spawn(function()
+    while true do
+        RunService.RenderStepped:Wait()
+        
+        if _G.VirtualAttackPlayerEnabled and _G.SelectedPlayer and _G.SelectedPlayer ~= "" then
+            local target = game:GetService("Players"):FindFirstChild(_G.SelectedPlayer)
+            local myChar = game:GetService("Players").LocalPlayer.Character
+            
+            if target and target.Character and myChar then
+                local tRoot = target.Character:FindFirstChild("HumanoidRootPart")
+                local myRoot = myChar:FindFirstChild("HumanoidRootPart")
+                local tHum = target.Character:FindFirstChildOfClass("Humanoid")
+                
+                if tRoot and myRoot and tHum and tHum.Health > 0 then
                     pcall(function()
-                        local args = {
-                            [1] = targetPart,
-                            [2] = {},
-                            [4] = "158f5368"
-                        }
-                        game:GetService("ReplicatedStorage").Modules.Net:FindFirstChild("RE/RegisterHit"):FireServer(unpack(args))
+                        -- 1. Tự động quay mặt/camera về phía đối thủ để đánh trúng hướng
+                        game:GetService("Workspace").CurrentCamera.CFrame = CFrame.new(game:GetService("Workspace").CurrentCamera.CFrame.Position, tRoot.Position)
+                        
+                        -- 2. Mô phỏng bấm chuột trái (Click đánh thường) liên tục
+                        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
+                        task.wait(0.02)
+                        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
                     end)
                 end
             end
@@ -1540,5 +1545,5 @@ PvpTab:CreateToggle("Auto Skill Fruit (Trái)", false, function(state)
 end)
 
 PvpTab:CreateToggle("Auto Attack Selected Player", false, function(state)
-    _G.AutoAttackPlayerEnabled = state
+    _G.VirtualAttackPlayerEnabled = state
 end)
