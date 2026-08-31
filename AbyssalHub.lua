@@ -1332,32 +1332,29 @@ task.spawn(function()
     end
 end)
 
+-- ==========================================
+-- TASK RIÊNG: AUTO REGISTER HIT PLAYER
+-- ==========================================
 task.spawn(function()
     while task.wait(0.05) do
         if _G.AutoAttackPlayerEnabled and _G.SelectedPlayer and _G.SelectedPlayer ~= "" then
-            local target = Players:FindFirstChild(_G.SelectedPlayer)
+            local target = game:GetService("Players"):FindFirstChild(_G.SelectedPlayer)
             
             if target and target.Character then
                 local hum = target.Character:FindFirstChildOfClass("Humanoid")
-                -- Ưu tiên lấy HumanoidRootPart, nếu không lấy bộ phận bất kỳ
-                local targetPart = target.Character:FindFirstChild("HumanoidRootPart") 
-                                or target.Character:FindFirstChild("LeftLowerLeg") 
+                -- Ưu tiên LeftLowerLeg theo đúng mẫu của cậu, nếu không có thì lấy HumanoidRootPart hoặc Head
+                local targetPart = target.Character:FindFirstChild("LeftLowerLeg") 
+                                or target.Character:FindFirstChild("HumanoidRootPart") 
                                 or target.Character:FindFirstChild("Head")
 
                 if hum and hum.Health > 0 and targetPart then
                     pcall(function()
-                        local netModule = game:GetService("ReplicatedStorage"):FindFirstChild("Modules")
-                        local net = netModule and netModule:FindFirstChild("Net")
-                        local regHit = net and net:FindFirstChild("RE/RegisterHit")
-
-                        if regHit then
-                            local args = {
-                                [1] = targetPart,
-                                [2] = {},
-                                [4] = "158f5368"
-                            }
-                            regHit:FireServer(unpack(args))
-                        end
+                        local args = {
+                            [1] = targetPart,
+                            [2] = {},
+                            [4] = "158f5368"
+                        }
+                        game:GetService("ReplicatedStorage").Modules.Net:FindFirstChild("RE/RegisterHit"):FireServer(unpack(args))
                     end)
                 end
             end
