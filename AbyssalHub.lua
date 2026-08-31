@@ -972,23 +972,28 @@ task.spawn(function()
                             end
                         end
 
-                        if targetEnemyRoot and targetEnemyRoot.Parent then
-                            farmDuration = tick()
-                            AutoHaki()
-                            AutoEquipWeapon()
+if targetEnemyRoot and targetEnemyRoot.Parent then
+    farmDuration = tick()
+    
+    pcall(AutoHaki)
+    pcall(AutoEquipWeapon)
 
-                            if _G.BringMobEnabled then
-                                BringMobs(targetEnemyRoot.CFrame, currentData)
-                            end
+    if _G.BringMobEnabled then
+        pcall(function()
+            BringMobs(targetEnemyRoot.CFrame, currentData)
+        end)
+    end
 
-                            curRoot.CFrame = targetEnemyRoot.CFrame * CFrame.new(0, FarmHeight, 0)
-                            DoFastAttack(Net, hitTargets)
-                        else
-                            if enemySpot then
-                                curRoot.CFrame = enemySpot * CFrame.new(0, FarmHeight, 0)
-                            end
-                            task.wait(0.1)
-                        end
+    curRoot.CFrame = targetEnemyRoot.CFrame * CFrame.new(0, FarmHeight, 0)
+    pcall(function()
+        DoFastAttack(Net, hitTargets)
+    end)
+else
+    if enemySpot then
+        curRoot.CFrame = enemySpot * CFrame.new(0, FarmHeight, 0)
+    end
+    task.wait(0.1)
+end
                     end
                 end
             end
