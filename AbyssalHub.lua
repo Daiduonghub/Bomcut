@@ -1352,9 +1352,8 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- AUTO VIRTUAL ATTACK PLAYER (TỰ ĐỘNG CẦM VŨ KHÍ & ĐẤM)
+-- AUTO ATTACK PLAYER (DÙNG TOOL ACTIVATE AN TOÀN)
 -- ==========================================
-local VirtualInputManager = game:GetService("VirtualInputManager")
 local Players = game:GetService("Players")
 
 _G.VirtualAttackPlayerEnabled = false
@@ -1372,31 +1371,25 @@ task.spawn(function()
                     local tRoot = target.Character:FindFirstChild("HumanoidRootPart")
                     local myRoot = myChar:FindFirstChild("HumanoidRootPart")
                     local tHum = target.Character:FindFirstChildOfClass("Humanoid")
-                    local myHum = myChar:FindFirstChildOfClass("Humanoid")
                     
-                    if tRoot and myRoot and tHum and tHum.Health > 0 and myHum and myHum.Health > 0 then
-                        -- 1. Tự động cầm vũ khí (Tool) đầu tiên trong balo nếu chưa cầm
-                        local backpack = localPlayer:FindFirstChildOfClass("Backpack")
-                        local currentTool = myChar:FindFirstChildOfClass("Tool")
-                        
-                        if not currentTool and backpack then
-                            local firstTool = backpack:FindFirstChildOfClass("Tool")
-                            if firstTool then
-                                myHum:EquipTool(firstTool)
-                            end
-                        end
-
-                        -- 2. Xoay nhân vật hướng về phía mục tiêu
+                    if tRoot and myRoot and tHum and tHum.Health > 0 then
+                        -- 1. Xoay hướng nhân vật về phía mục tiêu mượt mà
                         myRoot.CFrame = CFrame.new(myRoot.Position, Vector3.new(tRoot.Position.X, myRoot.Position.Y, tRoot.Position.Z))
 
-                        -- 3. Gửi lệnh kích hoạt Tool (Activate) - Cách này ăn chắc hơn click chuột ảo trong Roblox
+                        -- 2. Lấy vũ khí đang cầm trên tay và kích hoạt tấn công trực tiếp
+                        local currentTool = myChar:FindFirstChildOfClass("Tool")
                         if currentTool then
                             currentTool:Activate()
                         else
-                            -- Dự phòng nếu không có tool thì dùng click chuột
-                            VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
-                            task.wait(0.02)
-                            VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+                            -- Nếu chưa cầm vũ khí, tự động tìm và lôi vũ khí trong balo ra cầm
+                            local backpack = localPlayer:FindFirstChildOfClass("Backpack")
+                            if backpack then
+                                local tool = backpack:FindFirstChildOfClass("Tool")
+                                local myHum = myChar:FindFirstChildOfClass("Humanoid")
+                                if tool and myHum then
+                                    myHum:EquipTool(tool)
+                                end
+                            end
                         end
                     end
                 end
