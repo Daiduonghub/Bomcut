@@ -541,6 +541,7 @@ local LocalPlayer = Players.LocalPlayer
 -- 1. BIẾN TRẠNG THÁI & DATABASE CHUẨN (SEA 1)
 -- ==========================================
 _G.AutoFarmLevelEnabled = false
+_G.AutoFarmNearestEnabled = false
 _G.FastAttackEnabled = true
 _G.AutoFarmMode = "Level"
 _G.BringMobEnabled = false
@@ -624,10 +625,13 @@ local QuestDatabase = {
 }
 
 -- ==========================================
--- 2. HÀM BỔ TRỢ LOGIC FARM (ĐÃ TỐI ƯU HIỆU NĂNG)
+-- 2. HÀM BỔ TRỢ LOGIC FARM (SỬA NOCLIP CHO TẤT CẢ MODE)
 -- ==========================================
 RunService.Stepped:Connect(function()
-    if not _G.AutoFarmLevelEnabled then return end
+    local mode = tostring(_G.AutoFarmMode or ""):lower()
+    local isRunning = _G.AutoFarmLevelEnabled or _G.AutoFarmNearestEnabled or string.find(mode, "near") or string.find(mode, "level")
+    if not isRunning then return end
+    
     local char = LocalPlayer.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
     if root then root.CanCollide = false end
@@ -704,7 +708,6 @@ local function AutoEquipWeapon()
     end
 end
 
--- Gom quái tối ưu: Không làm quái bị đơ cứng mất bóng
 local lastBring = 0
 local function BringMobs(targetCF, currentData)
     if not _G.BringMobEnabled or not targetCF or not currentData or tick() - lastBring < 0.1 then return end
@@ -731,11 +734,9 @@ local function BringMobs(targetCF, currentData)
 end
 
 local lastAttack = 0
-
 local function DoFastAttack(Net, hitTargets)
     if not _G.FastAttackEnabled or #hitTargets == 0 or not Net then return end
 
-    -- Giữ nhịp 0.05s để nhảy dam mượt và không bị Server rollback
     if tick() - lastAttack < 0.05 then return end
     lastAttack = tick()
 
@@ -789,6 +790,9 @@ local function GetNearestEnemy()
     return nearest
 end
 
+-- ==========================================
+-- 3. LUỒNG FARM CHÍNH (MAIN TASK)
+-- ==========================================
 task.spawn(function()
     local CommF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
     local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
@@ -834,7 +838,6 @@ task.spawn(function()
                     local eHum = targetEnemy:FindFirstChildOfClass("Humanoid")
 
                     if eRoot and eHum and eHum.Health > 0 then
-                        -- Bay đến nếu quái ở cách xa hơn 60 studs
                         if (eRoot.Position - RootPart.Position).Magnitude > 60 then
                             pcall(function() smoothMoveTo(eRoot.CFrame * CFrame.new(0, FarmHeight, 0)) end)
                         end
@@ -919,7 +922,6 @@ task.spawn(function()
                     while _G.AutoFarmLevelEnabled do
                         task.wait(0.04)
 
-                        -- Ngắt ngay lập tức nếu cậu chuyển sang mode Nearest trên UI
                         local checkMode = tostring(_G.AutoFarmMode or ""):lower()
                         if string.find(checkMode, "near") or _G.AutoFarmNearestEnabled then break end
 
@@ -985,7 +987,7 @@ task.spawn(function()
         end
     end
 end)
-
+                        
 -- SEA 1 TELEPORT LOCATIONS
 local IslandTeleports = {
     ["Pirate Starter"]  = Vector3.new(1059.37, 40, 1549.2),
