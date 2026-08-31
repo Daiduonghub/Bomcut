@@ -1352,15 +1352,14 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- AUTO ATTACK PLAYER (DÙNG TOOL ACTIVATE AN TOÀN)
+-- AUTO VIRTUAL ATTACK PLAYER CHUẨN XÁC
 -- ==========================================
+local VirtualInputManager = game:GetService("VirtualInputManager")
 local Players = game:GetService("Players")
-
-_G.VirtualAttackPlayerEnabled = false
 
 task.spawn(function()
     while true do
-        task.wait(0.1)
+        task.wait(0.08)
         pcall(function()
             if _G.VirtualAttackPlayerEnabled and _G.SelectedPlayer and _G.SelectedPlayer ~= "" then
                 local target = Players:FindFirstChild(_G.SelectedPlayer)
@@ -1371,26 +1370,33 @@ task.spawn(function()
                     local tRoot = target.Character:FindFirstChild("HumanoidRootPart")
                     local myRoot = myChar:FindFirstChild("HumanoidRootPart")
                     local tHum = target.Character:FindFirstChildOfClass("Humanoid")
+                    local myHum = myChar:FindFirstChildOfClass("Humanoid")
                     
-                    if tRoot and myRoot and tHum and tHum.Health > 0 then
-                        -- 1. Xoay hướng nhân vật về phía mục tiêu mượt mà
-                        myRoot.CFrame = CFrame.new(myRoot.Position, Vector3.new(tRoot.Position.X, myRoot.Position.Y, tRoot.Position.Z))
-
-                        -- 2. Lấy vũ khí đang cầm trên tay và kích hoạt tấn công trực tiếp
+                    if tRoot and myRoot and tHum and tHum.Health > 0 and myHum and myHum.Health > 0 then
+                        -- 1. Tự động cầm vũ khí (Tool) nếu chưa cầm để có cái mà đánh
                         local currentTool = myChar:FindFirstChildOfClass("Tool")
-                        if currentTool then
-                            currentTool:Activate()
-                        else
-                            -- Nếu chưa cầm vũ khí, tự động tìm và lôi vũ khí trong balo ra cầm
+                        if not currentTool then
                             local backpack = localPlayer:FindFirstChildOfClass("Backpack")
                             if backpack then
-                                local tool = backpack:FindFirstChildOfClass("Tool")
-                                local myHum = myChar:FindFirstChildOfClass("Humanoid")
-                                if tool and myHum then
-                                    myHum:EquipTool(tool)
+                                local firstTool = backpack:FindFirstChildOfClass("Tool")
+                                if firstTool then
+                                    myHum:EquipTool(firstTool)
                                 end
                             end
                         end
+
+                        -- 2. Xoay nhân vật hướng thẳng mặt về phía đối thủ
+                        myRoot.CFrame = CFrame.new(myRoot.Position, Vector3.new(tRoot.Position.X, myRoot.Position.Y, tRoot.Position.Z))
+
+                        -- 3. Dùng VirtualInputManager kích hoạt phím chuột trái (Click đánh thật)
+                        -- Lấy tọa độ tâm màn hình thiết bị để click chính xác không bị lệch mở kho đồ
+                        local viewportSize = workspace.CurrentCamera.ViewportSize
+                        local centerX = viewportSize.X / 2
+                        local centerY = viewportSize.Y / 2
+
+                        VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, true, game, 0)
+                        task.wait(0.02)
+                        VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, false, game, 0)
                     end
                 end
             end
