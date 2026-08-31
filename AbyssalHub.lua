@@ -1156,12 +1156,15 @@ task.spawn(function()
                                     BringMobs(enemySpot, currentData)
                                 end
 
-                                -- Giữ nhân vật bám sát ở độ cao vừa phải trên đầu quái
-                                curRoot.CFrame = targetEnemyRoot.CFrame * CFrame.new(0, FarmHeight, 0)
+                                -- Lấy vị trí gốc của bãi quái (enemySpot), ép cố định độ cao tuyệt đối, không cộng dồn theo đầu con quái đang di chuyển nữa
+                                local spotPos = enemySpot.Position
+                                curRoot.CFrame = CFrame.new(spotPos.X, spotPos.Y + 18, spotPos.Z)
+                                
                                 DoFastAttack(Net)
                             else
                                 if enemySpot then
-                                    curRoot.CFrame = enemySpot * CFrame.new(0, FarmHeight, 0)
+                                    local spotPos = enemySpot.Position
+                                    curRoot.CFrame = CFrame.new(spotPos.X, spotPos.Y + 18, spotPos.Z)
                                 end
                                 task.wait(0.1)
                             end
