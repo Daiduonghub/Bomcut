@@ -699,9 +699,9 @@ local function AutoEquipWeapon()
     end
 end
 
-local function BringMobs(enemySpot, currentData)
+local function BringMobs(targetCF, currentData)
     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
-    if not EnemiesFolder or not enemySpot or not currentData then
+    if not EnemiesFolder or not targetCF or not currentData then
         return
     end
 
@@ -709,27 +709,26 @@ local function BringMobs(enemySpot, currentData)
         if enemy.Name == currentData.EnemyName then
             local eHum = enemy:FindFirstChildOfClass("Humanoid")
             local eRoot = enemy:FindFirstChild("HumanoidRootPart")
-            local head = enemy:FindFirstChild("Head")
 
             if eHum and eRoot and eHum.Health > 0 then
-                local dist = (eRoot.Position - enemySpot.Position).Magnitude
+                local dist = (eRoot.Position - targetCF.Position).Magnitude
 
-                if BringMobEnabled and dist <= 300 then
-                    eRoot.CanCollide = false
-
-                    if head then
-                        head.CanCollide = false
+                if BringMobEnabled and dist <= 350 then
+                    -- 1. TẮT VA CHẠM TOÀN BỘ BỘ PHẬN (Tay, chân, thân, đầu)
+                    for _, part in ipairs(enemy:GetChildren()) do
+                        if part:IsA("BasePart") then
+                            part.CanCollide = false
+                        end
                     end
 
-                    -- Chỉ kéo mob khi nó thực sự lệch khỏi điểm gom
-                    if dist > 8 then
-                        eRoot.CFrame = enemySpot
-                    end
-                else
-                    eRoot.CanCollide = true
+                    -- 2. ĐÓNG BẰNG VẬT LÝ VÀ CHUYỂN ĐỘNG CỦA QUÁI (Chống bug/bất tử)
+                    eHum.WalkSpeed = 0
+                    eHum.JumpPower = 0
+                    eRoot.AssemblyLinearVelocity = Vector3.zero
 
-                    if head then
-                        head.CanCollide = true
+                    -- 3. GOM QUÁI VỀ ĐÚNG 1 ĐIỂM
+                    if dist > 2 then
+                        eRoot.CFrame = targetCF
                     end
                 end
             end
@@ -1174,11 +1173,12 @@ task.spawn(function()
                                 farmDuration = tick()
                                 AutoEquipWeapon()
 
+                                -- Gom toàn bộ quái về đúng vị trí con quái chính đang nhắm
                                 if BringMobEnabled then
-                                    BringMobs(enemySpot, currentData)
+                                    BringMobs(targetEnemyRoot.CFrame, currentData)
                                 end
 
-                                -- Đứng chuẩn trên đỉnh đầu quái (11 studs)
+                                -- Đứng cố định ngay trên đỉnh đầu con quái chính (11 studs)
                                 curRoot.CFrame = targetEnemyRoot.CFrame * CFrame.new(0, 11, 0)
                                 DoFastAttack(Net)
                             else
