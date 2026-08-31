@@ -547,7 +547,7 @@ _G.AutoFarmMode = "Level"
 _G.BringMobEnabled = false
 _G.SelectedWeapon = "Melee"
 _G.AutoHakiEnabled = true
-_G.MaxBringMobs = 2
+_G.MaxBringMobs = 4
 
 local FarmHeight = 11 -- Độ cao đứng trên đầu quái khi farm
 
@@ -1193,7 +1193,7 @@ SettingTab:CreateDropdown("Fast Attack Speed", {"Slow", "Medium", "Fast"}, "Fast
     end
 end)
 
-SettingTab:CreateBox("Max Bring Mobs", "3", function(value)
+SettingTab:CreateBox("Number of mobs to gather", "4 is max", function(value)
     local num = tonumber(value)
     if num and num > 0 then
         _G.MaxBringMobs = num
