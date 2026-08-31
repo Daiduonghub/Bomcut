@@ -1351,8 +1351,8 @@ task.spawn(function()
     end
 end)
 
---- ==========================================
--- 1. LOGIC CHẠY NGẨM (AN TOÀN, KHÔNG SẬP UI)
+-- ==========================================
+-- AUTO VIRTUAL ATTACK PLAYER (TỰ ĐỘNG CẦM VŨ KHÍ & ĐẤM)
 -- ==========================================
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local Players = game:GetService("Players")
@@ -1365,21 +1365,39 @@ task.spawn(function()
         pcall(function()
             if _G.VirtualAttackPlayerEnabled and _G.SelectedPlayer and _G.SelectedPlayer ~= "" then
                 local target = Players:FindFirstChild(_G.SelectedPlayer)
-                local myChar = Players.LocalPlayer.Character
+                local localPlayer = Players.LocalPlayer
+                local myChar = localPlayer.Character
                 
                 if target and target.Character and myChar then
                     local tRoot = target.Character:FindFirstChild("HumanoidRootPart")
                     local myRoot = myChar:FindFirstChild("HumanoidRootPart")
                     local tHum = target.Character:FindFirstChildOfClass("Humanoid")
+                    local myHum = myChar:FindFirstChildOfClass("Humanoid")
                     
-                    if tRoot and myRoot and tHum and tHum.Health > 0 then
-                        -- Xoay hướng nhân vật nhẹ nhàng tới mục tiêu
+                    if tRoot and myRoot and tHum and tHum.Health > 0 and myHum and myHum.Health > 0 then
+                        -- 1. Tự động cầm vũ khí (Tool) đầu tiên trong balo nếu chưa cầm
+                        local backpack = localPlayer:FindFirstChildOfClass("Backpack")
+                        local currentTool = myChar:FindFirstChildOfClass("Tool")
+                        
+                        if not currentTool and backpack then
+                            local firstTool = backpack:FindFirstChildOfClass("Tool")
+                            if firstTool then
+                                myHum:EquipTool(firstTool)
+                            end
+                        end
+
+                        -- 2. Xoay nhân vật hướng về phía mục tiêu
                         myRoot.CFrame = CFrame.new(myRoot.Position, Vector3.new(tRoot.Position.X, myRoot.Position.Y, tRoot.Position.Z))
 
-                        -- Mô phỏng click chuột đánh
-                        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
-                        task.wait(0.02)
-                        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+                        -- 3. Gửi lệnh kích hoạt Tool (Activate) - Cách này ăn chắc hơn click chuột ảo trong Roblox
+                        if currentTool then
+                            currentTool:Activate()
+                        else
+                            -- Dự phòng nếu không có tool thì dùng click chuột
+                            VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
+                            task.wait(0.02)
+                            VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+                        end
                     end
                 end
             end
