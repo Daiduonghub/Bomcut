@@ -1085,18 +1085,29 @@ task.spawn(function()
                             end
                         end)
 
-                        -- Chưa có thì bay đến NPC nhận quest
+                        -- Nếu chưa có quest thì bay về NPC và CHỜ BAY TỚI NƠI mới nhận quest
                         if not hasActiveQuest then
                             if npcPos then
                                 pcall(function() smoothMoveTo(npcPos) end)
-                                task.wait(0.2)
+                                
+                                -- Đợi nhân vật bay đến sát NPC (cách dưới 30 studs) rồi mới xin Quest
+                                local npcVector = (typeof(npcPos) == "CFrame" and npcPos.Position or npcPos)
+                                local startWait = tick()
+                                repeat
+                                    task.wait(0.1)
+                                    local curChar = LocalPlayer.Character
+                                    local curRoot = curChar and curChar:FindFirstChild("HumanoidRootPart")
+                                    if curRoot and (curRoot.Position - npcVector).Magnitude < 30 then
+                                        break
+                                    end
+                                until tick() - startWait > 8 -- Timeout 8s phòng trường hợp kẹt
                             end
 
                             if CommF then
                                 pcall(function()
                                     CommF:InvokeServer("StartQuest", currentData.QuestName, currentData.QuestNumber)
                                 end)
-                                task.wait(0.3)
+                                task.wait(0.5)
                             end
                         end
 
@@ -1121,7 +1132,7 @@ task.spawn(function()
                                 break
                             end
 
-                            -- TỰ ĐỘNG PHÁT HIỆN HỦY QUEST: Nếu không còn quest trên UI thì thoát lặp ra ngoài nhận lại quest mới ngay
+                            -- TỰ ĐỘNG PHÁT HIỆN HỦY QUEST: Nếu bấm hủy quest là thoát lặp bay về nhận lại ngay
                             local isQuestActive = false
                             pcall(function()
                                 local questGui = LocalPlayer.PlayerGui:FindFirstChild("Main") and LocalPlayer.PlayerGui.Main:FindFirstChild("Quest")
