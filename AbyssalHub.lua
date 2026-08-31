@@ -540,7 +540,7 @@ local LocalPlayer = Players.LocalPlayer
 -- ==========================================
 -- 1. BIẾN TRẠNG THÁI & DATABASE CHUẨN (SEA 1)
 -- ==========================================
-_G.AutoFarmLevelEnabled = true
+_G.AutoFarmLevelEnabled = false
 _G.FastAttackEnabled = true
 _G.AutoFarmMode = "Level"
 _G.BringMobEnabled = false
