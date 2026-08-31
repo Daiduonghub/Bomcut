@@ -740,41 +740,45 @@ local lastAttackTime = 0
 local attackCooldown = 0.1
 
 local function DoFastAttack(Net)
-    if not FastAttackEnabled then return end
-    if tick() - lastAttackTime < attackCooldown then return end
-    lastAttackTime = tick()
+    local curChar = LocalPlayer.Character
+    local curRoot = curChar and curChar:FindFirstChild("HumanoidRootPart")
+    if not curRoot then return end
 
-    local char = LocalPlayer.Character
-    if not char then return end
-
-    local RegAttack = Net and Net:FindFirstChild("RE/RegisterAttack")
-    local RegHit = Net and (Net:FindFirstChild("RegisterHit") or Net:FindFirstChild("RE/RegisterHit"))
-
-    local hitTargets = {}
     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
-    local myRoot = char:FindFirstChild("HumanoidRootPart")
+    if not EnemiesFolder then return end
 
-    if EnemiesFolder and myRoot then
-        for _, enemy in pairs(EnemiesFolder:GetChildren()) do
-            local eHum = enemy:FindFirstChildOfClass("Humanoid")
-            local eRoot = enemy:FindFirstChild("HumanoidRootPart")
-            if eHum and eHum.Health > 0 and eRoot then
-                if (eRoot.Position - myRoot.Position).Magnitude <= 65 then
-                    local hitPart = enemy:FindFirstChild("UpperTorso") or enemy:FindFirstChild("Head") or eRoot
-                    table.insert(hitTargets, {enemy, hitPart})
-                end
+    -- 1. Quét và gom tất cả quái trong bán kính 60 studs xung quanh
+    local hitTargets = {}
+    for _, enemy in pairs(EnemiesFolder:GetChildren()) do
+        local eHum = enemy:FindFirstChildOfClass("Humanoid")
+        local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+        local hitPart = enemy:FindFirstChild("Head") or eRoot
+
+        if eHum and eHum.Health > 0 and eRoot then
+            local dist = (eRoot.Position - curRoot.Position).Magnitude
+            if dist <= 60 then
+                table.insert(hitTargets, hitPart)
             end
         end
     end
 
-    pcall(function()
-        if RegAttack then RegAttack:FireServer(0, 1) end
-        if RegHit and #hitTargets > 0 then
-            for _, data in ipairs(hitTargets) do
-                RegHit:FireServer(data[2], {}, nil, "157beb64")
+    -- 2. Gửi đòn đánh lan lên TẤT CẢ các con quái tìm thấy cùng một lúc
+    if #hitTargets > 0 and Net then
+        pcall(function()
+            local registerAttack = Net:FindFirstChild("RegisterAttack")
+            local registerHit = Net:FindFirstChild("RegisterHit")
+
+            if registerAttack then
+                registerAttack:FireServer(0)
             end
-        end
-    end)
+
+            if registerHit then
+                for _, part in ipairs(hitTargets) do
+                    registerHit:FireServer(part, {part})
+                end
+            end
+        end)
+    end
 end
 
 -- ==========================================
@@ -1428,7 +1432,7 @@ AutoTab:CreateDropdown("Select Stats to Boost", {"Melee", "Defense", "Sword", "D
 end)
 
 -- 2. Button để thực hiện lệnh cộng điểm theo cái vừa chọn
-AutoTab:CreateToggle("Add Selected Points", function()
+AutoTab:CreateButton("Add Selected Points", function()
     local CommF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
     local playerStats = LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Points")
     
