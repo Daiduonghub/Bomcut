@@ -1052,7 +1052,7 @@ task.spawn(function()
     end
 
     while true do
-        task.wait(0.05)
+        task.wait(0.1) -- Tăng độ trễ vòng chính giúp mát máy hơn
 
         if AutoFarmLevelEnabled then
             local Character = LocalPlayer.Character
@@ -1085,7 +1085,7 @@ task.spawn(function()
                             end
                         end)
 
-                        -- Chưa có thì bay mượt (Tween) đến NPC nhận quest
+                        -- Chưa có thì bay mượt đến NPC nhận quest
                         if not hasActiveQuest then
                             if npcPos then
                                 pcall(function() smoothMoveTo(npcPos) end)
@@ -1100,16 +1100,16 @@ task.spawn(function()
                             end
                         end
 
-                        -- Bay mượt (Tween) tới bãi quái
+                        -- Bay tới bãi quái
                         if enemySpot then
                             pcall(function()
-                                smoothMoveTo(enemySpot * CFrame.new(0, 18, 0))
+                                smoothMoveTo(enemySpot * CFrame.new(0, 11, 0))
                             end)
                         end
 
                         local farmDuration = tick()
                         while AutoFarmLevelEnabled and AutoFarmMode == "Level" do
-                            task.wait(0.02)
+                            task.wait(0.04) -- Nhịp 0.04s vừa mượt vừa giảm tải CPU điện thoại
 
                             if tick() - farmDuration > 35 then break end
 
@@ -1121,11 +1121,9 @@ task.spawn(function()
                                 break
                             end
 
-                            -- Chống rơi rớt khi đứng trên không
+                            -- TRIỆT TIÊU VẬT LÝ CHỐNG NÓNG MÁY / GIẬT LAG
+                            curRoot.AssemblyLinearVelocity = Vector3.zero
                             curRoot.CanCollide = false
-                            if curChar:FindFirstChild("Humanoid") then
-                                curChar.Humanoid.PlatformStand = true
-                            end
 
                             local EnemiesFolder = Workspace:FindFirstChild("Enemies")
                             local targetEnemyRoot = nil
@@ -1156,12 +1154,12 @@ task.spawn(function()
                                     BringMobs(enemySpot, currentData)
                                 end
 
-                                -- Đứng chuẩn ngay trên ĐỈNH ĐẦU quái (độ cao 18 studs)
-                                curRoot.CFrame = targetEnemyRoot.CFrame * CFrame.new(0, 18, 0)
+                                -- ĐỨNG CHUẨN NGAY TRÊN ĐỈNH ĐẦU QUÁI (Cách 11 studs)
+                                curRoot.CFrame = targetEnemyRoot.CFrame * CFrame.new(0, 11, 0)
                                 DoFastAttack(Net)
                             else
                                 if enemySpot then
-                                    curRoot.CFrame = enemySpot * CFrame.new(0, 18, 0)
+                                    curRoot.CFrame = enemySpot * CFrame.new(0, 11, 0)
                                 end
                                 task.wait(0.1)
                             end
@@ -1189,8 +1187,9 @@ task.spawn(function()
 
                     if nearestEnemyRoot and nearestEnemyRoot.Parent then
                         RootPart.CanCollide = false
+                        RootPart.AssemblyLinearVelocity = Vector3.zero
                         AutoEquipWeapon()
-                        RootPart.CFrame = nearestEnemyRoot.CFrame * CFrame.new(0, 18, 0)
+                        RootPart.CFrame = nearestEnemyRoot.CFrame * CFrame.new(0, 11, 0)
                         DoFastAttack(Net)
                     else
                         task.wait(0.2)
