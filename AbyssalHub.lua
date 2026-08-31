@@ -547,6 +547,7 @@ _G.AutoFarmMode = "Level"
 _G.BringMobEnabled = false
 _G.SelectedWeapon = "Melee"
 _G.AutoHakiEnabled = true
+_G.MaxBringMobs = 2
 
 local FarmHeight = 11 -- Độ cao đứng trên đầu quái khi farm
 
@@ -710,11 +711,14 @@ end
 
 local lastBring = 0
 local function BringMobs(targetCF, currentData)
-    if not _G.BringMobEnabled or not targetCF or not currentData or tick() - lastBring < 0.1 then return end
+    if not _G.BringMobEnabled or not targetCF or not currentData or tick() - lastBring < 0.2 then return end
     lastBring = tick()
 
     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
     if not EnemiesFolder then return end
+
+    local maxMobs = _G.MaxBringMobs or 3
+    local broughtCount = 0
 
     for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
         if enemy.Name == currentData.EnemyName then
@@ -723,10 +727,22 @@ local function BringMobs(targetCF, currentData)
 
             if eHum and eRoot and eHum.Health > 0 then
                 local dist = (eRoot.Position - targetCF.Position).Magnitude
-                if dist <= 300 then
-                    eRoot.CanCollide = false
-                    if enemy:FindFirstChild("Head") then enemy.Head.CanCollide = false end
-                    if dist > 2 then eRoot.CFrame = targetCF end
+                -- Kiểm tra quái trong phạm vi gom
+                if dist <= 200 then
+                    if dist > 5 then
+                        eRoot.CanCollide = false
+                        eRoot.AssemblyLinearVelocity = Vector3.zero
+                        if enemy:FindFirstChild("Head") then 
+                            enemy.Head.CanCollide = false 
+                        end
+                        eRoot.CFrame = targetCF
+                    end
+                    
+                    -- Đếm số mob đã gom, đạt giới hạn thì dừng lại
+                    broughtCount = broughtCount + 1
+                    if broughtCount >= maxMobs then
+                        break
+                    end
                 end
             end
         end
@@ -1174,6 +1190,13 @@ SettingTab:CreateDropdown("Fast Attack Speed", {"Slow", "Medium", "Fast"}, "Fast
         FastAttackSpeed = 6
     elseif selectedSpeed == "Fast" then
         FastAttackSpeed = 10
+    end
+end)
+
+SettingTab:CreateBox("Max Bring Mobs", "3", function(value)
+    local num = tonumber(value)
+    if num and num > 0 then
+        _G.MaxBringMobs = num
     end
 end)
 
