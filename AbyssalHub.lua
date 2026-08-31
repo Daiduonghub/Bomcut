@@ -1351,8 +1351,8 @@ task.spawn(function()
     end
 end)
 
--- ==========================================
--- AUTO VIRTUAL ATTACK PLAYER (CHUẨN KHÔNG LỖI UI)
+--- ==========================================
+-- 1. LOGIC CHẠY NGẨM (AN TOÀN, KHÔNG SẬP UI)
 -- ==========================================
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local Players = game:GetService("Players")
@@ -1361,30 +1361,29 @@ _G.VirtualAttackPlayerEnabled = false
 
 task.spawn(function()
     while true do
-        task.wait(0.1) -- Dùng task.wait(0.1) để chạy mượt, không bị nghẽn luồng game
-        
-        if _G.VirtualAttackPlayerEnabled and _G.SelectedPlayer and _G.SelectedPlayer ~= "" then
-            local target = Players:FindFirstChild(_G.SelectedPlayer)
-            local myChar = Players.LocalPlayer.Character
-            
-            if target and target.Character and myChar then
-                local tRoot = target.Character:FindFirstChild("HumanoidRootPart")
-                local myRoot = myChar:FindFirstChild("HumanoidRootPart")
-                local tHum = target.Character:FindFirstChildOfClass("Humanoid")
+        task.wait(0.1)
+        pcall(function()
+            if _G.VirtualAttackPlayerEnabled and _G.SelectedPlayer and _G.SelectedPlayer ~= "" then
+                local target = Players:FindFirstChild(_G.SelectedPlayer)
+                local myChar = Players.LocalPlayer.Character
                 
-                if tRoot and myRoot and tHum and tHum.Health > 0 then
-                    pcall(function()
-                        -- Chỉ hướng nhân vật về phía mục tiêu, KHÔNG đụng vào Camera để giữ nguyên UI
+                if target and target.Character and myChar then
+                    local tRoot = target.Character:FindFirstChild("HumanoidRootPart")
+                    local myRoot = myChar:FindFirstChild("HumanoidRootPart")
+                    local tHum = target.Character:FindFirstChildOfClass("Humanoid")
+                    
+                    if tRoot and myRoot and tHum and tHum.Health > 0 then
+                        -- Xoay hướng nhân vật nhẹ nhàng tới mục tiêu
                         myRoot.CFrame = CFrame.new(myRoot.Position, Vector3.new(tRoot.Position.X, myRoot.Position.Y, tRoot.Position.Z))
 
                         -- Mô phỏng click chuột đánh
                         VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
                         task.wait(0.02)
                         VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
-                    end)
+                    end
                 end
             end
-        end
+        end)
     end
 end)
 
