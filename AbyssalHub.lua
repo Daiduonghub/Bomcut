@@ -731,24 +731,35 @@ local function BringMobs(targetCF, currentData)
 end
 
 local lastAttack = 0
+
 local function DoFastAttack(Net, hitTargets)
     if not _G.FastAttackEnabled or #hitTargets == 0 or not Net then return end
-    
-    -- Giới hạn nhịp chém 0.015s để chống lag & chống bị game Kick
-    if tick() - lastAttack < 0.015 then return end
+
+    -- Giữ nhịp 0.05s để nhảy dam mượt và không bị Server rollback
+    if tick() - lastAttack < 0.05 then return end
     lastAttack = tick()
 
-    local registerAttack = Net:FindFirstChild("RegisterAttack")
-    local registerHit = Net:FindFirstChild("RegisterHit")
+    local registerAttack = Net:FindFirstChild("RE/RegisterAttack")
+    local registerHit = Net:FindFirstChild("RE/RegisterHit")
 
-    if registerAttack and registerHit then
+    if registerAttack then
         pcall(function()
-            -- Gửi lệnh đánh chuẩn của game
-            registerAttack:FireServer(0)
-            
-            -- Gửi combo dồn sát thương lên toàn bộ quái trong phạm vi
+            registerAttack:FireServer(0.1)
+        end)
+    end
+
+    if registerHit then
+        pcall(function()
             for i = 1, #hitTargets do
-                registerHit:FireServer(hitTargets[i], {hitTargets[i]})
+                local part = hitTargets[i]
+                if part and part.Parent then
+                    local args = {
+                        [1] = part,
+                        [2] = {},
+                        [4] = "15822e18"
+                    }
+                    registerHit:FireServer(unpack(args))
+                end
             end
         end)
     end
@@ -1085,7 +1096,7 @@ SettingTab:CreateDropdown("Fast Attack Speed", {"Slow", "Medium", "Fast"}, "Fast
     end
 end)
 
-SettingTab:CreateToggle("Bring Mobs(It's currently experiencing an error.)", true, function(state)
+SettingTab:CreateToggle("Bring Mobs(It's currently experiencing an error.)", false, function(state)
     _G.BringMobEnabled = state
 end)
 
