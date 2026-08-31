@@ -1352,6 +1352,65 @@ task.spawn(function()
 end)
 
 -- ==========================================
+-- NÚT NỔI KHẨN CẤP (TỰ ĐỘNG HIỆN/ẨN THEO AUTO ATTACK)
+-- ==========================================
+local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+
+-- Xóa nút cũ nếu có
+if CoreGui:FindFirstChild("EmergencyStopButton") then
+    CoreGui.EmergencyStopButton:Destroy()
+end
+
+-- Tạo ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "EmergencyStopButton"
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.Parent = CoreGui
+
+-- Tạo nút bấm màu đỏ (Ban đầu ẩn đi)
+local stopButton = Instance.new("TextButton")
+stopButton.Name = "StopButton"
+stopButton.Size = UDim2.new(0, 130, 0, 45)
+stopButton.Position = UDim2.new(0.5, -65, 0.85, 0)
+local okBg = Color3.fromRGB(230, 50, 50)
+stopButton.BackgroundColor3 = okBg
+stopButton.Text = "STOP ATTACK PLAYER 🛑"
+stopButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+stopButton.TextSize = 14
+stopButton.Font = Enum.Font.GothamBold
+stopButton.Visible = false -- Mặc định ẩn
+stopButton.Parent = screenGui
+
+-- Bo góc & viền cho đẹp
+local uiCorner = Instance.new("UICorner")
+uiCorner.CornerRadius = UDim.new(0, 10)
+uiCorner.Parent = stopButton
+
+local uiStroke = Instance.new("UIStroke")
+uiStroke.Color = Color3.fromRGB(255, 255, 255)
+uiStroke.Thickness = 2
+uiStroke.Parent = stopButton
+
+-- Khi bấm vào nút thì tắt auto attack và tự ẩn nút đi
+stopButton.MouseButton1Click:Connect(function()
+    _G.VirtualAttackPlayerEnabled = false
+    stopButton.Visible = false
+end)
+
+-- Vòng lặp kiểm tra trạng thái để tự động Hiện/Ẩn nút
+task.spawn(function()
+    while true do
+        task.wait(0.2)
+        if _G.VirtualAttackPlayerEnabled then
+            stopButton.Visible = true -- Bật auto thì nút hiện ra
+        else
+            stopButton.Visible = false -- Tắt auto thì nút biến mất
+        end
+    end
+end)
+
+-- ==========================================
 -- AUTO VIRTUAL ATTACK PLAYER CHUẨN XÁC
 -- ==========================================
 local VirtualInputManager = game:GetService("VirtualInputManager")
