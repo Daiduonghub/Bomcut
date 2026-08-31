@@ -1128,6 +1128,7 @@ _G.AutoSkillFruitEnabled = false
 _G.SelectedMeleeSkill = "Z-X-C"
 _G.SelectedFruitSkill = "Z-X-C-V"
 _G.AutoBountyEnabled = false
+_G.AutoAttackPlayerEnabled = false
 
 -- Hàm lấy danh sách Player trong Server
 local function GetPlayerList()
@@ -1331,6 +1332,39 @@ task.spawn(function()
     end
 end)
 
+task.spawn(function()
+    while task.wait(0.05) do
+        if _G.AutoAttackPlayerEnabled and _G.SelectedPlayer and _G.SelectedPlayer ~= "" then
+            local target = Players:FindFirstChild(_G.SelectedPlayer)
+            
+            if target and target.Character then
+                local hum = target.Character:FindFirstChildOfClass("Humanoid")
+                -- Ưu tiên lấy HumanoidRootPart, nếu không lấy bộ phận bất kỳ
+                local targetPart = target.Character:FindFirstChild("HumanoidRootPart") 
+                                or target.Character:FindFirstChild("LeftLowerLeg") 
+                                or target.Character:FindFirstChild("Head")
+
+                if hum and hum.Health > 0 and targetPart then
+                    pcall(function()
+                        local netModule = game:GetService("ReplicatedStorage"):FindFirstChild("Modules")
+                        local net = netModule and netModule:FindFirstChild("Net")
+                        local regHit = net and net:FindFirstChild("RE/RegisterHit")
+
+                        if regHit then
+                            local args = {
+                                [1] = targetPart,
+                                [2] = {},
+                                [4] = "158f5368"
+                            }
+                            regHit:FireServer(unpack(args))
+                        end
+                    end)
+                end
+            end
+        end
+    end
+end)
+
 -- ====================================================================
 -- GIAO DIỆN UI
 -- ====================================================================
@@ -1487,4 +1521,8 @@ end)
 
 PvpTab:CreateToggle("Auto Skill Fruit (Trái)", false, function(state)
     _G.AutoSkillFruitEnabled = state
+end)
+
+PvpTab:CreateToggle("Auto Attack Selected Player", false, function(state)
+    _G.AutoAttackPlayerEnabled = state
 end)
