@@ -1462,3 +1462,7 @@ AutoTab:CreateButton("Add Selected Points", function()
         print("Không có điểm dư để cộng!")
     end
 end)
+
+SettingTab:CreateToggle("Auto Haki", true, function(state)
+    AutoHakiEnabled = state
+end)
