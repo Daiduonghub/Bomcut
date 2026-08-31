@@ -1179,6 +1179,7 @@ task.spawn(function()
 end)
 
 -- 2. Vòng lặp Auto Skill & Auto Bounty Target
+-- Vòng lặp Auto Skill & Auto Bounty Target (Đã sửa sang BAY)
 task.spawn(function()
     while task.wait(0.1) do
         if _G.AutoBountyEnabled and _G.SelectedPlayer ~= "" then
@@ -1190,25 +1191,32 @@ task.spawn(function()
                 local tRoot = target.Character.HumanoidRootPart
                 local tHum = target.Character:FindFirstChildOfClass("Humanoid")
 
-                if tHum and tHum.Health > 0 then
-                    -- Teleport tới Player mục tiêu
-                    root.CFrame = tRoot.CFrame * CFrame.new(0, 3, 3)
+                if tHum and tHum.Health > 0 and root then
+                    local targetCF = tRoot.CFrame * CFrame.new(0, 3, 3)
+                    local dist = (root.Position - targetCF.Position).Magnitude
+
+                    -- Nếu ở xa thì bay mượt lại gần, ở gần thì giữ vị trí
+                    if dist > 15 then
+                        smoothMoveTo(targetCF)
+                    else
+                        root.CFrame = targetCF
+                    end
 
                     -- Auto Skill Võ (Melee)
                     if _G.AutoSkillMeleeEnabled then
                         EquipWeaponType("Melee")
-                        if string.find(_G.SelectedMeleeSkill, "Z") then PressKey("Z") task.wait(0.2) end
-                        if string.find(_G.SelectedMeleeSkill, "X") then PressKey("X") task.wait(0.2) end
-                        if string.find(_G.SelectedMeleeSkill, "C") then PressKey("C") task.wait(0.2) end
+                        if string.find(_G.SelectedMeleeSkill, "Z") then PressKey("Z") task.wait(0.15) end
+                        if string.find(_G.SelectedMeleeSkill, "X") then PressKey("X") task.wait(0.15) end
+                        if string.find(_G.SelectedMeleeSkill, "C") then PressKey("C") task.wait(0.15) end
                     end
 
                     -- Auto Skill Trái (Blox Fruit)
                     if _G.AutoSkillFruitEnabled then
                         EquipWeaponType("Blox Fruit")
-                        if string.find(_G.SelectedFruitSkill, "Z") then PressKey("Z") task.wait(0.2) end
-                        if string.find(_G.SelectedFruitSkill, "X") then PressKey("X") task.wait(0.2) end
-                        if string.find(_G.SelectedFruitSkill, "C") then PressKey("C") task.wait(0.2) end
-                        if string.find(_G.SelectedFruitSkill, "V") then PressKey("V") task.wait(0.2) end
+                        if string.find(_G.SelectedFruitSkill, "Z") then PressKey("Z") task.wait(0.15) end
+                        if string.find(_G.SelectedFruitSkill, "X") then PressKey("X") task.wait(0.15) end
+                        if string.find(_G.SelectedFruitSkill, "C") then PressKey("C") task.wait(0.15) end
+                        if string.find(_G.SelectedFruitSkill, "V") then PressKey("V") task.wait(0.15) end
                     end
                 end
             end
@@ -1341,9 +1349,9 @@ end)
 PvpTab:CreateButton("Teleport to Target", function()
     if _G.SelectedPlayer ~= "" then
         local target = Players:FindFirstChild(_G.SelectedPlayer)
-        local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") and root then
-            root.CFrame = target.Character.HumanoidRootPart.CFrame * CFrame.new(0, 3, 2)
+        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+            local targetCF = target.Character.HumanoidRootPart.CFrame * CFrame.new(0, 3, 2)
+            smoothMoveTo(targetCF)
         end
     end
 end)
