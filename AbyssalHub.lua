@@ -1100,10 +1100,11 @@ task.spawn(function()
                             end
                         end
 
-                        -- Bay mượt (Tween) tới bãi quái chuẩn bị chiến đấu
+                        -- SỬA LẠI KHÚC NÀY: Dùng tọa độ gốc của bãi quái ép thẳng độ cao an toàn (+18), không nhân CFrame bậy bạ nữa
                         if enemySpot then
                             pcall(function()
-                                smoothMoveTo(enemySpot * CFrame.new(0, FarmHeight, 0))
+                                local spotPos = enemySpot.Position
+                                smoothMoveTo(CFrame.new(spotPos.X, spotPos.Y + 18, spotPos.Z))
                             end)
                         end
 
@@ -1156,14 +1157,16 @@ task.spawn(function()
                                     BringMobs(enemySpot, currentData)
                                 end
 
-                                -- Lấy vị trí X, Z của con quái, nhưng ép trục Y cao hơn chân quái đúng 18 studs (không bị phụ thuộc vào độ cao cục bộ của map)
+                                -- Bám sát theo mục tiêu nhưng giữ độ cao cách mặt đất bãi quái chuẩn 18 studs
                                 local ePos = targetEnemyRoot.Position
-                                curRoot.CFrame = CFrame.new(ePos.X, ePos.Y + 18, ePos.Z)
+                                local spotBaseY = enemySpot and enemySpot.Position.Y or ePos.Y
+                                curRoot.CFrame = CFrame.new(ePos.X, spotBaseY + 18, ePos.Z)
                                 
                                 DoFastAttack(Net)
                             else
                                 if enemySpot then
-                                    curRoot.CFrame = enemySpot * CFrame.new(0, 18, 0)
+                                    local spotPos = enemySpot.Position
+                                    curRoot.CFrame = CFrame.new(spotPos.X, spotPos.Y + 18, spotPos.Z)
                                 end
                                 task.wait(0.1)
                             end
@@ -1192,7 +1195,8 @@ task.spawn(function()
                     if nearestEnemyRoot and nearestEnemyRoot.Parent then
                         RootPart.CanCollide = false
                         AutoEquipWeapon()
-                        RootPart.CFrame = nearestEnemyRoot.CFrame * CFrame.new(0, FarmHeight, 0)
+                        local nPos = nearestEnemyRoot.Position
+                        RootPart.CFrame = CFrame.new(nPos.X, nPos.Y + 18, nPos.Z)
                         DoFastAttack(Net)
                     else
                         task.wait(0.2)
