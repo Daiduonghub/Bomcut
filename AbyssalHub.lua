@@ -1111,14 +1111,10 @@ local TeleportTab = Window:CreateTab("Teleport (Sea1)")
 local AutoTab = Window:CreateTab("Auto stats")
 
 MainTab:CreateDropdown("Farming mode", {"Level", "Nearest"}, "Level", function(selected)
-    if selected == "Level" then
-        AutoFarmMode = "Level"
-    elseif selected == "Nearest" then
-        AutoFarmMode = "Nearest"
-    end
+    _G.AutoFarmMode = selected
 end)
 
-MainTab:CreateToggle("Auto Farm Level", false, function(state)
+MainTab:CreateToggle("Auto Farm", false, function(state)
     _G.AutoFarmLevelEnabled = state
 end)
 
