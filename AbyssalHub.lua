@@ -1347,7 +1347,7 @@ local PlayerTab = Window:CreateTab("Player")
 local TeleportTab = Window:CreateTab("Teleport (Sea1)")
 local AutoTab = Window:CreateTab("Auto stats")
 
-MainTab:CreateDropdown("Chế Độ Farm", {"Level", "Nearest"}, "Level", function(selected)
+MainTab:CreateDropdown("Farming mode", {"Level", "Nearest"}, "Level", function(selected)
     if selected == "Level" then
         AutoFarmMode = "Level"
     elseif selected == "Nearest" then
@@ -1416,19 +1416,19 @@ SettingTab:CreateDropdown("Fast Attack Speed", {"Slow", "Medium", "Fast"}, "Fast
     end
 end)
 
-SettingTab:CreateToggle("Bring Mobs(Đang lỗi)", true, function(state)
+SettingTab:CreateToggle("Bring Mobs(It's currently experiencing an error.)", true, function(state)
     BringMobEnabled = state
 end)
 
 local chosenStatToUpgrade = "Melee" -- Biến lưu lựa chọn từ dropdown
 
 -- 1. Dropdown để đổi hướng chọn stat
-AutoTab:CreateDropdown("Chọn Stat Để Cộng", {"Melee", "Defense", "Sword", "Demon Fruit", "Gun"}, "Melee", function(selected)
+AutoTab:CreateDropdown("Select Stats to Boost", {"Melee", "Defense", "Sword", "Demon Fruit", "Gun"}, "Melee", function(selected)
     chosenStatToUpgrade = selected
 end)
 
 -- 2. Button để thực hiện lệnh cộng điểm theo cái vừa chọn
-AutoTab:CreateButton("Cộng Điểm Đã Chọn", function()
+AutoTab:CreateToggle("Add Selected Points", function()
     local CommF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
     local playerStats = LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Points")
     
