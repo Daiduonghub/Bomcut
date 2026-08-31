@@ -1247,53 +1247,83 @@ end
 -- Vòng lặp Auto Bounty & Skill không bị nghẽn
 local isMovingToTarget = false
 
+-- ==========================================
+-- HÀM BAY THẲNG ĐẾN PLAYER (KHÔNG BAY LÊN TRỜI)
+-- ==========================================
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local currentTween = nil
+
+local function DirectFlyToPlayer(targetCF, speed)
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    speed = speed or 250 -- Tốc độ bay
+    local dist = (root.Position - targetCF.Position).Magnitude
+    local timeToFly = dist / speed
+
+    -- Tắt va chạm và triệt tiêu trọng lực khi bay
+    root.CanCollide = false
+    root.AssemblyLinearVelocity = Vector3.zero
+
+    -- Nếu ở quá xa thì dùng Tween bay thẳng theo đường chim bay (không tăng độ cao Y)
+    if dist > 8 then
+        if currentTween then currentTween:Cancel() end
+
+        local tweenInfo = TweenInfo.new(timeToFly, Enum.EasingStyle.Linear)
+        currentTween = TweenService:Create(root, tweenInfo, {CFrame = targetCF})
+        currentTween:Play()
+    else
+        -- Khi đã áp sát thì dán vị trí trực tiếp
+        if currentTween then currentTween:Cancel() end
+        root.CFrame = targetCF
+    end
+end
+
+-- ==========================================
+-- LOGIC AUTO BOUNTY & XỬ LÝ RESPAWN
+-- ==========================================
 task.spawn(function()
-    while task.wait(0.1) do
+    while task.wait(0.05) do
         if _G.AutoBountyEnabled then
-            local targetPlayer = GetAutoBountyTarget()
+            -- Tự động cập nhật lại Character nếu vừa Reset/Respawn
+            local myChar = LocalPlayer.Character
+            local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+            local myHum = myChar and myChar:FindFirstChildOfClass("Humanoid")
 
-            if targetPlayer and targetPlayer.Character then
-                local tRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
-                local tHum = targetPlayer.Character:FindFirstChildOfClass("Humanoid")
-                local char = LocalPlayer.Character
-                local root = char and char:FindFirstChild("HumanoidRootPart")
+            if myChar and myRoot and myHum and myHum.Health > 0 then
+                local targetPlayer = GetAutoBountyTarget()
 
-                if tRoot and tHum and tHum.Health > 0 and root then
-                    local targetCF = tRoot.CFrame * CFrame.new(0, 4, 2)
-                    local dist = (root.Position - targetCF.Position).Magnitude
+                if targetPlayer and targetPlayer.Character then
+                    local tRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    local tHum = targetPlayer.Character:FindFirstChildOfClass("Humanoid")
 
-                    -- Bật Noclip cho nhân vật
-                    root.CanCollide = false
+                    if tRoot and tHum and tHum.Health > 0 then
+                        -- Bay thẳng tới ngay phía sau/trên đầu mục tiêu 2 studs
+                        local targetCF = tRoot.CFrame * CFrame.new(0, 2, 2)
+                        
+                        -- Gọi hàm bay trực diện
+                        DirectFlyToPlayer(targetCF, 300)
 
-                    -- Nếu ở quá xa thì dùng smoothMoveTo ở dạng không nghẽn thread
-                    if dist > 20 then
-                        if not isMovingToTarget then
-                            isMovingToTarget = true
-                            task.spawn(function()
-                                smoothMoveTo(targetCF)
-                                isMovingToTarget = false
-                            end)
+                        -- Tự động xả Skill Võ
+                        if _G.AutoSkillMeleeEnabled then
+                            SmartEquipWeapon("Melee")
+                            if string.find(_G.SelectedMeleeSkill or "", "Z") then PressKey("Z") end
+                            if string.find(_G.SelectedMeleeSkill or "", "X") then PressKey("X") end
+                            if string.find(_G.SelectedMeleeSkill or "", "C") then PressKey("C") end
                         end
-                    else
-                        root.CFrame = targetCF
-                        root.AssemblyLinearVelocity = Vector3.zero
-                    end
 
-                    -- Auto Skill Võ
-                    if _G.AutoSkillMeleeEnabled then
-                        SmartEquipWeapon("Melee")
-                        if string.find(_G.SelectedMeleeSkill or "", "Z") then PressKey("Z") end
-                        if string.find(_G.SelectedMeleeSkill or "", "X") then PressKey("X") end
-                        if string.find(_G.SelectedMeleeSkill or "", "C") then PressKey("C") end
-                    end
-
-                    -- Auto Skill Trái
-                    if _G.AutoSkillFruitEnabled then
-                        SmartEquipWeapon("Fruit")
-                        if string.find(_G.SelectedFruitSkill or "", "Z") then PressKey("Z") end
-                        if string.find(_G.SelectedFruitSkill or "", "X") then PressKey("X") end
-                        if string.find(_G.SelectedFruitSkill or "", "C") then PressKey("C") end
-                        if string.find(_G.SelectedFruitSkill or "", "V") then PressKey("V") end
+                        -- Tự động xả Skill Trái
+                        if _G.AutoSkillFruitEnabled then
+                            SmartEquipWeapon("Fruit")
+                            if string.find(_G.SelectedFruitSkill or "", "Z") then PressKey("Z") end
+                            if string.find(_G.SelectedFruitSkill or "", "X") then PressKey("X") end
+                            if string.find(_G.SelectedFruitSkill or "", "C") then PressKey("C") end
+                            if string.find(_G.SelectedFruitSkill or "", "V") then PressKey("V") end
+                        end
                     end
                 end
             end
@@ -1427,8 +1457,8 @@ PvpTab:CreateButton("Teleport to Target", function()
     if _G.SelectedPlayer ~= "" then
         local target = Players:FindFirstChild(_G.SelectedPlayer)
         if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-            local targetCF = target.Character.HumanoidRootPart.CFrame * CFrame.new(0, 3, 2)
-            smoothMoveTo(targetCF)
+            local targetCF = target.Character.HumanoidRootPart.CFrame * CFrame.new(0, 2, 2)
+            DirectFlyToPlayer(targetCF, 300)
         end
     end
 end)
