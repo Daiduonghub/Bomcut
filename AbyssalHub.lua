@@ -1052,7 +1052,7 @@ task.spawn(function()
     end
 
     while true do
-        task.wait(0.1) -- Tăng độ trễ vòng chính giúp mát máy hơn
+        task.wait(0.1)
 
         if AutoFarmLevelEnabled then
             local Character = LocalPlayer.Character
@@ -1085,7 +1085,7 @@ task.spawn(function()
                             end
                         end)
 
-                        -- Chưa có thì bay mượt đến NPC nhận quest
+                        -- Chưa có thì bay đến NPC nhận quest
                         if not hasActiveQuest then
                             if npcPos then
                                 pcall(function() smoothMoveTo(npcPos) end)
@@ -1109,7 +1109,7 @@ task.spawn(function()
 
                         local farmDuration = tick()
                         while AutoFarmLevelEnabled and AutoFarmMode == "Level" do
-                            task.wait(0.04) -- Nhịp 0.04s vừa mượt vừa giảm tải CPU điện thoại
+                            task.wait(0.04)
 
                             if tick() - farmDuration > 35 then break end
 
@@ -1121,7 +1121,20 @@ task.spawn(function()
                                 break
                             end
 
-                            -- TRIỆT TIÊU VẬT LÝ CHỐNG NÓNG MÁY / GIẬT LAG
+                            -- TỰ ĐỘNG PHÁT HIỆN HỦY QUEST: Nếu không còn quest trên UI thì thoát lặp ra ngoài nhận lại quest mới ngay
+                            local isQuestActive = false
+                            pcall(function()
+                                local questGui = LocalPlayer.PlayerGui:FindFirstChild("Main") and LocalPlayer.PlayerGui.Main:FindFirstChild("Quest")
+                                if questGui and questGui.Visible then
+                                    isQuestActive = true
+                                end
+                            end)
+
+                            if not isQuestActive then
+                                break
+                            end
+
+                            -- Triệt tiêu lực hút vật lý chống lag/nóng máy
                             curRoot.AssemblyLinearVelocity = Vector3.zero
                             curRoot.CanCollide = false
 
@@ -1154,7 +1167,7 @@ task.spawn(function()
                                     BringMobs(enemySpot, currentData)
                                 end
 
-                                -- ĐỨNG CHUẨN NGAY TRÊN ĐỈNH ĐẦU QUÁI (Cách 11 studs)
+                                -- Đứng chuẩn trên đỉnh đầu quái (11 studs)
                                 curRoot.CFrame = targetEnemyRoot.CFrame * CFrame.new(0, 11, 0)
                                 DoFastAttack(Net)
                             else
