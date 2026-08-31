@@ -765,9 +765,6 @@ local function DoFastAttack(Net, hitTargets)
     end
 end
 
--- ==========================================
--- 3. LUỒNG CHẠY CHÍNH (MAIN TASK)
--- ==========================================
 task.spawn(function()
     local CommF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
     local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
@@ -798,6 +795,9 @@ task.spawn(function()
 
             if Character and RootPart and Humanoid and Humanoid.Health > 0 then
                 
+                -- ==========================================
+                -- 1. CHẾ ĐỘ FARM THEO LEVEL (CÓ NHẬN QUEST)
+                -- ==========================================
                 if _G.AutoFarmMode == "Level" then
                     local currentLevel = getPlayerLevel()
                     local currentData = nil
@@ -899,7 +899,80 @@ task.spawn(function()
                             end
                         end
                     end
+
+                -- ==========================================
+                -- 2. CHẾ ĐỘ FARM QUÁI GẦN NHẤT (KHÔNG QUEST)
+                -- ==========================================
+                elseif _G.AutoFarmMode == "Nearest" or _G.AutoFarmMode == "Near" then
+                    local EnemiesFolder = Workspace:FindFirstChild("Enemies")
+                    local targetEnemy = nil
+                    local minDist = 99999
+
+                    if EnemiesFolder then
+                        for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
+                            local eHum = enemy:FindFirstChildOfClass("Humanoid")
+                            local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+                            if eHum and eHum.Health > 0 and eRoot then
+                                local dist = (eRoot.Position - RootPart.Position).Magnitude
+                                if dist < minDist then
+                                    minDist = dist
+                                    targetEnemy = enemy
+                                end
+                            end
+                        end
+                    end
+
+                    if targetEnemy then
+                        local enemyName = targetEnemy.Name
+
+                        while _G.AutoFarmLevelEnabled and (_G.AutoFarmMode == "Nearest" or _G.AutoFarmMode == "Near") do
+                            task.wait(0.04)
+
+                            local curChar = LocalPlayer.Character
+                            local curRoot = curChar and curChar:FindFirstChild("HumanoidRootPart")
+                            local curHum = curChar and curChar:FindFirstChildOfClass("Humanoid")
+
+                            local eHum = targetEnemy:FindFirstChildOfClass("Humanoid")
+                            local eRoot = targetEnemy:FindFirstChild("HumanoidRootPart")
+
+                            if not curChar or not curRoot or not curHum or curHum.Health <= 0 or not eHum or eHum.Health <= 0 or not eRoot then
+                                break
+                            end
+
+                            curRoot.AssemblyLinearVelocity = Vector3.zero
+                            curRoot.CanCollide = false
+
+                            local hitTargets = {}
+                            if EnemiesFolder then
+                                for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
+                                    if enemy.Name == enemyName then
+                                        local subHum = enemy:FindFirstChildOfClass("Humanoid")
+                                        local subRoot = enemy:FindFirstChild("HumanoidRootPart")
+                                        if subHum and subHum.Health > 0 and subRoot then
+                                            local dist = (subRoot.Position - curRoot.Position).Magnitude
+                                            if dist <= 60 then
+                                                table.insert(hitTargets, enemy:FindFirstChild("Head") or subRoot)
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+
+                            AutoHaki()
+                            AutoEquipWeapon()
+
+                            if _G.BringMobEnabled then
+                                BringMobs(eRoot.CFrame, {EnemyName = enemyName})
+                            end
+
+                            curRoot.CFrame = eRoot.CFrame * CFrame.new(0, FarmHeight, 0)
+                            DoFastAttack(Net, hitTargets)
+                        end
+                    else
+                        task.wait(0.3)
+                    end
                 end
+
             end
         end
     end
