@@ -1352,34 +1352,34 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- AUTO VIRTUAL ATTACK PLAYER (KHÔNG XOAY LOẠN MÀN HÌNH)
+-- AUTO VIRTUAL ATTACK PLAYER (CHUẨN KHÔNG LỖI UI)
 -- ==========================================
 local VirtualInputManager = game:GetService("VirtualInputManager")
-local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
 
 _G.VirtualAttackPlayerEnabled = false
 
 task.spawn(function()
     while true do
-        task.wait(0.05) -- Cho độ trễ nhẹ (0.05s) thay vì chạy RenderStepped liên tục để tránh giật lag UI
+        task.wait(0.1) -- Dùng task.wait(0.1) để chạy mượt, không bị nghẽn luồng game
         
         if _G.VirtualAttackPlayerEnabled and _G.SelectedPlayer and _G.SelectedPlayer ~= "" then
-            local target = game:GetService("Players"):FindFirstChild(_G.SelectedPlayer)
-            local myChar = game:GetService("Players").LocalPlayer.Character
+            local target = Players:FindFirstChild(_G.SelectedPlayer)
+            local myChar = Players.LocalPlayer.Character
             
             if target and target.Character and myChar then
                 local tRoot = target.Character:FindFirstChild("HumanoidRootPart")
                 local myRoot = myChar:FindFirstChild("HumanoidRootPart")
-                local tHum = target.Character:FindFirstChild_Orignal and target.Character:FindFirstChildOfClass("Humanoid") or target.Character:FindFirstChildOfClass("Humanoid")
+                local tHum = target.Character:FindFirstChildOfClass("Humanoid")
                 
                 if tRoot and myRoot and tHum and tHum.Health > 0 then
                     pcall(function()
-                        -- Chỉ xoay nhẹ hướng nhân vật về phía đối thủ để đánh trúng (nếu cần), tuyệt đối KHÔNG đụng tới CurrentCamera để không bị loạn UI
+                        -- Chỉ hướng nhân vật về phía mục tiêu, KHÔNG đụng vào Camera để giữ nguyên UI
                         myRoot.CFrame = CFrame.new(myRoot.Position, Vector3.new(tRoot.Position.X, myRoot.Position.Y, tRoot.Position.Z))
 
-                        -- Mô phỏng click chuột đánh thường
+                        -- Mô phỏng click chuột đánh
                         VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
-                        task.wait(0.01)
+                        task.wait(0.02)
                         VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
                     end)
                 end
