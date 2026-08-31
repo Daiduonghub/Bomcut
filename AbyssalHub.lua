@@ -968,25 +968,37 @@ local function AutoEquipWeapon()
     end
 end
 
-local function BringMobs(enemySpot, currentData)
+local lastBring = 0
+local function BringMobs(targetCF, currentData)
+    if not BringMobEnabled or not targetCF or not currentData then return end
+    
+    -- Giới hạn nhịp gom 0.1s/lần để tránh lag
+    if tick() - lastBring < 0.1 then return end
+    lastBring = tick()
+
     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
-    if not EnemiesFolder or not enemySpot or not currentData then return end
+    if not EnemiesFolder then return end
 
     for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
         if enemy.Name == currentData.EnemyName then
             local eHum = enemy:FindFirstChildOfClass("Humanoid")
             local eRoot = enemy:FindFirstChild("HumanoidRootPart")
-            local head = enemy:FindFirstChild("Head")
 
             if eHum and eRoot and eHum.Health > 0 then
-                local dist = (eRoot.Position - enemySpot.Position).Magnitude
-                if BringMobEnabled and dist <= 300 then
+                local dist = (eRoot.Position - targetCF.Position).Magnitude
+
+                if dist <= 300 then
+                    -- Tắt va chạm phần thân chính để quái chui tọt vào nhau không bị đẩy ra
                     eRoot.CanCollide = false
-                    if head then head.CanCollide = false end
-                    if dist > 8 then eRoot.CFrame = enemySpot end
-                else
-                    eRoot.CanCollide = true
-                    if head then head.CanCollide = true end
+                    
+                    if enemy:FindFirstChild("Head") then
+                        enemy.Head.CanCollide = false
+                    end
+
+                    -- Dịch chuyển quái về thẳng vị trí gom (KHÔNG chỉnh WalkSpeed/Velocity làm lỗi quái)
+                    if dist > 2 then
+                        eRoot.CFrame = targetCF
+                    end
                 end
             end
         end
