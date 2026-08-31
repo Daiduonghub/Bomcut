@@ -765,6 +765,30 @@ local function DoFastAttack(Net, hitTargets)
     end
 end
 
+local function GetNearestEnemy()
+    local nearest = nil
+    local minDist = math.huge
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if not root then return nil end
+
+    local enemiesFolder = Workspace:FindFirstChild("Enemies")
+    if enemiesFolder then
+        for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+            local eHum = enemy:FindFirstChildOfClass("Humanoid")
+            local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+            if eHum and eHum.Health > 0 and eRoot then
+                local dist = (eRoot.Position - root.Position).Magnitude
+                if dist < minDist then
+                    minDist = dist
+                    nearest = enemy
+                end
+            end
+        end
+    end
+    return nearest
+end
+
 task.spawn(function()
     local CommF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
     local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
@@ -788,203 +812,176 @@ task.spawn(function()
     while true do
         task.wait(0.05)
 
-        -- Hỗ trợ cả 3 dạng bật/tắt của UI
-        local isRunning = _G.AutoFarmLevelEnabled or _G.AutoFarmNearestEnabled or _G.AutoFarmEnabled
+        local mode = tostring(_G.AutoFarmMode or ""):lower()
+        local isNearMode = (mode == "nearest" or mode == "near" or string.find(mode, "near") or _G.AutoFarmNearestEnabled == true)
+        local isLevelMode = (mode == "level" or mode == "farm level") and _G.AutoFarmLevelEnabled
 
-        if isRunning then
-            local Character = LocalPlayer.Character
-            local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
-            local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
+        local Character = LocalPlayer.Character
+        local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
+        local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
 
-            if Character and RootPart and Humanoid and Humanoid.Health > 0 then
-                
-                local currentMode = string.lower(tostring(_G.AutoFarmMode or ""))
+        if Character and RootPart and Humanoid and Humanoid.Health > 0 then
+            
+            -- ==========================================
+            -- 1. CHẾ ĐỘ FARM QUÁI GẦN NHẤT (KHÔNG QUEST)
+            -- ==========================================
+            if isNearMode then
+                local targetEnemy = GetNearestEnemy()
 
-                -- ==========================================
-                -- 1. CHẾ ĐỘ FARM THEO LEVEL (CÓ NHẬN QUEST)
-                -- ==========================================
-                if currentMode == "level" then
-                    local currentLevel = getPlayerLevel()
-                    local currentData = nil
+                if targetEnemy then
+                    local enemyName = targetEnemy.Name
+                    local eRoot = targetEnemy:FindFirstChild("HumanoidRootPart")
+                    local eHum = targetEnemy:FindFirstChildOfClass("Humanoid")
 
-                    for _, q in ipairs(QuestDatabase) do
-                        if currentLevel >= q.MinLevel and currentLevel <= q.MaxLevel then
-                            currentData = q
+                    if eRoot and eHum and eHum.Health > 0 then
+                        -- Bay đến nếu quái ở cách xa hơn 60 studs
+                        if (eRoot.Position - RootPart.Position).Magnitude > 60 then
+                            pcall(function() smoothMoveTo(eRoot.CFrame * CFrame.new(0, FarmHeight, 0)) end)
+                        end
+
+                        RootPart.AssemblyLinearVelocity = Vector3.zero
+                        RootPart.CanCollide = false
+                        RootPart.CFrame = eRoot.CFrame * CFrame.new(0, FarmHeight, 0)
+
+                        local hitTargets = {}
+                        local EnemiesFolder = Workspace:FindFirstChild("Enemies")
+                        if EnemiesFolder then
+                            for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
+                                if enemy.Name == enemyName then
+                                    local subHum = enemy:FindFirstChildOfClass("Humanoid")
+                                    local subRoot = enemy:FindFirstChild("HumanoidRootPart")
+                                    if subHum and subHum.Health > 0 and subRoot then
+                                        if (subRoot.Position - RootPart.Position).Magnitude <= 60 then
+                                            table.insert(hitTargets, enemy:FindFirstChild("Head") or subRoot)
+                                        end
+                                    end
+                                end
+                            end
+                        end
+
+                        AutoHaki()
+                        AutoEquipWeapon()
+
+                        if _G.BringMobEnabled then
+                            BringMobs(eRoot.CFrame, {EnemyName = enemyName})
+                        end
+
+                        DoFastAttack(Net, hitTargets)
+                    end
+                else
+                    task.wait(0.2)
+                end
+
+            -- ==========================================
+            -- 2. CHẾ ĐỘ FARM THEO LEVEL (CÓ NHẬN QUEST)
+            -- ==========================================
+            elseif isLevelMode then
+                local currentLevel = getPlayerLevel()
+                local currentData = nil
+
+                for _, q in ipairs(QuestDatabase) do
+                    if currentLevel >= q.MinLevel and currentLevel <= q.MaxLevel then
+                        currentData = q
+                        break
+                    end
+                end
+
+                if currentData then
+                    local npcPos = NpcPositions[currentData.Island]
+                    local enemySpot = EnemyPositions[currentData.EnemyName]
+
+                    if not checkQuestActive() then
+                        if npcPos then
+                            pcall(function() smoothMoveTo(npcPos) end)
+                            local npcVector = (typeof(npcPos) == "CFrame" and npcPos.Position or npcPos)
+                            local startWait = tick()
+                            repeat
+                                task.wait(0.1)
+                                local curChar = LocalPlayer.Character
+                                local curRoot = curChar and curChar:FindFirstChild("HumanoidRootPart")
+                                if curRoot and (curRoot.Position - npcVector).Magnitude < 30 then break end
+                            until tick() - startWait > 8
+                        end
+
+                        if CommF then
+                            pcall(function()
+                                CommF:InvokeServer("StartQuest", currentData.QuestName, currentData.QuestNumber)
+                            end)
+                            task.wait(0.3)
+                        end
+                    end
+
+                    if enemySpot then
+                        pcall(function() smoothMoveTo(enemySpot * CFrame.new(0, FarmHeight, 0)) end)
+                    end
+
+                    local farmDuration = tick()
+                    while _G.AutoFarmLevelEnabled do
+                        task.wait(0.04)
+
+                        -- Ngắt ngay lập tức nếu cậu chuyển sang mode Nearest trên UI
+                        local checkMode = tostring(_G.AutoFarmMode or ""):lower()
+                        if string.find(checkMode, "near") or _G.AutoFarmNearestEnabled then break end
+
+                        if tick() - farmDuration > 35 then break end
+
+                        local curChar = LocalPlayer.Character
+                        local curRoot = curChar and curChar:FindFirstChild("HumanoidRootPart")
+                        local curHum = curChar and curChar:FindFirstChildOfClass("Humanoid")
+
+                        if not curChar or not curRoot or not curHum or curHum.Health <= 0 or not checkQuestActive() then
                             break
                         end
-                    end
 
-                    if currentData then
-                        local npcPos = NpcPositions[currentData.Island]
-                        local enemySpot = EnemyPositions[currentData.EnemyName]
+                        curRoot.AssemblyLinearVelocity = Vector3.zero
+                        curRoot.CanCollide = false
 
-                        if not checkQuestActive() then
-                            if npcPos then
-                                pcall(function() smoothMoveTo(npcPos) end)
-                                local npcVector = (typeof(npcPos) == "CFrame" and npcPos.Position or npcPos)
-                                local startWait = tick()
-                                repeat
-                                    task.wait(0.1)
-                                    local curChar = LocalPlayer.Character
-                                    local curRoot = curChar and curChar:FindFirstChild("HumanoidRootPart")
-                                    if curRoot and (curRoot.Position - npcVector).Magnitude < 30 then break end
-                                until tick() - startWait > 8
-                            end
+                        local EnemiesFolder = Workspace:FindFirstChild("Enemies")
+                        local targetEnemyRoot = nil
+                        local minDist = 9999
+                        local hitTargets = {}
 
-                            if CommF then
-                                pcall(function()
-                                    CommF:InvokeServer("StartQuest", currentData.QuestName, currentData.QuestNumber)
-                                end)
-                                task.wait(0.3)
-                            end
-                        end
-
-                        if enemySpot then
-                            pcall(function() smoothMoveTo(enemySpot * CFrame.new(0, FarmHeight, 0)) end)
-                        end
-
-                        local farmDuration = tick()
-                        while (_G.AutoFarmLevelEnabled or _G.AutoFarmEnabled) and string.lower(tostring(_G.AutoFarmMode or "")) == "level" do
-                            task.wait(0.04)
-
-                            if tick() - farmDuration > 35 then break end
-
-                            local curChar = LocalPlayer.Character
-                            local curRoot = curChar and curChar:FindFirstChild("HumanoidRootPart")
-                            local curHum = curChar and curChar:FindFirstChildOfClass("Humanoid")
-
-                            if not curChar or not curRoot or not curHum or curHum.Health <= 0 or not checkQuestActive() then
-                                break
-                            end
-
-                            curRoot.AssemblyLinearVelocity = Vector3.zero
-                            curRoot.CanCollide = false
-
-                            local EnemiesFolder = Workspace:FindFirstChild("Enemies")
-                            local targetEnemyRoot = nil
-                            local minDist = 9999
-                            local hitTargets = {}
-
-                            if EnemiesFolder then
-                                local targetName = currentData.EnemyName
-                                for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
-                                    if enemy.Name == targetName then
-                                        local eHum = enemy:FindFirstChildOfClass("Humanoid")
-                                        local eRoot = enemy:FindFirstChild("HumanoidRootPart")
-                                        if eHum and eHum.Health > 0 and eRoot then
-                                            local dist = (eRoot.Position - curRoot.Position).Magnitude
-                                            if dist < minDist then
-                                                minDist = dist
-                                                targetEnemyRoot = eRoot
-                                            end
-                                            if dist <= 60 then
-                                                table.insert(hitTargets, enemy:FindFirstChild("Head") or eRoot)
-                                            end
+                        if EnemiesFolder then
+                            local targetName = currentData.EnemyName
+                            for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
+                                if enemy.Name == targetName then
+                                    local eHum = enemy:FindFirstChildOfClass("Humanoid")
+                                    local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+                                    if eHum and eHum.Health > 0 and eRoot then
+                                        local dist = (eRoot.Position - curRoot.Position).Magnitude
+                                        if dist < minDist then
+                                            minDist = dist
+                                            targetEnemyRoot = eRoot
+                                        end
+                                        if dist <= 60 then
+                                            table.insert(hitTargets, enemy:FindFirstChild("Head") or eRoot)
                                         end
                                     end
                                 end
                             end
-
-                            if targetEnemyRoot and targetEnemyRoot.Parent then
-                                farmDuration = tick()
-                                AutoHaki()
-                                AutoEquipWeapon()
-
-                                if _G.BringMobEnabled then
-                                    BringMobs(targetEnemyRoot.CFrame, currentData)
-                                end
-
-                                curRoot.CFrame = targetEnemyRoot.CFrame * CFrame.new(0, FarmHeight, 0)
-                                DoFastAttack(Net, hitTargets)
-                            else
-                                if enemySpot then
-                                    curRoot.CFrame = enemySpot * CFrame.new(0, FarmHeight, 0)
-                                end
-                                task.wait(0.1)
-                            end
-                        end
-                    end
-
-                -- ==========================================
-                -- 2. CHẾ ĐỘ FARM QUÁI GẦN NHẤT (KHÔNG QUEST)
-                -- ==========================================
-                elseif string.find(currentMode, "near") or _G.AutoFarmNearestEnabled then
-                    local EnemiesFolder = Workspace:FindFirstChild("Enemies")
-                    local targetEnemy = nil
-                    local minDist = 99999
-
-                    if EnemiesFolder then
-                        for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
-                            local eHum = enemy:FindFirstChildOfClass("Humanoid")
-                            local eRoot = enemy:FindFirstChild("HumanoidRootPart")
-                            if eHum and eHum.Health > 0 and eRoot then
-                                local dist = (eRoot.Position - RootPart.Position).Magnitude
-                                if dist < minDist then
-                                    minDist = dist
-                                    targetEnemy = enemy
-                                end
-                            end
-                        end
-                    end
-
-                    if targetEnemy then
-                        local enemyName = targetEnemy.Name
-                        local targetRoot = targetEnemy:FindFirstChild("HumanoidRootPart")
-
-                        -- Nếu quái ở xa > 60 studs thì dùng smoothMoveTo bay tới
-                        if targetRoot and (targetRoot.Position - RootPart.Position).Magnitude > 60 then
-                            pcall(function() smoothMoveTo(targetRoot.CFrame * CFrame.new(0, FarmHeight, 0)) end)
                         end
 
-                        while (_G.AutoFarmLevelEnabled or _G.AutoFarmNearestEnabled or _G.AutoFarmEnabled) and (string.find(string.lower(tostring(_G.AutoFarmMode or "")), "near") or _G.AutoFarmNearestEnabled) do
-                            task.wait(0.04)
-
-                            local curChar = LocalPlayer.Character
-                            local curRoot = curChar and curChar:FindFirstChild("HumanoidRootPart")
-                            local curHum = curChar and curChar:FindFirstChildOfClass("Humanoid")
-
-                            local eHum = targetEnemy:FindFirstChildOfClass("Humanoid")
-                            local eRoot = targetEnemy:FindFirstChild("HumanoidRootPart")
-
-                            if not curChar or not curRoot or not curHum or curHum.Health <= 0 or not eHum or eHum.Health <= 0 or not eRoot then
-                                break
-                            end
-
-                            curRoot.AssemblyLinearVelocity = Vector3.zero
-                            curRoot.CanCollide = false
-
-                            local hitTargets = {}
-                            if EnemiesFolder then
-                                for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
-                                    if enemy.Name == enemyName then
-                                        local subHum = enemy:FindFirstChildOfClass("Humanoid")
-                                        local subRoot = enemy:FindFirstChild("HumanoidRootPart")
-                                        if subHum and subHum.Health > 0 and subRoot then
-                                            local dist = (subRoot.Position - curRoot.Position).Magnitude
-                                            if dist <= 60 then
-                                                table.insert(hitTargets, enemy:FindFirstChild("Head") or subRoot)
-                                            end
-                                        end
-                                    end
-                                end
-                            end
-
+                        if targetEnemyRoot and targetEnemyRoot.Parent then
+                            farmDuration = tick()
                             AutoHaki()
                             AutoEquipWeapon()
 
                             if _G.BringMobEnabled then
-                                BringMobs(eRoot.CFrame, {EnemyName = enemyName})
+                                BringMobs(targetEnemyRoot.CFrame, currentData)
                             end
 
-                            curRoot.CFrame = eRoot.CFrame * CFrame.new(0, FarmHeight, 0)
+                            curRoot.CFrame = targetEnemyRoot.CFrame * CFrame.new(0, FarmHeight, 0)
                             DoFastAttack(Net, hitTargets)
+                        else
+                            if enemySpot then
+                                curRoot.CFrame = enemySpot * CFrame.new(0, FarmHeight, 0)
+                            end
+                            task.wait(0.1)
                         end
-                    else
-                        task.wait(0.3)
                     end
                 end
-
             end
+
         end
     end
 end)
