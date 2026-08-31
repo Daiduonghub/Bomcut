@@ -1114,6 +1114,108 @@ task.spawn(function()
     end
 end)
 
+-- ==========================================
+-- BIẾN & HÀM XỬ LÝ PVP / AUTO BOUNTY
+-- ==========================================
+local Players = game:GetService("Players")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local Workspace = game:GetService("Workspace")
+
+_G.SelectedPlayer = ""
+_G.AimbotPlayerEnabled = false
+_G.AutoSkillMeleeEnabled = false
+_G.AutoSkillFruitEnabled = false
+_G.SelectedMeleeSkill = "Z-X-C"
+_G.SelectedFruitSkill = "Z-X-C-V"
+_G.AutoBountyEnabled = false
+
+-- Hàm lấy danh sách Player trong Server
+local function GetPlayerList()
+    local list = {}
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            table.insert(list, p.Name)
+        end
+    end
+    return list
+end
+
+-- Hàm bấm phím skill giả lập
+local function PressKey(key)
+    pcall(function()
+        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode[key], false, game)
+        task.wait(0.1)
+        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode[key], false, game)
+    end)
+end
+
+-- Hàm equip đúng loại vũ khí theo ToolType
+local function EquipWeaponType(weaponType)
+    local char = LocalPlayer.Character
+    local backpack = LocalPlayer:FindFirstChild("Backpack")
+    if not char or not backpack then return end
+
+    for _, tool in ipairs(backpack:GetChildren()) do
+        if tool:IsA("Tool") and tool:FindFirstChild("ToolTip") then
+            if tool.ToolTip == weaponType then
+                char.Humanoid:EquipTool(tool)
+                break
+            end
+        end
+    end
+end
+
+-- 1. Aimbot Lock Camera vào Player được chọn
+task.spawn(function()
+    while task.wait() do
+        if _G.AimbotPlayerEnabled and _G.SelectedPlayer ~= "" then
+            local target = Players:FindFirstChild(_G.SelectedPlayer)
+            if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+                local targetPos = target.Character.HumanoidRootPart.Position
+                Workspace.CurrentCamera.CFrame = CFrame.new(Workspace.CurrentCamera.CFrame.Position, targetPos)
+            end
+        end
+    end
+end)
+
+-- 2. Vòng lặp Auto Skill & Auto Bounty Target
+task.spawn(function()
+    while task.wait(0.1) do
+        if _G.AutoBountyEnabled and _G.SelectedPlayer ~= "" then
+            local target = Players:FindFirstChild(_G.SelectedPlayer)
+            local char = LocalPlayer.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+
+            if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+                local tRoot = target.Character.HumanoidRootPart
+                local tHum = target.Character:FindFirstChildOfClass("Humanoid")
+
+                if tHum and tHum.Health > 0 then
+                    -- Teleport tới Player mục tiêu
+                    root.CFrame = tRoot.CFrame * CFrame.new(0, 3, 3)
+
+                    -- Auto Skill Võ (Melee)
+                    if _G.AutoSkillMeleeEnabled then
+                        EquipWeaponType("Melee")
+                        if string.find(_G.SelectedMeleeSkill, "Z") then PressKey("Z") task.wait(0.2) end
+                        if string.find(_G.SelectedMeleeSkill, "X") then PressKey("X") task.wait(0.2) end
+                        if string.find(_G.SelectedMeleeSkill, "C") then PressKey("C") task.wait(0.2) end
+                    end
+
+                    -- Auto Skill Trái (Blox Fruit)
+                    if _G.AutoSkillFruitEnabled then
+                        EquipWeaponType("Blox Fruit")
+                        if string.find(_G.SelectedFruitSkill, "Z") then PressKey("Z") task.wait(0.2) end
+                        if string.find(_G.SelectedFruitSkill, "X") then PressKey("X") task.wait(0.2) end
+                        if string.find(_G.SelectedFruitSkill, "C") then PressKey("C") task.wait(0.2) end
+                        if string.find(_G.SelectedFruitSkill, "V") then PressKey("V") task.wait(0.2) end
+                    end
+                end
+            end
+        end
+    end
+end)
+
 -- ====================================================================
 -- GIAO DIỆN UI
 -- ====================================================================
@@ -1123,6 +1225,7 @@ local SettingTab = Window:CreateTab("Farm settings")
 local PlayerTab = Window:CreateTab("Player")
 local TeleportTab = Window:CreateTab("Teleport (Sea1)")
 local AutoTab = Window:CreateTab("Auto stats")
+local PvpTab = Window:CreateTab("Player & PVP")
 
 MainTab:CreateDropdown("Farming mode", {"Level", "Nearest"}, "Level", function(selected)
     _G.AutoFarmMode = selected
@@ -1223,4 +1326,50 @@ end)
 
 SettingTab:CreateToggle("Auto Haki", true, function(state)
     _G.AutoHakiEnabled = state
+end)
+
+-- Chọn Player & Refresh Danh Sách
+local PlayerDropdown = PvpTab:CreateDropdown("Select Player", GetPlayerList(), "", function(selected)
+    _G.SelectedPlayer = selected
+end)
+
+PvpTab:CreateButton("Refresh Player List", function()
+    local updatedList = GetPlayerList()
+    PlayerDropdown:Refresh(updatedList)
+end)
+
+PvpTab:CreateButton("Teleport to Target", function()
+    if _G.SelectedPlayer ~= "" then
+        local target = Players:FindFirstChild(_G.SelectedPlayer)
+        local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") and root then
+            root.CFrame = target.Character.HumanoidRootPart.CFrame * CFrame.new(0, 3, 2)
+        end
+    end
+end)
+
+-- Aimbot & Target Farm
+PvpTab:CreateToggle("Aimbot Player (Skill Lock)", false, function(state)
+    _G.AimbotPlayerEnabled = state
+end)
+
+PvpTab:CreateToggle("Auto Farm Bounty Target", false, function(state)
+    _G.AutoBountyEnabled = state
+end)
+
+-- Cấu hình Skill Võ & Trái
+PvpTab:CreateDropdown("Melee Skill Select", {"Z", "X", "C", "Z-X-C"}, "Z-X-C", function(selected)
+    _G.SelectedMeleeSkill = selected
+end)
+
+PvpTab:CreateToggle("Auto Skill Melee (Võ)", false, function(state)
+    _G.AutoSkillMeleeEnabled = state
+end)
+
+PvpTab:CreateDropdown("Fruit Skill Select", {"Z", "X", "C", "V", "Z-X-C-V"}, "Z-X-C-V", function(selected)
+    _G.SelectedFruitSkill = selected
+end)
+
+PvpTab:CreateToggle("Auto Skill Fruit (Trái)", false, function(state)
+    _G.AutoSkillFruitEnabled = state
 end)
