@@ -545,6 +545,7 @@ local FastAttackEnabled = true
 local AutoFarmMode = "Level"
 local BringMobEnabled = false
 local SelectedWeapon = "Melee"
+local AutoHakiEnabled = true
 
 -- Độ cao đứng farm so với mặt đất/bãi quái
 local FarmHeight = 18
@@ -666,6 +667,19 @@ local function smoothMoveTo(targetCFrame)
     tween:Play()
     tween.Completed:Wait()
     bv:Destroy()
+end
+
+local function AutoHaki()
+    if not AutoHakiEnabled then return end
+    local char = LocalPlayer.Character
+    if char and not char:FindFirstChild("HasBuso") then
+        local CommF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
+        if CommF then
+            pcall(function()
+                CommF:InvokeServer("Buso")
+            end)
+        end
+    end
 end
 
 local function AutoEquipWeapon()
@@ -1088,12 +1102,11 @@ task.spawn(function()
                             end
                         end)
 
-                        -- Nếu chưa có quest thì bay về NPC và CHỜ BAY TỚI NƠI mới nhận quest
+                        -- Nếu chưa có quest thì bay về NPC nhận quest
                         if not hasActiveQuest then
                             if npcPos then
                                 pcall(function() smoothMoveTo(npcPos) end)
                                 
-                                -- Đợi nhân vật bay đến sát NPC (cách dưới 30 studs) rồi mới xin Quest
                                 local npcVector = (typeof(npcPos) == "CFrame" and npcPos.Position or npcPos)
                                 local startWait = tick()
                                 repeat
@@ -1103,7 +1116,7 @@ task.spawn(function()
                                     if curRoot and (curRoot.Position - npcVector).Magnitude < 30 then
                                         break
                                     end
-                                until tick() - startWait > 8 -- Timeout 8s phòng trường hợp kẹt
+                                until tick() - startWait > 8
                             end
 
                             if CommF then
@@ -1135,7 +1148,7 @@ task.spawn(function()
                                 break
                             end
 
-                            -- TỰ ĐỘNG PHÁT HIỆN HỦY QUEST: Nếu bấm hủy quest là thoát lặp bay về nhận lại ngay
+                            -- Tự động phát hiện hủy quest
                             local isQuestActive = false
                             pcall(function()
                                 local questGui = LocalPlayer.PlayerGui:FindFirstChild("Main") and LocalPlayer.PlayerGui.Main:FindFirstChild("Quest")
@@ -1175,14 +1188,16 @@ task.spawn(function()
 
                             if targetEnemyRoot and targetEnemyRoot.Parent then
                                 farmDuration = tick()
+                                
+                                -- TỰ ĐỘNG BẬT HAKI & TỰ ĐỘNG CẦM VŨ KHÍ KHI FARM
+                                AutoHaki()
                                 AutoEquipWeapon()
 
-                                -- Gom toàn bộ quái về đúng vị trí con quái chính đang nhắm
                                 if BringMobEnabled then
                                     BringMobs(targetEnemyRoot.CFrame, currentData)
                                 end
 
-                                -- Đứng cố định ngay trên đỉnh đầu con quái chính (11 studs)
+                                -- Đứng trên đỉnh đầu quái (11 studs)
                                 curRoot.CFrame = targetEnemyRoot.CFrame * CFrame.new(0, 11, 0)
                                 DoFastAttack(Net)
                             else
@@ -1216,7 +1231,10 @@ task.spawn(function()
                     if nearestEnemyRoot and nearestEnemyRoot.Parent then
                         RootPart.CanCollide = false
                         RootPart.AssemblyLinearVelocity = Vector3.zero
+                        
+                        AutoHaki()
                         AutoEquipWeapon()
+                        
                         RootPart.CFrame = nearestEnemyRoot.CFrame * CFrame.new(0, 11, 0)
                         DoFastAttack(Net)
                     else
