@@ -711,11 +711,8 @@ end
 
 local lastBring = 0
 local function BringMobs(targetCF, currentData)
-    if not _G.BringMobEnabled or not targetCF or not currentData or tick() - lastBring < 0.15 then return end
+    if not _G.BringMobEnabled or not targetCF or not currentData or tick() - lastBring < 0.2 then return end
     lastBring = tick()
-
-    -- Bắt Server giao quyền vật lý quái cho Client của cậu
-    ClaimNetworkOwnership()
 
     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
     if not EnemiesFolder then return end
@@ -730,15 +727,8 @@ local function BringMobs(targetCF, currentData)
 
             if eHum and eRoot and eHum.Health > 0 then
                 local dist = (eRoot.Position - targetCF.Position).Magnitude
-                
-                if dist <= 150 and dist > 3 then
-                    -- Tắt va chạm toàn bộ cơ thể quái để Server không bị lỗi Hitbox
-                    for _, part in ipairs(enemy:GetChildren()) do
-                        if part:IsA("BasePart") then
-                            part.CanCollide = false
-                        end
-                    end
-                    
+                if dist <= 150 and dist > 4 then
+                    eRoot.CanCollide = false
                     eRoot.AssemblyLinearVelocity = Vector3.zero
                     eRoot.CFrame = targetCF
                     
