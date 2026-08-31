@@ -816,9 +816,11 @@ task.spawn(function()
     while true do
         task.wait(0.05)
 
+        local isRunning = _G.AutoFarmLevelEnabled == true
         local mode = tostring(_G.AutoFarmMode or ""):lower()
-        local isNearMode = (mode == "nearest" or mode == "near" or string.find(mode, "near") or _G.AutoFarmNearestEnabled == true)
-        local isLevelMode = (mode == "level" or mode == "farm level") and _G.AutoFarmLevelEnabled
+
+        local isNearMode = isRunning and (mode == "nearest" or mode == "near" or _G.AutoFarmNearestEnabled == true)
+        local isLevelMode = isRunning and (mode == "level" or mode == "farm level")
 
         local Character = LocalPlayer.Character
         local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
