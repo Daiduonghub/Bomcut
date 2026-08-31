@@ -740,11 +740,16 @@ local function BringMobs(targetCF, currentData)
     end
 end
 
+-- Biến tốc độ mặc định ban đầu (phòng hờ chưa bấm dropdown)
+local FastAttackSpeed = 10 
 local lastAttack = 0
+
 local function DoFastAttack(Net, hitTargets)
     if not _G.FastAttackEnabled or #hitTargets == 0 or not Net then return end
 
-    if tick() - lastAttack < 0.05 then return end
+    -- Tính khoảng cooldown dựa theo tốc độ từ Dropdown (Fast = nhỏ nhất -> đánh nhanh nhất)
+    local cooldown = 0.2 / FastAttackSpeed
+    if tick() - lastAttack < cooldown then return end
     lastAttack = tick()
 
     local registerAttack = Net:FindFirstChild("RE/RegisterAttack")
