@@ -803,9 +803,6 @@ local lastBring = 0
 -- ==========================================
 local function BringMobs(targetInput, enemyNameInput)
     if not _G.BringMobEnabled or not targetInput then return end
-    
-    if tick() - lastBring < 0.1 then return end
-    lastBring = tick()
 
     pcall(function()
         if sethiddenproperty then
@@ -838,7 +835,7 @@ local function BringMobs(targetInput, enemyNameInput)
     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
     if not EnemiesFolder then return end
 
-    local maxMobs = _G.MaxBringMobs or 3
+    local maxMobs = _G.MaxBringMobs or 4
     local count = 0
 
     for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
@@ -850,16 +847,15 @@ local function BringMobs(targetInput, enemyNameInput)
                 local matchName = (targetName == "" or enemy.Name == targetName or string.find(enemy.Name, targetName))
                 if matchName then
                     local dist = (eRoot.Position - targetCF.Position).Magnitude
-                    
-                    -- Chỉ húc CFrame khi quái cách xa hơn 3 studs, đến gần rồi thì ngưng đè để tránh server reset
-                    if dist > 3 and dist <= 200 then
+                    if dist <= 250 then
                         count = count + 1
 
                         pcall(function()
                             eRoot.CanCollide = false
                             eRoot.AssemblyLinearVelocity = Vector3.zero
                             eRoot.AssemblyAngularVelocity = Vector3.zero
-                            eRoot.CFrame = targetCF * CFrame.new(0, 0, -1)
+                            -- Ép thẳng CFrame trùng khớp hoàn toàn với quái chính
+                            eRoot.CFrame = targetCF
                         end)
 
                         if count >= maxMobs then break end
