@@ -403,155 +403,191 @@ end
         end
 
         -- DROPDOWN (Đã fix gộp vào TabElements chuẩn)
+                -- DROPDOWN (Hoàn chỉnh không bị cắt cụt)
         function TabElements:CreateDropdown(text, options, defaultOption, callback)
-    local dropdownFrame = Instance.new("Frame")
-    local dropdownTitle = Instance.new("TextLabel")
-    local dropdownBtn = Instance.new("TextButton")
-    local optionsHolder = Instance.new("ScrollingFrame")
-    local UIListLayout = Instance.new("UIListLayout")
+            local dropdownFrame = Instance.new("Frame")
+            local dropdownTitle = Instance.new("TextLabel")
+            local dropdownBtn = Instance.new("TextButton")
+            local optionsHolder = Instance.new("ScrollingFrame")
+            local UIListLayout = Instance.new("UIListLayout")
 
-    local selected = defaultOption or options[1]
-    local isOpened = false
+            local selected = defaultOption or options[1]
+            local isOpened = false
 
-    dropdownFrame.Name = text .. "_Dropdown"
-    dropdownFrame.Size = UDim2.new(1, -6, 0, 36)
-    dropdownFrame.BackgroundColor3 = Color3.fromRGB(21, 27, 36)
-    dropdownFrame.BorderSizePixel = 0
-    dropdownFrame.Parent = TabPage
-
-    local Corner = Instance.new("UICorner")
-    Corner.CornerRadius = UDim.new(0, 6)
-    Corner.Parent = dropdownFrame
-
-    dropdownTitle.Size = UDim2.new(0.5, 0, 1, 0)
-    dropdownTitle.Position = UDim2.new(0, 10, 0, 0)
-    dropdownTitle.BackgroundTransparency = 1
-    dropdownTitle.Text = text
-    dropdownTitle.TextColor3 = Color3.fromRGB(240, 240, 240)
-    dropdownTitle.TextXAlignment = Enum.TextXAlignment.Left
-    dropdownTitle.Font = Enum.Font.GothamMedium
-    dropdownTitle.TextSize = 12
-    dropdownTitle.Parent = dropdownFrame
-
-    dropdownBtn.Size = UDim2.new(0.4, 0, 0, 24)
-    dropdownBtn.Position = UDim2.new(0.58, 0, 0.5, -12)
-    dropdownBtn.BackgroundColor3 = Color3.fromRGB(13, 17, 23)
-    dropdownBtn.Text = tostring(selected) .. " ▼"
-    dropdownBtn.TextColor3 = Color3.fromRGB(0, 210, 255)
-    dropdownBtn.Font = Enum.Font.Gotham
-    dropdownBtn.TextSize = 11
-    dropdownBtn.Parent = dropdownFrame
-
-    local BtnCorner = Instance.new("UICorner")
-    BtnCorner.CornerRadius = UDim.new(0, 4)
-    BtnCorner.Parent = dropdownBtn
-
-    optionsHolder.Size = UDim2.new(1, 0, 0, 0)
-    optionsHolder.Position = UDim2.new(0, 0, 1, 5)
-    optionsHolder.BackgroundColor3 = Color3.fromRGB(17, 22, 30)
-    optionsHolder.Visible = false
-    optionsHolder.BorderSizePixel = 0
-    
-    -- TỐI ƯU: Tự động co giãn kích thước cuộn chuẩn xác tuyệt đối
-    optionsHolder.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    optionsHolder.CanvasSize = UDim2.new(0, 0, 0, 0)
-    optionsHolder.ScrollBarThickness = 3
-    optionsHolder.ScrollingDirection = Enum.ScrollingDirection.Y
-    optionsHolder.ZIndex = 10
-    optionsHolder.Parent = dropdownFrame
-
-    local HolderCorner = Instance.new("UICorner")
-    HolderCorner.CornerRadius = UDim.new(0, 4)
-    HolderCorner.Parent = optionsHolder
-
-    UIListLayout.Parent = optionsHolder
-    UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    UIListLayout.Padding = UDim.new(0, 2) -- Thêm khoảng cách nhỏ giữa các lựa chọn
-
-    local function toggleDropdown()
-        isOpened = not isOpened
-        optionsHolder.Visible = isOpened
-        if isOpened then
-            dropdownBtn.Text = tostring(selected) .. " ▲"
-            
-            -- Lấy chiều cao thực tế của nội dung, giới hạn tối đa 120px để kích hoạt thanh cuộn vuốt xuống
-            task.wait() -- Đợi 1 nhịp để layout render chuẩn kích thước
-            local contentHeight = UIListLayout.AbsoluteContentSize.Y
-            local targetHeight = math.min(contentHeight + 4, 120)
-            
-            optionsHolder.Size = UDim2.new(1, 0, 0, targetHeight)
-            dropdownFrame.Size = UDim2.new(1, -6, 0, 36 + targetHeight + 10)
-        else
-            dropdownBtn.Text = tostring(selected) .. " ▼"
-            optionsHolder.Size = UDim2.new(1, 0, 0, 0)
+            dropdownFrame.Name = text .. "_Dropdown"
             dropdownFrame.Size = UDim2.new(1, -6, 0, 36)
-        end
-    end
+            dropdownFrame.BackgroundColor3 = Color3.fromRGB(21, 27, 36)
+            dropdownFrame.BorderSizePixel = 0
+            dropdownFrame.Parent = TabPage
 
-    dropdownBtn.MouseButton1Click:Connect(toggleDropdown)
+            local Corner = Instance.new("UICorner")
+            Corner.CornerRadius = UDim.new(0, 6)
+            Corner.Parent = dropdownFrame
 
-    for _, opt in ipairs(options) do
-        local optBtn = Instance.new("TextButton")
-        optBtn.Size = UDim2.new(1, 0, 0, 25)
-        optBtn.BackgroundColor3 = Color3.fromRGB(21, 27, 36)
-        optBtn.BackgroundTransparency = 0.5
-        optBtn.Text = "  " .. tostring(opt) -- Thêm khoảng lùi chữ cho đẹp
-        optBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
-        optBtn.Font = Enum.Font.Gotham
-        optBtn.TextSize = 11
-        optBtn.TextXAlignment = Enum.TextXAlignment.Left
-        optBtn.ZIndex = 11
-        optBtn.Parent = optionsHolder
+            dropdownTitle.Size = UDim2.new(0.5, 0, 1, 0)
+            dropdownTitle.Position = UDim2.new(0, 10, 0, 0)
+            dropdownTitle.BackgroundTransparency = 1
+            dropdownTitle.Text = text
+            dropdownTitle.TextColor3 = Color3.fromRGB(240, 240, 240)
+            dropdownTitle.TextXAlignment = Enum.TextXAlignment.Left
+            dropdownTitle.Font = Enum.Font.GothamMedium
+            dropdownTitle.TextSize = 12
+            dropdownTitle.Parent = dropdownFrame
 
-        local optCorner = Instance.new("UICorner")
-        optCorner.CornerRadius = UDim.new(0, 4)
-        optCorner.Parent = optBtn
-
-        optBtn.MouseButton1Click:Connect(function()
-            selected = opt
+            dropdownBtn.Size = UDim2.new(0.4, 0, 0, 24)
+            dropdownBtn.Position = UDim2.new(0.58, 0, 0.5, -12)
+            dropdownBtn.BackgroundColor3 = Color3.fromRGB(13, 17, 23)
             dropdownBtn.Text = tostring(selected) .. " ▼"
-            toggleDropdown()
+            dropdownBtn.TextColor3 = Color3.fromRGB(0, 210, 255)
+            dropdownBtn.Font = Enum.Font.Gotham
+            dropdownBtn.TextSize = 11
+            dropdownBtn.Parent = dropdownFrame
+
+            local BtnCorner = Instance.new("UICorner")
+            BtnCorner.CornerRadius = UDim.new(0, 4)
+            BtnCorner.Parent = dropdownBtn
+
+            optionsHolder.Size = UDim2.new(1, 0, 0, 0)
+            optionsHolder.Position = UDim2.new(0, 0, 1, 5)
+            optionsHolder.BackgroundColor3 = Color3.fromRGB(17, 22, 30)
+            optionsHolder.Visible = false
+            optionsHolder.BorderSizePixel = 0
+            
+            optionsHolder.AutomaticCanvasSize = Enum.AutomaticSize.Y
+            optionsHolder.CanvasSize = UDim2.new(0, 0, 0, 0)
+            optionsHolder.ScrollBarThickness = 3
+            optionsHolder.ScrollingDirection = Enum.ScrollingDirection.Y
+            optionsHolder.ZIndex = 10
+            optionsHolder.Parent = dropdownFrame
+
+            local HolderCorner = Instance.new("UICorner")
+            HolderCorner.CornerRadius = UDim.new(0, 4)
+            HolderCorner.Parent = optionsHolder
+
+            UIListLayout.Parent = optionsHolder
+            UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+            UIListLayout.Padding = UDim.new(0, 2)
+
+            local function toggleDropdown()
+                isOpened = not isOpened
+                optionsHolder.Visible = isOpened
+                if isOpened then
+                    dropdownBtn.Text = tostring(selected) .. " ▲"
+                    task.wait()
+                    local contentHeight = UIListLayout.AbsoluteContentSize.Y
+                    local targetHeight = math.min(contentHeight + 4, 120)
+                    
+                    optionsHolder.Size = UDim2.new(1, 0, 0, targetHeight)
+                    dropdownFrame.Size = UDim2.new(1, -6, 0, 36 + targetHeight + 10)
+                else
+                    dropdownBtn.Text = tostring(selected) .. " ▼"
+                    optionsHolder.Size = UDim2.new(1, 0, 0, 0)
+                    dropdownFrame.Size = UDim2.new(1, -6, 0, 36)
+                end
+            end
+
+            dropdownBtn.MouseButton1Click:Connect(toggleDropdown)
+
+            for _, opt in ipairs(options) do
+                local optBtn = Instance.new("TextButton")
+                optBtn.Size = UDim2.new(1, 0, 0, 25)
+                optBtn.BackgroundColor3 = Color3.fromRGB(21, 27, 36)
+                optBtn.BackgroundTransparency = 0.5
+                optBtn.Text = "  " .. tostring(opt)
+                optBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
+                optBtn.Font = Enum.Font.Gotham
+                optBtn.TextSize = 11
+                optBtn.TextXAlignment = Enum.TextXAlignment.Left
+                optBtn.ZIndex = 11
+                optBtn.Parent = optionsHolder
+
+                local optCorner = Instance.new("UICorner")
+                optCorner.CornerRadius = UDim.new(0, 4)
+                optCorner.Parent = optBtn
+
+                optBtn.MouseButton1Click:Connect(function()
+                    selected = opt
+                    dropdownBtn.Text = tostring(selected) .. " ▼"
+                    toggleDropdown()
+                    if callback then pcall(callback, selected) end
+                end)
+            end
+
+            local dropdownObj = {}
+            function dropdownObj:Refresh(newOptions)
+                options = newOptions
+                for _, child in ipairs(optionsHolder:GetChildren()) do
+                    if child:IsA("TextButton") then child:Destroy() end
+                end
+                for _, opt in ipairs(options) do
+                    local optBtn = Instance.new("TextButton")
+                    optBtn.Size = UDim2.new(1, 0, 0, 25)
+                    optBtn.BackgroundColor3 = Color3.fromRGB(21, 27, 36)
+                    optBtn.BackgroundTransparency = 0.5
+                    optBtn.Text = "  " .. tostring(opt)
+                    optBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
+                    optBtn.Font = Enum.Font.Gotham
+                    optBtn.TextSize = 11
+                    optBtn.TextXAlignment = Enum.TextXAlignment.Left
+                    optBtn.ZIndex = 11
+                    optBtn.Parent = optionsHolder
+
+                    local optCorner = Instance.new("UICorner")
+                    optCorner.CornerRadius = UDim.new(0, 4)
+                    optCorner.Parent = optBtn
+
+                    optBtn.MouseButton1Click:Connect(function()
+                        selected = opt
+                        dropdownBtn.Text = tostring(selected) .. " ▼"
+                        if isOpened then toggleDropdown() end
+                        if callback then pcall(callback, selected) end
+                    end)
+                end
+            end
+
             if callback then pcall(callback, selected) end
-        end)
-    end
+            return dropdownObj
+        end
 
-    if callback then pcall(callback, selected) end
-end
+        -- LABEL (Sửa lại chuẩn cú pháp để nhận trực tiếp từ Tab mà không cần truyền parentFrame thủ công)
+        function TabElements:CreateLabel(initialText, defaultState, callback)
+            local labelContainer = Instance.new("Frame")
+            labelContainer.Size = UDim2.new(1, -6, 0, 36)
+            labelContainer.BackgroundColor3 = Color3.fromRGB(21, 27, 36)
+            labelContainer.BorderSizePixel = 0
+            labelContainer.Parent = TabPage
 
-function TabElements:CreateLabel(parentTabFrame, initialText)
-    local labelContainer = Instance.new("Frame")
-    labelContainer.Size = UDim2.new(1, -20, 0, 35)
-    labelContainer.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-    labelContainer.BorderSizePixel = 0
-    labelContainer.Parent = parentTabFrame
+            local corner = Instance.new("UICorner")
+            corner.CornerRadius = UDim.new(0, 6)
+            corner.Parent = labelContainer
 
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 6)
-    corner.Parent = labelContainer
+            local textLabel = Instance.new("TextLabel")
+            textLabel.Size = UDim2.new(1, -15, 1, 0)
+            textLabel.Position = UDim2.new(0, 10, 0, 0)
+            textLabel.BackgroundTransparency = 1
+            textLabel.TextColor3 = Color3.fromRGB(240, 240, 240)
+            textLabel.TextSize = 12
+            textLabel.Font = Enum.Font.GothamMedium
+            textLabel.TextXAlignment = Enum.TextXAlignment.Left
+            textLabel.Text = initialText or "Label Text"
+            textLabel.Parent = labelContainer
 
-    local textLabel = Instance.new("TextLabel")
-    textLabel.Size = UDim2.new(1, -10, 1, 0)
-    textLabel.Position = UDim2.new(0, 10, 0, 0)
-    textLabel.BackgroundTransparency = 1
-    textLabel.TextColor3 = Color3.fromRGB(240, 240, 240)
-    textLabel.TextSize = 14
-    textLabel.Font = Enum.Font.GothamMedium
-    textLabel.TextXAlignment = Enum.TextXAlignment.Left
-    textLabel.Text = initialText or "Label Text"
-    textLabel.Parent = labelContainer
+            local labelObject = {}
+            
+            function labelObject:Set(newText)
+                textLabel.Text = newText
+            end
 
-    local labelObject = {}
-    
-    function labelObject:Set(newText)
-        textLabel.Text = newText
-    end
+            function labelObject:Destroy()
+                labelContainer:Destroy()
+            end
 
-    function labelObject:Destroy()
-        labelContainer:Destroy()
-    end
+            if callback then
+                pcall(callback, defaultState)
+            end
 
-    return labelObject
-end
+            return labelObject
+        end
 
         return TabElements
     end
