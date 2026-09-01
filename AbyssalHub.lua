@@ -842,8 +842,10 @@ local function BringMobs(targetInput, enemyNameInput)
         if enemy ~= primaryEnemy then
             local eHum = enemy:FindFirstChildOfClass("Humanoid")
             local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+            local eHead = enemy:FindFirstChild("Head")
 
-            if eHum and eRoot and eHum.Health > 0 then
+            -- CHECK TRẠNG THÁI CHUẨN: Quái sống, không chết, đã load đầy đủ Head & RootPart
+            if eHum and eRoot and eHead and eHum.Health > 0 and eHum:GetState() ~= Enum.HumanoidStateType.Dead then
                 local matchName = (targetName == "" or enemy.Name == targetName or string.find(enemy.Name, targetName))
                 if matchName then
                     local dist = (eRoot.Position - targetCF.Position).Magnitude
@@ -851,10 +853,12 @@ local function BringMobs(targetInput, enemyNameInput)
                         count = count + 1
 
                         pcall(function()
+                            -- Triệt tiêu hoàn toàn lực đẩy để hitbox trùng khớp 100%
                             eRoot.CanCollide = false
                             eRoot.AssemblyLinearVelocity = Vector3.zero
                             eRoot.AssemblyAngularVelocity = Vector3.zero
-                            -- Ép thẳng CFrame trùng khớp hoàn toàn với quái chính
+                            
+                            -- Đưa quái về chính xác vị trí quái chính
                             eRoot.CFrame = targetCF
                         end)
 
