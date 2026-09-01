@@ -921,16 +921,16 @@ local function GetNearestEnemy()
 end
 
 -- ==========================================
--- 2. LUỒNG FARM CHÍNH
+-- LUỒNG FARM TẬP TRUNG MỘT MỤC TIÊU ĐẾN KHI CHẾT
 -- ==========================================
 task.spawn(function()
     local CommF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
     local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
 
-    -- LUỒNG GOM QUÁI CHẠY NGẦM (Mỗi Frame ~0.016s)
+    -- LUỒNG GOM QUÁI CHẠY NGẦM (Khóa cứng theo từng frame)
     task.spawn(function()
         while true do
-            task.wait() -- Chạy liên tục để khóa chết quái tại vị trí gom
+            task.wait()
             if _G.BringMobEnabled and _G.CurrentTargetMob then
                 BringMobs(_G.CurrentTargetMob)
             end
@@ -977,7 +977,9 @@ task.spawn(function()
 
         if Character and RootPart and Humanoid and Humanoid.Health > 0 then
             
-            -- FARM QUÁI GẦN NHẤT
+            -- ==========================================
+            -- 1. FARM QUÁI GẦN NHẤT
+            -- ==========================================
             if isNearMode then
                 local targetEnemy = GetNearestEnemy()
 
@@ -1020,7 +1022,9 @@ task.spawn(function()
                     task.wait(0.2)
                 end
 
-            -- FARM THEO LEVEL
+            -- ==========================================
+            -- 2. FARM THEO LEVEL (KHÓA MỤC TIÊU ĐẾN KHI CHẾT)
+            -- ==========================================
             elseif isLevelMode then
                 local currentLevel = getPlayerLevel()
                 local currentData = nil
@@ -1045,7 +1049,6 @@ task.spawn(function()
                             repeat
                                 task.wait(0.1)
                                 if not _G.AutoFarmLevelEnabled then break end
-                                
                                 local curChar = LocalPlayer and LocalPlayer.Character
                                 local curRoot = curChar and curChar:FindFirstChild("HumanoidRootPart")
                                 if curRoot and (curRoot.Position - npcVector).Magnitude < 30 then break end
@@ -1064,68 +1067,61 @@ task.spawn(function()
 
                     if not _G.AutoFarmLevelEnabled then continue end
 
-                    if enemySpot then
-                        pcall(function() smoothMoveTo(enemySpot * CFrame.new(0, FarmHeight or 10, 0)) end)
-                    end
-
-                    local farmDuration = tick()
-                    while _G.AutoFarmLevelEnabled do
-                        task.wait(0.04)
-
-                        local checkMode = tostring(_G.AutoFarmMode or ""):lower()
-                        if string.find(checkMode, "near") or _G.AutoFarmNearestEnabled then break end
-                        if tick() - farmDuration > 35 then break end
-
-                        local curChar = LocalPlayer and LocalPlayer.Character
-                        local curRoot = curChar and curChar:FindFirstChild("HumanoidRootPart")
-                        local curHum = curChar and curChar:FindFirstChildOfClass("Humanoid")
-
-                        if not curChar or not curRoot or not curHum or curHum.Health <= 0 or not checkQuestActive() then
-                            _G.CurrentTargetMob = nil
-                            break
-                        end
-
-                        curRoot.AssemblyLinearVelocity = Vector3.zero
-                        curRoot.CanCollide = false
-
-                        local EnemiesFolder = Workspace:FindFirstChild("Enemies")
-                        local primaryEnemy = nil
-
-                        if EnemiesFolder then
-                            local targetName = currentData and currentData.EnemyName or ""
-                            for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
-                                local eHum = enemy:FindFirstChildOfClass("Humanoid")
-                                local eRoot = enemy:FindFirstChild("HumanoidRootPart")
-                                
-                                if eHum and eHum.Health > 0 and eRoot then
-                                    local matchName = (targetName == "" or enemy.Name == targetName or string.find(enemy.Name, targetName))
-                                    if matchName then
-                                        primaryEnemy = enemy
-                                        break
-                                    end
+                    local EnemiesFolder = Workspace:FindFirstChild("Enemies")
+                    local targetName = currentData and currentData.EnemyName or ""
+                    
+                    -- Tìm một con quái làm tâm chính
+                    local primaryEnemy = nil
+                    if EnemiesFolder then
+                        for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
+                            local eHum = enemy:FindFirstChildOfClass("Humanoid")
+                            local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+                            if eHum and eHum.Health > 0 and eRoot then
+                                local matchName = (targetName == "" or enemy.Name == targetName or string.find(enemy.Name, targetName))
+                                if matchName then
+                                    primaryEnemy = enemy
+                                    break
                                 end
                             end
                         end
+                    end
 
-                        if primaryEnemy and primaryEnemy:FindFirstChild("HumanoidRootPart") then
-                            farmDuration = tick()
-                            _G.CurrentTargetMob = primaryEnemy
+                    if primaryEnemy and primaryEnemy:FindFirstChild("HumanoidRootPart") then
+                        _G.CurrentTargetMob = primaryEnemy
+                        local pRoot = primaryEnemy.HumanoidRootPart
+                        local pHum = primaryEnemy:FindFirstChildOfClass("Humanoid")
 
-                            local pRoot = primaryEnemy.HumanoidRootPart
+                        -- Đánh liên tục CON NÀY CHO ĐẾN KHI NÓ CHẾT (Máu về 0 hoặc bị mất)
+                        while _G.AutoFarmLevelEnabled and pHum and pHum.Health > 0 and primaryEnemy.Parent do
+                            task.wait(0.04)
+
+                            local curChar = LocalPlayer and LocalPlayer.Character
+                            local curRoot = curChar and curChar:FindFirstChild("HumanoidRootPart")
+                            local curHum = curChar and curChar:FindFirstChildOfClass("Humanoid")
+
+                            if not curChar or not curRoot or not curHum or curHum.Health <= 0 or not checkQuestActive() then
+                                break
+                            end
+
+                            curRoot.AssemblyLinearVelocity = Vector3.zero
+                            curRoot.CanCollide = false
                             pRoot.CanCollide = false
                             pRoot.AssemblyLinearVelocity = Vector3.zero
 
+                            -- Giữ nhân vật ở trên đầu quái chính
                             curRoot.CFrame = pRoot.CFrame * CFrame.new(0, FarmHeight or 10, 0)
 
+                            -- Quét tất cả quái xung quanh con chính để gom và chém cùng lúc
                             local hitTargets = {}
-                            local targetName = currentData and currentData.EnemyName or ""
-                            for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
-                                local eHum = enemy:FindFirstChildOfClass("Humanoid")
-                                local eRoot = enemy:FindFirstChild("HumanoidRootPart")
-                                if eHum and eHum.Health > 0 and eRoot then
-                                    local matchName = (targetName == "" or enemy.Name == targetName or string.find(enemy.Name, targetName))
-                                    if matchName and (eRoot.Position - curRoot.Position).Magnitude <= 60 then
-                                        table.insert(hitTargets, eRoot)
+                            if EnemiesFolder then
+                                for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
+                                    local eHum = enemy:FindFirstChildOfClass("Humanoid")
+                                    local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+                                    if eHum and eHum.Health > 0 and eRoot then
+                                        local matchName = (targetName == "" or enemy.Name == targetName or string.find(enemy.Name, targetName))
+                                        if matchName and (eRoot.Position - curRoot.Position).Magnitude <= 60 then
+                                            table.insert(hitTargets, eRoot)
+                                        end
                                     end
                                 end
                             end
@@ -1135,13 +1131,15 @@ task.spawn(function()
                             pcall(function()
                                 DoFastAttack(Net, hitTargets)
                             end)
-                        else
-                            _G.CurrentTargetMob = nil
-                            if enemySpot then
-                                curRoot.CFrame = enemySpot * CFrame.new(0, FarmHeight or 10, 0)
-                            end
-                            task.wait(0.1)
                         end
+
+                        _G.CurrentTargetMob = nil
+                    else
+                        _G.CurrentTargetMob = nil
+                        if enemySpot then
+                            pcall(function() smoothMoveTo(enemySpot * CFrame.new(0, FarmHeight or 10, 0)) end)
+                        end
+                        task.wait(0.2)
                     end
                 end
             end
