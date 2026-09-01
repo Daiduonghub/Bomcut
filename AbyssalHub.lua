@@ -793,68 +793,51 @@ end
 local lastAttack = 0
 
 local lastBring = 0
-local function BringMobs(spawnPos, currentData)
-    if not _G.BringMobEnabled or not spawnPos then return end
+local function BringMobs(primaryEnemy, enemyName)
+    if not _G.BringMobEnabled or not primaryEnemy then return end
     
-    if tick() - lastBring < 0.1 then return end
+    if tick() - lastBring < 0.05 then return end
     lastBring = tick()
 
-    local myChar = LocalPlayer and LocalPlayer.Character
-    if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
+    local primaryRoot = primaryEnemy:FindFirstChild("HumanoidRootPart")
+    if not primaryRoot then return end
 
     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
     if not EnemiesFolder then return end
 
     local maxMobs = _G.MaxBringMobs or 4
-    local targetsToBring = {}
-    local targetName = currentData and currentData.EnemyName or ""
-
-    -- Lấy vị trí TÂM CỐ ĐỊNH của bãi spawn (không lấy theo tọa độ quái đang di chuyển)
-    local baseVector = (typeof(spawnPos) == "CFrame" and spawnPos.Position or spawnPos)
+    local count = 0
+    local targetCF = primaryRoot.CFrame
 
     for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
-        local eHum = enemy:FindFirstChildOfClass("Humanoid")
-        local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+        if enemy ~= primaryEnemy then
+            local eHum = enemy:FindFirstChildOfClass("Humanoid")
+            local eRoot = enemy:FindFirstChild("HumanoidRootPart")
 
-        if eHum and eRoot and eHum.Health > 0 then
-            local matchName = (targetName == "" or enemy.Name == targetName or string.find(enemy.Name, targetName))
-            if matchName then
-                -- Chỉ gom quái trong bán kính bãi spawn
-                local distFromSpawn = (eRoot.Position - baseVector).Magnitude
-                if distFromSpawn <= 180 then
-                    table.insert(targetsToBring, {Root = eRoot, Hum = eHum})
-                    if #targetsToBring >= maxMobs then
-                        break
+            if eHum and eRoot and eHum.Health > 0 then
+                local matchName = (enemyName == "" or enemy.Name == enemyName or string.find(enemy.Name, enemyName))
+                if matchName then
+                    local dist = (eRoot.Position - targetCF.Position).Magnitude
+                    if dist <= 250 then
+                        pcall(function()
+                            -- Tắt va chạm và triệt tiêu vận tốc di chuyển
+                            eRoot.CanCollide = false
+                            eRoot.AssemblyLinearVelocity = Vector3.zero
+                            eRoot.AssemblyAngularVelocity = Vector3.zero
+
+                            -- Khóa AI di chuyển
+                            eHum.PlatformStand = true
+                            eHum.WalkSpeed = 0
+
+                            -- Gom đè trực tiếp vào tọa độ thực của quái chính
+                            eRoot.CFrame = targetCF
+                        end)
+
+                        count = count + 1
+                        if count >= maxMobs then break end
                     end
                 end
             end
-        end
-    end
-
-    if #targetsToBring > 0 then
-        local angleStep = (math.pi * 2) / #targetsToBring
-        for i, mob in ipairs(targetsToBring) do
-            local eRoot = mob.Root
-            local eHum = mob.Hum
-
-            pcall(function()
-                -- Vô hiệu hóa vật lý di chuyển của quái
-                eRoot.CanCollide = false
-                eRoot.AssemblyLinearVelocity = Vector3.zero
-                eRoot.AssemblyAngularVelocity = Vector3.zero
-
-                eHum.WalkSpeed = 0
-                eHum.JumpPower = 0
-                eHum.PlatformStand = true
-
-                -- Gom vòng tròn ngay tại TÂM BÃI SPAWN cố định
-                local angle = i * angleStep
-                local radius = 3
-                local offsetX = math.cos(angle) * radius
-                local offsetZ = math.sin(angle) * radius
-
-                eRoot.CFrame = CFrame.new(baseVector.X + offsetX, baseVector.Y, baseVector.Z + offsetZ)
-            end)
         end
     end
 end
@@ -1233,54 +1216,53 @@ task.spawn(function()
                         curRoot.AssemblyLinearVelocity = Vector3.zero
                         curRoot.CanCollide = false
 
-                        local EnemiesFolder = Workspace:FindFirstChild("Enemies")
-                        local targetEnemyRoot = nil
-                        local minDist = 9999
+                                                local EnemiesFolder = Workspace:FindFirstChild("Enemies")
+                        local primaryEnemy = nil
                         local hitTargets = {}
 
                         if EnemiesFolder then
-                            local targetName = currentData.EnemyName
+                            local targetName = currentData and currentData.EnemyName or ""
                             for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
-                                if enemy.Name == targetName then
-                                    local eHum = enemy:FindFirstChildOfClass("Humanoid")
-                                    local eRoot = enemy:FindFirstChild("HumanoidRootPart")
-                                    if eHum and eHum.Health > 0 and eRoot then
-                                        local dist = (eRoot.Position - curRoot.Position).Magnitude
-                                        if dist < minDist then
-                                            minDist = dist
-                                            targetEnemyRoot = eRoot
+                                local eHum = enemy:FindFirstChildOfClass("Humanoid")
+                                local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+                                
+                                if eHum and eHum.Health > 0 and eRoot then
+                                    local matchName = (targetName == "" or enemy.Name == targetName or string.find(enemy.Name, targetName))
+                                    if matchName then
+                                        if not primaryEnemy then
+                                            primaryEnemy = enemy
                                         end
-                                        if dist <= 60 then
-                                            table.insert(hitTargets, enemy:FindFirstChild("Head") or eRoot)
-                                        end
+                                        table.insert(hitTargets, enemy:FindFirstChild("Head") or eRoot)
                                     end
                                 end
                             end
                         end
 
-                        if targetEnemyRoot and targetEnemyRoot.Parent then
+                        if primaryEnemy and primaryEnemy:FindFirstChild("HumanoidRootPart") then
                             farmDuration = tick()
-                            
+                            local pRoot = primaryEnemy.HumanoidRootPart
+
+                            -- 1. Gom các quái phụ đè trực tiếp lên vị trí quái chính
+                            if _G.BringMobEnabled then
+                                pcall(function()
+                                    BringMobs(primaryEnemy, currentData and currentData.EnemyName or "")
+                                end)
+                            end
+
+                            -- 2. Đứng cố định ngay trên đầu quái chính
+                            curRoot.AssemblyLinearVelocity = Vector3.zero
+                            curRoot.CanCollide = false
+                            curRoot.CFrame = pRoot.CFrame * CFrame.new(0, FarmHeight or 10, 0)
+
+                            -- 3. Bật Haki, trang bị vũ khí và Fast Attack
                             pcall(AutoHaki)
                             pcall(AutoEquipWeapon)
-
-                            local enemyCF = targetEnemyRoot.CFrame
-
--- Chỗ gọi BringMobs trong luồng Farm Level:
-if _G.BringMobEnabled and enemySpot then
-    pcall(function()
-        BringMobs(enemySpot, currentData)
-    end)
-end
-
-                            curRoot.CFrame = enemyCF * CFrame.new(0, FarmHeight, 0)
-
                             pcall(function()
                                 DoFastAttack(Net, hitTargets)
                             end)
                         else
                             if enemySpot then
-                                curRoot.CFrame = enemySpot * CFrame.new(0, FarmHeight, 0)
+                                curRoot.CFrame = enemySpot * CFrame.new(0, FarmHeight or 10, 0)
                             end
                             task.wait(0.1)
                         end
