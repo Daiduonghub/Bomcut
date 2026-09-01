@@ -628,7 +628,7 @@ _G.AutoFarmMode = "Level"
 _G.BringMobEnabled = false
 _G.SelectedWeapon = "Melee"
 _G.AutoHakiEnabled = true
-_G.MaxBringMobs = 4
+_G.MaxBringMobs = 3
 
 local FarmHeight = 11 -- Độ cao đứng trên đầu quái khi farm
 
