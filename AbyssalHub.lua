@@ -799,49 +799,51 @@ local lastAttack = 0
 local lastBring = 0
 
 -- ==========================================
--- 1. HÀM GOM QUÁI MƯỢT (TRÁNH ĐƠ AI / RESET SERVER)
+-- 1. HÀM GOM QUÁI CHUẨN (TẮT TOÀN BỘ COLLIDE)
 -- ==========================================
-local function BringMobs(targetInput, enemyNameInput)
-    if not _G.BringMobEnabled or not targetInput then return end
-
-    local targetCF = nil
-    if typeof(targetInput) == "Instance" and targetInput:FindFirstChild("HumanoidRootPart") then
-        targetCF = targetInput.HumanoidRootPart.CFrame
-    elseif typeof(targetInput) == "CFrame" then
-        targetCF = targetInput
+local function BringMobs(targetMob)
+    if not _G.BringMobEnabled or not targetMob or not targetMob:FindFirstChild("HumanoidRootPart") then 
+        return 
     end
-    if not targetCF then return end
 
-    local rawName = type(enemyNameInput) == "string" and enemyNameInput or ""
-    local targetName = rawName:gsub("%s*%[.-%]", ""):lower()
-
-    local EnemiesFolder = workspace:FindFirstChild("Enemies")
-    if not EnemiesFolder then return end
-
+    local targetCF = targetMob.HumanoidRootPart.CFrame
+    local targetName = targetMob.Name:gsub("%s*%[.-%]", ""):lower()
     local maxMobs = _G.MaxBringMobs or 4
-    local count = 0
+    local count = 1
 
-    for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
-        local eHum = enemy:FindFirstChildOfClass("Humanoid")
-        local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+    local Enemies = workspace:FindFirstChild("Enemies")
+    if not Enemies then return end
 
-        if eHum and eRoot and eHum.Health > 0 then
-            local eName = enemy.Name:gsub("%s*%[.-%]", ""):lower()
-            if targetName == "" or string.find(eName, targetName, 1, true) then
-                local dist = (eRoot.Position - targetCF.Position).Magnitude
-                
-                -- CHỈ GOM KHI QUÁI BỊ DẠT RA XA (> 2 studs)
-                -- Đã ở sát bên rồi thì thả ra để server nhận dame, không đè CFrame nữa
-                if dist > 2 and dist <= 150 then
-                    count = count + 1
+    for _, enemy in ipairs(Enemies:GetChildren()) do
+        if enemy ~= targetMob then
+            local eHum = enemy:FindFirstChildOfClass("Humanoid")
+            local eRoot = enemy:FindFirstChild("HumanoidRootPart")
 
-                    pcall(function()
-                        eRoot.CanCollide = false
-                        eRoot.AssemblyLinearVelocity = Vector3.zero
-                        eRoot.CFrame = targetCF
-                    end)
+            if eHum and eRoot and eHum.Health > 0 then
+                local eName = enemy.Name:gsub("%s*%[.-%]", ""):lower()
 
-                    if count >= maxMobs then break end
+                if eName == targetName or string.find(eName, targetName, 1, true) then
+                    local dist = (eRoot.Position - targetCF.Position).Magnitude
+
+                    if dist > 3 and dist <= 150 then
+                        count = count + 1
+
+                        pcall(function()
+                            -- Tắt va chạm tất cả bộ phận quái để không bị dội vật lý
+                            for _, part in ipairs(enemy:GetChildren()) do
+                                if part:IsA("BasePart") then
+                                    part.CanCollide = false
+                                end
+                            end
+
+                            eHum.PlatformStand = true
+                            eRoot.AssemblyLinearVelocity = Vector3.zero
+                            eRoot.AssemblyAngularVelocity = Vector3.zero
+                            eRoot.CFrame = targetCF
+                        end)
+
+                        if count >= maxMobs then break end
+                    end
                 end
             end
         end
@@ -906,11 +908,21 @@ local function GetNearestEnemy()
 end
 
 -- ==========================================
--- 3. LUỒNG FARM CHÍNH (MAIN TASK)
+-- 3. LUỒNG CHÍNH AUTO FARM
 -- ==========================================
 task.spawn(function()
     local CommF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
     local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
+
+    -- LUỒNG GOM QUÁI CHẠY NGẦM (0.1s/lần)
+    task.spawn(function()
+        while true do
+            task.wait(0.1)
+            if _G.BringMobEnabled and _G.CurrentTargetMob then
+                BringMobs(_G.CurrentTargetMob)
+            end
+        end
+    end)
 
     local function getPlayerLevel()
         local data = LocalPlayer and LocalPlayer:FindFirstChild("Data")
@@ -932,6 +944,7 @@ task.spawn(function()
         task.wait(0.05)
 
         if not _G.AutoFarmLevelEnabled then 
+            _G.CurrentTargetMob = nil
             continue 
         end
 
@@ -941,6 +954,7 @@ task.spawn(function()
 
         local Character = LocalPlayer and LocalPlayer.Character
         if not Character or not Character:FindFirstChild("HumanoidRootPart") or not Character:FindFirstChildOfClass("Humanoid") or Character.Humanoid.Health <= 0 then
+            _G.CurrentTargetMob = nil
             task.wait(1)
             continue
         end
@@ -962,16 +976,14 @@ task.spawn(function()
                     local eHum = targetEnemy:FindFirstChildOfClass("Humanoid")
 
                     if eRoot and eHum and eHum.Health > 0 then
+                        _G.CurrentTargetMob = targetEnemy
+
                         RootPart.AssemblyLinearVelocity = Vector3.zero
                         RootPart.CanCollide = false
                         RootPart.CFrame = eRoot.CFrame * CFrame.new(0, FarmHeight or 10, 0)
 
                         eRoot.CanCollide = false
                         eRoot.AssemblyLinearVelocity = Vector3.zero
-
-                        if _G.BringMobEnabled then
-                            BringMobs(targetEnemy, enemyName)
-                        end
 
                         local hitTargets = {}
                         local EnemiesFolder = Workspace:FindFirstChild("Enemies")
@@ -993,6 +1005,7 @@ task.spawn(function()
                         DoFastAttack(Net, hitTargets)
                     end
                 else
+                    _G.CurrentTargetMob = nil
                     task.wait(0.2)
                 end
 
@@ -1015,6 +1028,7 @@ task.spawn(function()
                     local enemySpot = EnemyPositions[currentData.EnemyName]
 
                     if not checkQuestActive() then
+                        _G.CurrentTargetMob = nil
                         if npcPos then
                             pcall(function() smoothMoveTo(npcPos) end)
                             local npcVector = (typeof(npcPos) == "CFrame" and npcPos.Position or npcPos)
@@ -1059,6 +1073,7 @@ task.spawn(function()
                         local curHum = curChar and curChar:FindFirstChildOfClass("Humanoid")
 
                         if not curChar or not curRoot or not curHum or curHum.Health <= 0 or not checkQuestActive() then
+                            _G.CurrentTargetMob = nil
                             break
                         end
 
@@ -1086,16 +1101,11 @@ task.spawn(function()
 
                         if primaryEnemy and primaryEnemy:FindFirstChild("HumanoidRootPart") then
                             farmDuration = tick()
-                            local pRoot = primaryEnemy.HumanoidRootPart
+                            _G.CurrentTargetMob = primaryEnemy
 
+                            local pRoot = primaryEnemy.HumanoidRootPart
                             pRoot.CanCollide = false
                             pRoot.AssemblyLinearVelocity = Vector3.zero
-
-                            if _G.BringMobEnabled then
-                                pcall(function()
-                                    BringMobs(primaryEnemy, currentData and currentData.EnemyName or "")
-                                end)
-                            end
 
                             curRoot.CFrame = pRoot.CFrame * CFrame.new(0, FarmHeight or 10, 0)
 
@@ -1118,6 +1128,7 @@ task.spawn(function()
                                 DoFastAttack(Net, hitTargets)
                             end)
                         else
+                            _G.CurrentTargetMob = nil
                             if enemySpot then
                                 curRoot.CFrame = enemySpot * CFrame.new(0, FarmHeight or 10, 0)
                             end
