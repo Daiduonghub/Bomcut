@@ -825,20 +825,33 @@ local function BringMobs(targetMob)
                 if eName == targetName or string.find(eName, targetName, 1, true) then
                     local dist = (eRoot.Position - targetCF.Position).Magnitude
 
-                    -- RÚT NGẮN BÁN KÍNH Gom xuống 65 studs để Server không giật quái về spawn
-                    if dist > 2 and dist <= 65 then
+                    -- Mở rộng lại tầm gom lên 120 studs
+                    if dist > 1 and dist <= 120 then
                         count = count + 1
 
                         pcall(function()
+                            -- Giành Network Ownership giúp ép Server nhận vị trí quái ngay lập tức
+                            if sethiddenproperty then
+                                sethiddenproperty(eRoot, "NetworkIsServerTagged", false)
+                            end
+
+                            -- Tắt va chạm toàn bộ part
                             for _, part in ipairs(enemy:GetChildren()) do
                                 if part:IsA("BasePart") then
                                     part.CanCollide = false
                                 end
                             end
 
+                            -- Khóa cứng chuyển động
                             eHum.PlatformStand = true
+                            eHum.WalkSpeed = 0
+                            eHum.JumpPower = 0
+                            
+                            -- Triệt tiêu lực vật lý
                             eRoot.AssemblyLinearVelocity = Vector3.zero
                             eRoot.AssemblyAngularVelocity = Vector3.zero
+                            
+                            -- Ép vị trí dính chặt vào quái chính
                             eRoot.CFrame = targetCF
                         end)
 
@@ -916,13 +929,13 @@ task.spawn(function()
 
     -- LUỒNG GOM QUÁI CHẠY NGẦM (0.1s/lần)
     task.spawn(function()
-        while true do
-            task.wait(0.1)
-            if _G.BringMobEnabled and _G.CurrentTargetMob then
-                BringMobs(_G.CurrentTargetMob)
-            end
+    while true do
+        task.wait(0.1) -- Chạy liên tục từng frame để giữ quái chết dí tại chỗ
+        if _G.BringMobEnabled and _G.CurrentTargetMob then
+            BringMobs(_G.CurrentTargetMob)
         end
-    end)
+    end
+end)
 
     local function getPlayerLevel()
         local data = LocalPlayer and LocalPlayer:FindFirstChild("Data")
