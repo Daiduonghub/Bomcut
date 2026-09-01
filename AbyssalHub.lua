@@ -799,8 +799,7 @@ local function BringMobs(targetCF, currentData)
     if tick() - lastBring < 0.1 then return end
     lastBring = tick()
 
-    local localPlayer = game:GetService("Players").LocalPlayer
-    local myChar = localPlayer.Character
+    local myChar = LocalPlayer and LocalPlayer.Character
     if not myChar then return end
     local rootPart = myChar:FindFirstChild("HumanoidRootPart")
     if not rootPart then return end
@@ -811,9 +810,15 @@ local function BringMobs(targetCF, currentData)
     local maxMobs = _G.MaxBringMobs or 3
     local targetsToBring = {}
     local targetName = currentData and currentData.EnemyName or ""
-
-    -- Tọa độ mặt đất gốc của con quái mục tiêu
     local basePos = targetCF.Position
+
+    -- Tăng bán kính nhận sát thương client nếu Executor hỗ trợ
+    if sethiddenproperty then
+        pcall(function()
+            sethiddenproperty(LocalPlayer, "MaximumSimulationRadius", math.huge)
+            sethiddenproperty(LocalPlayer, "SimulationRadius", 99999)
+        end)
+    end
 
     for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
         local eHum = enemy:FindFirstChildOfClass("Humanoid")
@@ -822,8 +827,9 @@ local function BringMobs(targetCF, currentData)
         if eHum and eRoot and eHum.Health > 0 then
             local matchName = (targetName == "" or enemy.Name == targetName or string.find(enemy.Name, targetName))
             if matchName then
+                -- Chỉ gom quái trong tầm Leash an toàn (<= 150 studs từ bãi gốc)
                 local dist = (eRoot.Position - basePos).Magnitude
-                if dist <= 250 then
+                if dist <= 150 then
                     table.insert(targetsToBring, {Root = eRoot, Hum = eHum})
                     if #targetsToBring >= maxMobs then
                         break
@@ -840,26 +846,28 @@ local function BringMobs(targetCF, currentData)
             local eHum = mob.Hum
 
             pcall(function()
+                -- Triệt tiêu hoàn toàn lực di chuyển và va chạm
                 eRoot.CanCollide = false
                 eRoot.AssemblyLinearVelocity = Vector3.zero
                 eRoot.AssemblyAngularVelocity = Vector3.zero
 
-                local angle = i * angleStep
-                local radius = 2.5 -- Khoảng cách gom tụ lại
-                local offsetX = math.cos(angle) * radius
-                local offsetZ = math.sin(angle) * radius
-
-                -- Đặt quái đứng cố định trên mặt đất xung quanh vị trí basePos
-                eRoot.CFrame = CFrame.new(basePos.X + offsetX, basePos.Y, basePos.Z + offsetZ)
-
+                -- Ép quái vào trạng thái Physics để ngắt AI tự đi về Spawn
+                eHum:ChangeState(Enum.HumanoidStateType.Physics)
                 eHum.PlatformStand = true
                 eHum.WalkSpeed = 0
                 eHum.JumpPower = 0
+
+                local angle = i * angleStep
+                local radius = 2.5
+                local offsetX = math.cos(angle) * radius
+                local offsetZ = math.sin(angle) * radius
+
+                -- Cố định quái ngay bãi gốc (basePos)
+                eRoot.CFrame = CFrame.new(basePos.X + offsetX, basePos.Y, basePos.Z + offsetZ)
             end)
         end
     end
 end
-
 
 -- Hàm Fast Attack Multi-hit càn quét toàn bộ quái đang bị khóa
 local function DoFastAttack(Net, currentData)
