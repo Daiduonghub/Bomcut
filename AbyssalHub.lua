@@ -941,12 +941,144 @@ end
 -- ==========================================
 -- 3. LUỒNG FARM CHÍNH (MAIN TASK)
 -- ==========================================
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
+
+local lastAttack = 0
+local lastBring = 0
+
+local function BringMobs(targetCF, currentData)
+    if not _G.BringMobEnabled or not targetCF then return end
+    
+    if tick() - lastBring < 0.1 then return end
+    lastBring = tick()
+
+    local myChar = LocalPlayer and LocalPlayer.Character
+    if not myChar then return end
+    local rootPart = myChar:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return end
+
+    local EnemiesFolder = Workspace:FindFirstChild("Enemies")
+    if not EnemiesFolder then return end
+
+    local maxMobs = _G.MaxBringMobs or 3
+    local targetsToBring = {}
+    local targetName = currentData and currentData.EnemyName or ""
+
+    -- Tọa độ mặt đất gốc của con quái mục tiêu
+    local basePos = targetCF.Position
+
+    for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
+        local eHum = enemy:FindFirstChildOfClass("Humanoid")
+        local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+
+        if eHum and eRoot and eHum.Health > 0 then
+            local matchName = (targetName == "" or enemy.Name == targetName or string.find(enemy.Name, targetName))
+            if matchName then
+                local dist = (eRoot.Position - basePos).Magnitude
+                if dist <= 250 then
+                    table.insert(targetsToBring, {Root = eRoot, Hum = eHum})
+                    if #targetsToBring >= maxMobs then
+                        break
+                    end
+                end
+            end
+        end
+    end
+
+    if #targetsToBring > 0 then
+        local angleStep = (math.pi * 2) / #targetsToBring
+        for i, mob in ipairs(targetsToBring) do
+            local eRoot = mob.Root
+            local eHum = mob.Hum
+
+            pcall(function()
+                eRoot.CanCollide = false
+                eRoot.AssemblyLinearVelocity = Vector3.zero
+                eRoot.AssemblyAngularVelocity = Vector3.zero
+
+                local angle = i * angleStep
+                local radius = 2.5 -- Khoảng cách gom tụ lại
+                local offsetX = math.cos(angle) * radius
+                local offsetZ = math.sin(angle) * radius
+
+                -- Đặt quái đứng cố định trên mặt đất xung quanh vị trí basePos
+                eRoot.CFrame = CFrame.new(basePos.X + offsetX, basePos.Y, basePos.Z + offsetZ)
+
+                eHum.PlatformStand = true
+                eHum.WalkSpeed = 0
+                eHum.JumpPower = 0
+            end)
+        end
+    end
+end
+
+-- Hàm Fast Attack Multi-hit càn quét trực tiếp danh sách quái trong phạm vi
+local function DoFastAttack(Net, hitTargets)
+    if not _G.FastAttackEnabled or not Net then return end
+    
+    local speed = tonumber(_G.FastAttackSpeed) or 15
+    local cooldown = math.max(0.01, 0.1 / speed)
+    
+    if tick() - lastAttack < cooldown then return end
+    lastAttack = tick()
+
+    pcall(function()
+        local registerAttack = Net:FindFirstChild("RE/RegisterAttack")
+        local registerHit = Net:FindFirstChild("RE/RegisterHit")
+
+        if registerAttack then
+            registerAttack:FireServer(0.1)
+        end
+
+        if registerHit and hitTargets and #hitTargets > 0 then
+            for _, target in ipairs(hitTargets) do
+                local args = {
+                    [1] = target,
+                    [2] = {},
+                    [4] = "15822e18"
+                }
+                registerHit:FireServer(unpack(args))
+            end
+        end
+    end)
+end
+
+local function GetNearestEnemy()
+    local nearest = nil
+    local minDist = math.huge
+    local char = LocalPlayer and LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if not root then return nil end
+
+    local enemiesFolder = Workspace:FindFirstChild("Enemies")
+    if enemiesFolder then
+        for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+            local eHum = enemy:FindFirstChildOfClass("Humanoid")
+            local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+            if eHum and eHum.Health > 0 and eRoot then
+                local dist = (eRoot.Position - root.Position).Magnitude
+                if dist < minDist then
+                    minDist = dist
+                    nearest = enemy
+                end
+            end
+        end
+    end
+    return nearest
+end
+
+-- ==========================================
+-- 3. LUỒNG FARM CHÍNH (MAIN TASK)
+-- ==========================================
 task.spawn(function()
     local CommF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
     local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
 
     local function getPlayerLevel()
-        local data = LocalPlayer:FindFirstChild("Data")
+        local data = LocalPlayer and LocalPlayer:FindFirstChild("Data")
         return (data and data:FindFirstChild("Level")) and data.Level.Value or 1
     end
 
@@ -955,7 +1087,7 @@ task.spawn(function()
     local function checkQuestActive()
         if tick() - lastQuestCheck > 0.4 then
             lastQuestCheck = tick()
-            local questGui = LocalPlayer.PlayerGui:FindFirstChild("Main") and LocalPlayer.PlayerGui.Main:FindFirstChild("Quest")
+            local questGui = LocalPlayer and LocalPlayer.PlayerGui:FindFirstChild("Main") and LocalPlayer.PlayerGui.Main:FindFirstChild("Quest")
             isQuestActiveCache = questGui and questGui.Visible or false
         end
         return isQuestActiveCache
@@ -964,7 +1096,6 @@ task.spawn(function()
     while true do
         task.wait(0.05)
 
-        -- Nếu tắt toggle thì bỏ qua vòng lặp, không chạy ngầm tốn tài nguyên
         if not _G.AutoFarmLevelEnabled then 
             continue 
         end
@@ -973,8 +1104,7 @@ task.spawn(function()
         local isNearMode = (mode == "nearest" or mode == "near" or _G.AutoFarmNearestEnabled == true)
         local isLevelMode = (mode == "level" or mode == "farm level")
 
-        local Character = LocalPlayer.Character
-        -- Khắc phục lỗi reset: Nếu nhân vật chưa load xong hoặc đã chết thì đợi 1 nhịp rồi tiếp tục
+        local Character = LocalPlayer and LocalPlayer.Character
         if not Character or not Character:FindFirstChild("HumanoidRootPart") or not Character:FindFirstChildOfClass("Humanoid") or Character.Humanoid.Health <= 0 then
             task.wait(1)
             continue
@@ -1063,7 +1193,7 @@ task.spawn(function()
                                 task.wait(0.1)
                                 if not _G.AutoFarmLevelEnabled then break end
                                 
-                                local curChar = LocalPlayer.Character
+                                local curChar = LocalPlayer and LocalPlayer.Character
                                 local curRoot = curChar and curChar:FindFirstChild("HumanoidRootPart")
                                 if curRoot and (curRoot.Position - npcVector).Magnitude < 30 then break end
                             until tick() - startWait > 8
@@ -1094,7 +1224,7 @@ task.spawn(function()
 
                         if tick() - farmDuration > 35 then break end
 
-                        local curChar = LocalPlayer.Character
+                        local curChar = LocalPlayer and LocalPlayer.Character
                         local curRoot = curChar and curChar:FindFirstChild("HumanoidRootPart")
                         local curHum = curChar and curChar:FindFirstChildOfClass("Humanoid")
 
@@ -1162,6 +1292,7 @@ task.spawn(function()
         end
     end
 end)
+
                         
 -- SEA 1 TELEPORT LOCATIONS
 local IslandTeleports = {
