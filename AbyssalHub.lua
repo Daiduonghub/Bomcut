@@ -818,9 +818,6 @@ local function BringMobs(targetMob)
     local Enemies = workspace:FindFirstChild("Enemies")
     if not Enemies then return end
 
-    -- Lấy vị trí nhân vật hoặc quái chính làm tâm để quét quái ở xa xung quanh
-    local centerPos = targetMob.HumanoidRootPart.Position
-
     for _, enemy in ipairs(Enemies:GetChildren()) do
         if enemy ~= targetMob then
             local eHum = enemy:FindFirstChildOfClass("Humanoid")
@@ -829,29 +826,27 @@ local function BringMobs(targetMob)
             if eHum and eRoot and eHum.Health > 0 then
                 local eName = enemy.Name:gsub("%s*%[.-%]", ""):lower()
 
-                -- Kiểm tra đúng tên quái nhiệm vụ
                 if eName == targetName or string.find(eName, targetName, 1, true) then
-                    -- Tính khoảng cách từ quái phụ đến quái chính (cho phép gom quái ở xa tới 130 studs)
-                    local dist = (eRoot.Position - centerPos).Magnitude
+                    local dist = (eRoot.Position - targetMob.HumanoidRootPart.Position).Magnitude
 
+                    -- Quét quái trong phạm vi rộng (130 studs) để kéo về
                     if dist <= 130 then
                         count = count + 1
 
                         pcall(function()
-                            -- Tắt va chạm để quái không bị đẩy văng ra
+                            -- Tắt va chạm để không bị đẩy văng
                             for _, part in ipairs(enemy:GetChildren()) do
                                 if part:IsA("BasePart") then
                                     part.CanCollide = false
                                 end
                             end
 
-                            -- Ép vị trí dính thẳng vào con quái chính
+                            -- Ép vị trí dính chặt vào quái chính để nhận chung sát thương
                             eRoot.CFrame = targetCF
                             eRoot.AssemblyLinearVelocity = Vector3.zero
                             eRoot.AssemblyAngularVelocity = Vector3.zero
 
-                            -- Khóa đứng yên không cho AI chạy lung tung
-                            eHum.PlatformStand = true
+                            -- Chỉ khóa nhẹ di chuyển, KHÔNG bật PlatformStand để quái không bị khóa AI chết cứng
                             eHum.WalkSpeed = 0
                         end)
 
@@ -862,7 +857,6 @@ local function BringMobs(targetMob)
         end
     end
 end
-
 
 -- ==========================================
 -- 2. HÀM FAST ATTACK MULTI-HIT
