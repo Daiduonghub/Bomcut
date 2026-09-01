@@ -899,15 +899,24 @@ task.spawn(function()
     while true do
         task.wait(0.05)
 
-        local isRunning = _G.AutoFarmLevelEnabled == true
-        local mode = tostring(_G.AutoFarmMode or ""):lower()
+        -- Nếu tắt toggle thì bỏ qua vòng lặp, không chạy ngầm tốn tài nguyên
+        if not _G.AutoFarmLevelEnabled then 
+            continue 
+        end
 
-        local isNearMode = isRunning and (mode == "nearest" or mode == "near" or _G.AutoFarmNearestEnabled == true)
-        local isLevelMode = isRunning and (mode == "level" or mode == "farm level")
+        local mode = tostring(_G.AutoFarmMode or ""):lower()
+        local isNearMode = (mode == "nearest" or mode == "near" or _G.AutoFarmNearestEnabled == true)
+        local isLevelMode = (mode == "level" or mode == "farm level")
 
         local Character = LocalPlayer.Character
-        local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
-        local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
+        -- Khắc phục lỗi reset: Nếu nhân vật chưa load xong hoặc đã chết thì đợi 1 nhịp rồi tiếp tục, tránh đứng im đơ máy
+        if not Character or not Character:FindFirstChild("HumanoidRootPart") or not Character:FindFirstChildOfClass("Humanoid") or Character.Humanoid.Health <= 0 then
+            task.wait(1)
+            continue
+        end
+
+        local RootPart = Character.HumanoidRootPart
+        local Humanoid = Character:FindFirstChildOfClass("Humanoid")
 
         if Character and RootPart and Humanoid and Humanoid.Health > 0 then
             
@@ -926,6 +935,8 @@ task.spawn(function()
                         if (eRoot.Position - RootPart.Position).Magnitude > 60 then
                             pcall(function() smoothMoveTo(eRoot.CFrame * CFrame.new(0, FarmHeight, 0)) end)
                         end
+
+                        if not _G.AutoFarmLevelEnabled then continue end
 
                         RootPart.AssemblyLinearVelocity = Vector3.zero
                         RootPart.CanCollide = false
@@ -985,11 +996,17 @@ task.spawn(function()
                             local startWait = tick()
                             repeat
                                 task.wait(0.1)
+                                -- Ngắt ngay lập tức nếu tắt toggle giữa lúc đang di chuyển nhận quest
+                                if not _G.AutoFarmLevelEnabled then break end
+                                
                                 local curChar = LocalPlayer.Character
                                 local curRoot = curChar and curChar:FindFirstChild("HumanoidRootPart")
                                 if curRoot and (curRoot.Position - npcVector).Magnitude < 30 then break end
                             until tick() - startWait > 8
                         end
+
+                        -- Kiểm tra lại lần nữa trước khi gửi lệnh gọi nhận quest
+                        if not _G.AutoFarmLevelEnabled then continue end
 
                         if CommF then
                             pcall(function()
@@ -998,6 +1015,8 @@ task.spawn(function()
                             task.wait(0.3)
                         end
                     end
+
+                    if not _G.AutoFarmLevelEnabled then continue end
 
                     if enemySpot then
                         pcall(function() smoothMoveTo(enemySpot * CFrame.new(0, FarmHeight, 0)) end)
@@ -1048,28 +1067,28 @@ task.spawn(function()
                             end
                         end
 
-if targetEnemyRoot and targetEnemyRoot.Parent then
-    farmDuration = tick()
-    
-    pcall(AutoHaki)
-    pcall(AutoEquipWeapon)
+                        if targetEnemyRoot and targetEnemyRoot.Parent then
+                            farmDuration = tick()
+                            
+                            pcall(AutoHaki)
+                            pcall(AutoEquipWeapon)
 
-    if _G.BringMobEnabled then
-        pcall(function()
-            BringMobs(targetEnemyRoot.CFrame, currentData)
-        end)
-    end
+                            if _G.BringMobEnabled then
+                                pcall(function()
+                                    BringMobs(targetEnemyRoot.CFrame, currentData)
+                                end)
+                            end
 
-    curRoot.CFrame = targetEnemyRoot.CFrame * CFrame.new(0, FarmHeight, 0)
-    pcall(function()
-        DoFastAttack(Net, hitTargets)
-    end)
-else
-    if enemySpot then
-        curRoot.CFrame = enemySpot * CFrame.new(0, FarmHeight, 0)
-    end
-    task.wait(0.1)
-end
+                            curRoot.CFrame = targetEnemyRoot.CFrame * CFrame.new(0, FarmHeight, 0)
+                            pcall(function()
+                                DoFastAttack(Net, hitTargets)
+                            end)
+                        else
+                            if enemySpot then
+                                curRoot.CFrame = enemySpot * CFrame.new(0, FarmHeight, 0)
+                            end
+                            task.wait(0.1)
+                        end
                     end
                 end
             end
