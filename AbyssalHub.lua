@@ -794,16 +794,17 @@ local lastBring = 0
 local function BringMobs(targetCF, currentData)
     if not _G.BringMobEnabled or not targetCF or not currentData then return end
     
-    -- Giới hạn tần suất kéo để quái có thời gian thở và hồi phục hoạt động (tránh bị đơ cứng)
-    if tick() - lastBring < 0.15 then return end
+    -- Tăng nhịp quét nhẹ để game có thời gian load khung hình ổn định
+    if tick() - lastBring < 0.1 then return end
     lastBring = tick()
 
     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
     if not EnemiesFolder then return end
 
     local maxMobs = _G.MaxBringMobs or 3
-    local broughtCount = 0
+    local targetsToBring = {}
 
+    -- Bước 1: Lọc danh sách quái sống trong phạm vi
     for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
         if enemy.Name == currentData.EnemyName then
             local eHum = enemy:FindFirstChildOfClass("Humanoid")
@@ -812,20 +813,40 @@ local function BringMobs(targetCF, currentData)
             if eHum and eRoot and eHum.Health > 0 then
                 local dist = (eRoot.Position - targetCF.Position).Magnitude
                 if dist <= 150 then
-                    eRoot.CanCollide = false
-                    
-                    -- Thay vì khóa cứng bằng Vector3.zero gây lỗi đơ, ta chỉ dịch chuyển trực tiếp nhẹ nhàng quanh tâm nhân vật
-                    eRoot.CFrame = targetCF * CFrame.new(math.random(-3, 3), 0, math.random(-3, 3))
-                    
-                    -- Đảm bảo quái không bị mất máu oan hay chuyển nhầm sang trạng thái physics chết đứng
-                    if eHum.PlatformStand then
-                        eHum.PlatformStand = false
+                    table.insert(targetsToBring, {Root = eRoot, Hum = eHum})
+                    if #targetsToBring >= maxMobs then
+                        break
                     end
-
-                    broughtCount = broughtCount + 1
-                    if broughtCount >= maxMobs then break end
                 end
             end
+        end
+    end
+
+    -- Bước 2: Gom và xếp hình vòng tròn cố định quanh người cậu để quái không bị giật lag tọa độ
+    if #targetsToBring > 0 then
+        local angleStep = (math.pi * 2) / #targetsToBring
+        for i, mob in ipairs(targetsToBring) do
+            local eRoot = mob.Root
+            local eHum = mob.Hum
+
+            eRoot.CanCollide = false
+            eRoot.AssemblyLinearVelocity = Vector3.zero
+            eRoot.AssemblyAngularVelocity = Vector3.zero
+
+            -- Tính toán vị trí đứng vòng tròn ổn định, không dùng random giật cục nữa
+            local angle = i * angleStep
+            local radius = 3 -- Khoảng cách vừa vặn để xả skill
+            local offsetX = math.cos(angle) * radius
+            local offsetZ = math.sin(angle) * radius
+
+            -- Ghim thẳng tọa độ mượt mà quanh tâm nhân vật
+            eRoot.CFrame = targetCF + Vector3.new(offsetX, 0, offsetZ)
+
+            -- Trả lại trạng thái hoạt động bình thường cho Humanoid để nó không bị chết đứng
+            pcall(function()
+                eHum.PlatformStand = false
+                eHum.Sit = false
+            end)
         end
     end
 end
