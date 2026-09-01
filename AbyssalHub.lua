@@ -794,7 +794,7 @@ local lastAttack = 0
 
 local lastBring = 0
 local function BringMobs(targetCF, currentData)
-    if not _G.BringMobEnabled then return end
+    if not _G.BringMobEnabled or not targetCF then return end
     
     if tick() - lastBring < 0.1 then return end
     lastBring = tick()
@@ -812,6 +812,9 @@ local function BringMobs(targetCF, currentData)
     local targetsToBring = {}
     local targetName = currentData and currentData.EnemyName or ""
 
+    -- Tọa độ mặt đất gốc của con quái mục tiêu
+    local basePos = targetCF.Position
+
     for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
         local eHum = enemy:FindFirstChildOfClass("Humanoid")
         local eRoot = enemy:FindFirstChild("HumanoidRootPart")
@@ -819,7 +822,7 @@ local function BringMobs(targetCF, currentData)
         if eHum and eRoot and eHum.Health > 0 then
             local matchName = (targetName == "" or enemy.Name == targetName or string.find(enemy.Name, targetName))
             if matchName then
-                local dist = (eRoot.Position - rootPart.Position).Magnitude
+                local dist = (eRoot.Position - basePos).Magnitude
                 if dist <= 250 then
                     table.insert(targetsToBring, {Root = eRoot, Hum = eHum})
                     if #targetsToBring >= maxMobs then
@@ -831,18 +834,6 @@ local function BringMobs(targetCF, currentData)
     end
 
     if #targetsToBring > 0 then
-        -- Dùng Raycast từ người chơi chiếu thẳng xuống đất để tìm độ cao Y của mặt đất
-        local pPos = rootPart.Position
-        local raycastParams = RaycastParams.new()
-        raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-        raycastParams.IgnoreWater = true
-        
-        local groundY = pPos.Y - 10 -- Mặc định trừ hao nếu không bắt được raycast
-        local rayResult = workspace:Raycast(pPos + Vector3.new(0, 5, 0), Vector3.new(0, -100, 0), raycastParams)
-        if rayResult then
-            groundY = rayResult.Position.Y
-        end
-
         local angleStep = (math.pi * 2) / #targetsToBring
         for i, mob in ipairs(targetsToBring) do
             local eRoot = mob.Root
@@ -854,12 +845,12 @@ local function BringMobs(targetCF, currentData)
                 eRoot.AssemblyAngularVelocity = Vector3.zero
 
                 local angle = i * angleStep
-                local radius = 3 -- Khoảng cách gom quanh tâm
+                local radius = 2.5 -- Khoảng cách gom tụ lại
                 local offsetX = math.cos(angle) * radius
                 local offsetZ = math.sin(angle) * radius
 
-                -- Ghim chặt quái xuống đúng mặt đất bên dưới, không bị bay lên trời nữa
-                eRoot.CFrame = CFrame.new(pPos.X + offsetX, groundY + 1, pPos.Z + offsetZ)
+                -- Đặt quái đứng cố định trên mặt đất xung quanh vị trí basePos
+                eRoot.CFrame = CFrame.new(basePos.X + offsetX, basePos.Y, basePos.Z + offsetZ)
 
                 eHum.PlatformStand = true
                 eHum.WalkSpeed = 0
@@ -868,6 +859,7 @@ local function BringMobs(targetCF, currentData)
         end
     end
 end
+
 
 -- Hàm Fast Attack Multi-hit càn quét toàn bộ quái đang bị khóa
 local function DoFastAttack(Net, currentData)
@@ -1140,22 +1132,28 @@ task.spawn(function()
                             end
                         end
 
-                        if targetEnemyRoot and targetEnemyRoot.Parent then
-                            farmDuration = tick()
-                            
-                            pcall(AutoHaki)
-                            pcall(AutoEquipWeapon)
+if targetEnemyRoot and targetEnemyRoot.Parent then
+    farmDuration = tick()
+    
+    pcall(AutoHaki)
+    pcall(AutoEquipWeapon)
 
-                            if _G.BringMobEnabled then
-                                pcall(function()
-                                    BringMobs(targetEnemyRoot.CFrame, currentData)
-                                end)
-                            end
+    -- Lưu tọa độ gốc của quái
+    local enemyCF = targetEnemyRoot.CFrame
 
-                            curRoot.CFrame = targetEnemyRoot.CFrame * CFrame.new(0, FarmHeight, 0)
-                            pcall(function()
-                                DoFastAttack(Net, hitTargets)
-                            end)
+    if _G.BringMobEnabled then
+        pcall(function()
+            BringMobs(enemyCF, currentData)
+        end)
+    end
+
+    -- Giữ nhân vật lơ lửng trên đầu quái
+    curRoot.CFrame = enemyCF * CFrame.new(0, FarmHeight, 0)
+
+    pcall(function()
+        DoFastAttack(Net, hitTargets)
+    end)
+end
                         else
                             if enemySpot then
                                 curRoot.CFrame = enemySpot * CFrame.new(0, FarmHeight, 0)
