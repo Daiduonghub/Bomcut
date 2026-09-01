@@ -518,6 +518,41 @@ end
     if callback then pcall(callback, selected) end
 end
 
+function TabElements:CreateLabel(parentTabFrame, initialText)
+    local labelContainer = Instance.new("Frame")
+    labelContainer.Size = UDim2.new(1, -20, 0, 35)
+    labelContainer.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+    labelContainer.BorderSizePixel = 0
+    labelContainer.Parent = parentTabFrame
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = labelContainer
+
+    local textLabel = Instance.new("TextLabel")
+    textLabel.Size = UDim2.new(1, -10, 1, 0)
+    textLabel.Position = UDim2.new(0, 10, 0, 0)
+    textLabel.BackgroundTransparency = 1
+    textLabel.TextColor3 = Color3.fromRGB(240, 240, 240)
+    textLabel.TextSize = 14
+    textLabel.Font = Enum.Font.GothamMedium
+    textLabel.TextXAlignment = Enum.TextXAlignment.Left
+    textLabel.Text = initialText or "Label Text"
+    textLabel.Parent = labelContainer
+
+    local labelObject = {}
+    
+    function labelObject:Set(newText)
+        textLabel.Text = newText
+    end
+
+    function labelObject:Destroy()
+        labelContainer:Destroy()
+    end
+
+    return labelObject
+end
+
         return TabElements
     end
 
@@ -1506,6 +1541,47 @@ task.spawn(function()
     end
 end)
 
+task.spawn(function()
+    local lastUpdate = 0
+
+    RunService.RenderStepped:Connect(function(dt)
+        if tick() - lastUpdate < 1 then return end
+        lastUpdate = tick()
+
+        pcall(function()
+            -- 1. FPS & Ping
+            local fps = math.floor(1 / dt)
+            FpsLabel:Set("⚡ FPS: " .. fps)
+            
+            local ping = math.floor(LocalPlayer.NetworkPing * 1000)
+            PingLabel:Set("📡 Ping: " .. ping .. " ms")
+
+            -- 2. Trăng (Moon)
+            local clockTime = Lighting.ClockTime
+            if clockTime < 6 or clockTime > 18 then
+                MoonLabel:Set("🌕 Trăng: Đang ban đêm")
+            else
+                MoonLabel:Set("🌕 Trăng: Đang ban ngày ☀️")
+            end
+
+            -- 3. Đảo bí ẩn (Mirage Island)
+            local foundMirage = false
+            for _, obj in ipairs(Workspace:GetChildren()) do
+                if obj.Name == "Mirage Island" or obj.Name:lower():find("mirage") then
+                    foundMirage = true
+                    break
+                end
+            end
+
+            if foundMirage then
+                MirageLabel:Set("🏝️ Đảo Bí Ẩn (Mirage): 🟢 XUẤT HIỆN RỒI!")
+            else
+                MirageLabel:Set("🏝️ Đảo Bí Ẩn (Mirage): 🔴 Không có trong Server")
+            end
+        end)
+    end)
+end)
+
 -- ====================================================================
 -- GIAO DIỆN UI
 -- ====================================================================
@@ -1667,3 +1743,8 @@ end)
 PvpTab:CreateToggle("Auto Attack Selected Player", false, function(state)
     _G.VirtualAttackPlayerEnabled = state
 end)
+
+PingLabel = StatsTab:CreateLabel("📡 Ping: Đang tải...", false, function(state) end)
+FpsLabel = StatsTab:CreateLabel("⚡ FPS: Đang tải...", false, function(state) end)
+MoonLabel = StatsTab:CreateLabel("🌕 Trăng (Moon): Đang quét...", false, function(state) end)
+MirageLabel = StatsTab:CreateLabel("🏝️ Đảo Bí Ẩn (Mirage): Không thấy", false, function(state) end)
