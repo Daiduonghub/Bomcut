@@ -625,10 +625,11 @@ _G.AutoFarmLevelEnabled = false
 _G.AutoFarmNearestEnabled = false
 _G.FastAttackEnabled = true
 _G.AutoFarmMode = "Level"
-_G.BringMobEnabled = false
 _G.SelectedWeapon = "Melee"
 _G.AutoHakiEnabled = true
-_G.MaxBringMobs = 3
+_G.BringMobEnabled = true
+_G.MaxBringMobs = 4
+_G.CurrentTargetMob = nil
 
 local FarmHeight = 11 -- Độ cao đứng trên đầu quái khi farm
 
@@ -799,12 +800,15 @@ local lastAttack = 0
 local lastBring = 0
 
 -- ==========================================
--- 1. HÀM GOM QUÁI CHUẨN (TẮT TOÀN BỘ COLLIDE)
+-- 1. HÀM GOM QUÁI CHUẨN (GIỮ CHẶT MỖI FRAME)
 -- ==========================================
 local function BringMobs(targetMob)
     if not _G.BringMobEnabled or not targetMob or not targetMob:FindFirstChild("HumanoidRootPart") then 
         return 
     end
+
+    local targetHum = targetMob:FindFirstChildOfClass("Humanoid")
+    if not targetHum or targetHum.Health <= 0 then return end
 
     local targetCF = targetMob.HumanoidRootPart.CFrame
     local targetName = targetMob.Name:gsub("%s*%[.-%]", ""):lower()
@@ -825,33 +829,22 @@ local function BringMobs(targetMob)
                 if eName == targetName or string.find(eName, targetName, 1, true) then
                     local dist = (eRoot.Position - targetCF.Position).Magnitude
 
-                    -- Mở rộng lại tầm gom lên 120 studs
-                    if dist > 1 and dist <= 120 then
+                    -- Bỏ điều kiện dist > 2 để giữ quái liên tục tại tâm
+                    if dist <= 120 then
                         count = count + 1
 
                         pcall(function()
-                            -- Giành Network Ownership giúp ép Server nhận vị trí quái ngay lập tức
-                            if sethiddenproperty then
-                                sethiddenproperty(eRoot, "NetworkIsServerTagged", false)
-                            end
-
-                            -- Tắt va chạm toàn bộ part
+                            -- Tắt va chạm tất cả bộ phận quái
                             for _, part in ipairs(enemy:GetChildren()) do
                                 if part:IsA("BasePart") then
                                     part.CanCollide = false
                                 end
                             end
 
-                            -- Khóa cứng chuyển động
                             eHum.PlatformStand = true
                             eHum.WalkSpeed = 0
-                            eHum.JumpPower = 0
-                            
-                            -- Triệt tiêu lực vật lý
                             eRoot.AssemblyLinearVelocity = Vector3.zero
                             eRoot.AssemblyAngularVelocity = Vector3.zero
-                            
-                            -- Ép vị trí dính chặt vào quái chính
                             eRoot.CFrame = targetCF
                         end)
 
@@ -921,21 +914,21 @@ local function GetNearestEnemy()
 end
 
 -- ==========================================
--- 3. LUỒNG CHÍNH AUTO FARM
+-- 2. LUỒNG FARM CHÍNH
 -- ==========================================
 task.spawn(function()
     local CommF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
     local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
 
-    -- LUỒNG GOM QUÁI CHẠY NGẦM (0.1s/lần)
+    -- LUỒNG GOM QUÁI CHẠY NGẦM (Mỗi Frame ~0.016s)
     task.spawn(function()
-    while true do
-        task.wait(0.1) -- Chạy liên tục từng frame để giữ quái chết dí tại chỗ
-        if _G.BringMobEnabled and _G.CurrentTargetMob then
-            BringMobs(_G.CurrentTargetMob)
+        while true do
+            task.wait() -- Chạy liên tục để khóa chết quái tại vị trí gom
+            if _G.BringMobEnabled and _G.CurrentTargetMob then
+                BringMobs(_G.CurrentTargetMob)
+            end
         end
-    end
-end)
+    end)
 
     local function getPlayerLevel()
         local data = LocalPlayer and LocalPlayer:FindFirstChild("Data")
@@ -954,7 +947,7 @@ end)
     end
 
     while true do
-        task.wait(0.05)
+        task.wait(0.04)
 
         if not _G.AutoFarmLevelEnabled then 
             _G.CurrentTargetMob = nil
@@ -977,9 +970,7 @@ end)
 
         if Character and RootPart and Humanoid and Humanoid.Health > 0 then
             
-            -- ==========================================
             -- FARM QUÁI GẦN NHẤT
-            -- ==========================================
             if isNearMode then
                 local targetEnemy = GetNearestEnemy()
 
@@ -1007,7 +998,7 @@ end)
                                 if subHum and subHum.Health > 0 and subRoot then
                                     local matchName = (enemyName == "" or enemy.Name == enemyName or string.find(enemy.Name, enemyName))
                                     if matchName and (subRoot.Position - RootPart.Position).Magnitude <= 60 then
-                                        table.insert(hitTargets, enemy:FindFirstChild("Head") or subRoot)
+                                        table.insert(hitTargets, subRoot)
                                     end
                                 end
                             end
@@ -1022,9 +1013,7 @@ end)
                     task.wait(0.2)
                 end
 
-            -- ==========================================
             -- FARM THEO LEVEL
-            -- ==========================================
             elseif isLevelMode then
                 local currentLevel = getPlayerLevel()
                 local currentData = nil
@@ -1078,7 +1067,6 @@ end)
 
                         local checkMode = tostring(_G.AutoFarmMode or ""):lower()
                         if string.find(checkMode, "near") or _G.AutoFarmNearestEnabled then break end
-
                         if tick() - farmDuration > 35 then break end
 
                         local curChar = LocalPlayer and LocalPlayer.Character
@@ -1130,7 +1118,7 @@ end)
                                 if eHum and eHum.Health > 0 and eRoot then
                                     local matchName = (targetName == "" or enemy.Name == targetName or string.find(enemy.Name, targetName))
                                     if matchName and (eRoot.Position - curRoot.Position).Magnitude <= 60 then
-                                        table.insert(hitTargets, enemy:FindFirstChild("Head") or eRoot)
+                                        table.insert(hitTargets, eRoot)
                                     end
                                 end
                             end
