@@ -790,11 +790,14 @@ local function AutoEquipWeapon()
     end
 end
 
+-- ==========================================
+-- HẠM BRING MOBS VÀ GỬI HIT GỐC CHUẨN XÁC
+-- ==========================================
 local lastBring = 0
-local function BringMobs(targetCF, currentData)
+local function BringAndOriginalHit(targetCF, currentData)
     if not _G.BringMobEnabled or not targetCF or not currentData then return end
     
-    -- Tăng nhịp quét nhẹ để game có thời gian load khung hình ổn định
+    -- Nhịp quét ổn định
     if tick() - lastBring < 0.1 then return end
     lastBring = tick()
 
@@ -804,7 +807,7 @@ local function BringMobs(targetCF, currentData)
     local maxMobs = _G.MaxBringMobs or 3
     local targetsToBring = {}
 
-    -- Bước 1: Lọc danh sách quái sống trong phạm vi
+    -- Bước 1: Quét và gom quái quanh vị trí chỉ định
     for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
         if enemy.Name == currentData.EnemyName then
             local eHum = enemy:FindFirstChildOfClass("Humanoid")
@@ -822,7 +825,7 @@ local function BringMobs(targetCF, currentData)
         end
     end
 
-    -- Bước 2: Gom và xếp hình vòng tròn cố định quanh người cậu để quái không bị giật lag tọa độ
+    -- Bước 2: Xếp vòng tròn cố định quanh nhân vật để đánh chuẩn bài gốc
     if #targetsToBring > 0 then
         local angleStep = (math.pi * 2) / #targetsToBring
         for i, mob in ipairs(targetsToBring) do
@@ -833,16 +836,13 @@ local function BringMobs(targetCF, currentData)
             eRoot.AssemblyLinearVelocity = Vector3.zero
             eRoot.AssemblyAngularVelocity = Vector3.zero
 
-            -- Tính toán vị trí đứng vòng tròn ổn định, không dùng random giật cục nữa
             local angle = i * angleStep
-            local radius = 3 -- Khoảng cách vừa vặn để xả skill
+            local radius = 3
             local offsetX = math.cos(angle) * radius
             local offsetZ = math.sin(angle) * radius
 
-            -- Ghim thẳng tọa độ mượt mà quanh tâm nhân vật
             eRoot.CFrame = targetCF + Vector3.new(offsetX, 0, offsetZ)
 
-            -- Trả lại trạng thái hoạt động bình thường cho Humanoid để nó không bị chết đứng
             pcall(function()
                 eHum.PlatformStand = false
                 eHum.Sit = false
@@ -852,14 +852,15 @@ local function BringMobs(targetCF, currentData)
 end
 
 -- Biến tốc độ mặc định ban đầu (phòng hờ chưa bấm dropdown)
-local FastAttackSpeed = 10 
 local lastAttack = 0
 
 local function DoFastAttack(Net, hitTargets)
-    if not _G.FastAttackEnabled or #hitTargets == 0 or not Net then return end
+    if not _G.FastAttackEnabled or not hitTargets or #hitTargets == 0 or not Net then return end
 
-    -- Tính khoảng cooldown dựa theo tốc độ từ Dropdown (Fast = nhỏ nhất -> đánh nhanh nhất)
-    local cooldown = 0.2 / FastAttackSpeed
+    -- Lấy giá trị tốc độ an toàn (phòng hờ nếu biến FastAttackSpeed là string hoặc số)
+    local speed = tonumber(_G.FastAttackSpeed) or 10
+    local cooldown = math.max(0.01, 0.15 / speed)
+    
     if tick() - lastAttack < cooldown then return end
     lastAttack = tick()
 
@@ -874,15 +875,25 @@ local function DoFastAttack(Net, hitTargets)
 
     if registerHit then
         pcall(function()
+            -- Gom toàn bộ các phần tử quái vào một bảng chung để gửi một nhịp ăn tất cả
+            local hitList = {}
             for i = 1, #hitTargets do
                 local part = hitTargets[i]
                 if part and part.Parent then
-                    local args = {
+                    table.insert(hitList, {
                         [1] = part,
                         [2] = {},
                         [4] = "15822e18"
-                    }
-                    registerHit:FireServer(unpack(args))
+                    })
+                end
+            end
+
+            -- Nếu có danh sách quái hợp lệ, tiến hành bắn packet tổng đồng loạt
+            if #hitList > 0 then
+                -- Một số bản script dùng cách gửi từng con nhưng tối ưu thời gian, 
+                -- cách chuẩn nhất là bắn trực tiếp vòng lặp với độ trễ cực nhỏ hoặc gom mảng:
+                for _, data in ipairs(hitList) do
+                    registerHit:FireServer(data[1], data[2], nil, data[4])
                 end
             end
         end)
