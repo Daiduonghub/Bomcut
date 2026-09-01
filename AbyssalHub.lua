@@ -793,7 +793,7 @@ end
 local lastBring = 0
 local lastAttack = 0
 
-local function BringMobs(currentData)
+local function BringMobs(targetCF, currentData)
     if not _G.BringMobEnabled then return end
     
     if tick() - lastBring < 0.1 then return end
@@ -846,7 +846,7 @@ local function BringMobs(currentData)
                 local offsetX = math.cos(angle) * radius
                 local offsetZ = math.sin(angle) * radius
 
-                -- Ghim chặt cứng quanh nhân vật
+                -- Ghim chặt cứng quanh nhân vật theo tọa độ thực tế của player
                 eRoot.CFrame = rootPart.CFrame + Vector3.new(offsetX, 0, offsetZ)
 
                 eHum.PlatformStand = true
