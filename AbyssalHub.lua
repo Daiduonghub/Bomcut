@@ -793,10 +793,12 @@ end
 local lastBring = 0
 local lastAttack = 0
 
--- Hàm gom và khóa cứng quái hoàn toàn tại chỗ
 local function BringMobs(targetCF, currentData)
     if not _G.BringMobEnabled or not targetCF then return end
     
+    if tick() - lastBring < 0.15 then return end
+    lastBring = tick()
+
     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
     if not EnemiesFolder then return end
 
@@ -812,7 +814,8 @@ local function BringMobs(targetCF, currentData)
             local matchName = (targetName == "" or enemy.Name == targetName or string.find(enemy.Name, targetName))
             if matchName then
                 local dist = (eRoot.Position - targetCF.Position).Magnitude
-                if dist <= 250 then
+                -- Chỉ gom quái ở gần trong phạm vi 200 studs trở lại
+                if dist <= 200 then
                     table.insert(targetsToBring, {Root = eRoot, Hum = eHum})
                     if #targetsToBring >= maxMobs then
                         break
@@ -830,16 +833,16 @@ local function BringMobs(targetCF, currentData)
 
             pcall(function()
                 eRoot.CanCollide = false
-                eRoot.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                eRoot.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                eRoot.AssemblyLinearVelocity = Vector3.zero
+                eRoot.AssemblyAngularVelocity = Vector3.zero
 
                 local angle = i * angleStep
-                local radius = 3
+                local radius = 2.5 -- Thu hẹp khoảng cách lại siêu sát người (2.5 studs)
                 local offsetX = math.cos(angle) * radius
                 local offsetZ = math.sin(angle) * radius
 
-                -- Ghim chặt cứng tọa độ ngay cạnh nhân vật, không cho dịch chuyển thoát
-                eRoot.CFrame = targetCF + Vector3.new(offsetX, 0, offsetZ)
+                -- Giữ nguyên độ cao Y của nhân vật/mục tiêu, tuyệt đối không đẩy lệch ra ngoài biển
+                eRoot.CFrame = CFrame.new(targetCF.X + offsetX, targetCF.Y, targetCF.Z + offsetZ)
 
                 eHum.PlatformStand = true
                 eHum.WalkSpeed = 0
