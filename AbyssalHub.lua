@@ -800,7 +800,7 @@ local lastAttack = 0
 local lastBring = 0
 
 -- ==========================================
--- 1. HÀM GOM QUÁI CHUẨN (GIỮ CHẶT MỖI FRAME)
+-- 1. HÀM BRING MOB TỐI ƯU ĐỒNG BỘ CHO CẢ 2 MODE
 -- ==========================================
 local function BringMobs(targetMob)
     if not _G.BringMobEnabled or not targetMob or not targetMob:FindFirstChild("HumanoidRootPart") then 
@@ -829,29 +829,21 @@ local function BringMobs(targetMob)
                 if eName == targetName or string.find(eName, targetName, 1, true) then
                     local dist = (eRoot.Position - targetMob.HumanoidRootPart.Position).Magnitude
 
-                    if dist <= 130 then
+                    if dist <= 150 then
                         count = count + 1
 
                         pcall(function()
-                            -- Tắt va chạm để quái không đẩy nhau văng ra
+                            -- Tắt va chạm để quái không đẩy văng nhau
                             for _, part in ipairs(enemy:GetChildren()) do
                                 if part:IsA("BasePart") then
                                     part.CanCollide = false
                                 end
                             end
 
-                            -- Ép vị trí dính chặt vào quái chính (thêm một chút lệch ngẫu nhiên siêu nhỏ để game không tính là bị kẹt cứng)
-                            local randomOffset = CFrame.new(math.random(-1, 1), 0, math.random(-1, 1))
-                            eRoot.CFrame = targetCF * randomOffset
-
-                            -- Triệt tiêu lực vật lý
+                            -- Ép tọa độ dính thẳng vào quái chính và triệt tiêu lực vật lý
+                            eRoot.CFrame = targetCF
                             eRoot.AssemblyLinearVelocity = Vector3.zero
                             eRoot.AssemblyAngularVelocity = Vector3.zero
-
-                            -- Gửi tín hiệu đánh thức AI định kỳ để quái không bao giờ bị đơ/khóa AI
-                            if eHum.Sit then 
-                                eHum.Sit = false 
-                            end
                         end)
 
                         if count >= maxMobs then break end
@@ -922,11 +914,14 @@ end
 -- ==========================================
 -- LUỒNG FARM TẬP TRUNG MỘT MỤC TIÊU ĐẾN KHI CHẾT
 -- ==========================================
+-- ==========================================
+-- 2. LUỒNG FARM CHÍNH CHO CẢ LEVEL & NEAREST
+-- ==========================================
 task.spawn(function()
     local CommF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
     local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
 
-    -- LUỒNG GOM QUÁI CHẠY NGẦM (Khóa cứng theo từng frame)
+    -- Luồng gom quái chạy ngầm liên tục từng frame cho cả 2 mode
     task.spawn(function()
         while true do
             task.wait()
@@ -973,11 +968,12 @@ task.spawn(function()
 
         local RootPart = Character.HumanoidRootPart
         local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+        local EnemiesFolder = Workspace:FindFirstChild("Enemies")
 
         if Character and RootPart and Humanoid and Humanoid.Health > 0 then
             
             -- ==========================================
-            -- 1. FARM QUÁI GẦN NHẤT
+            -- MODE 1: GẦN NHẤT (NEAREST)
             -- ==========================================
             if isNearMode then
                 local targetEnemy = GetNearestEnemy()
@@ -998,14 +994,13 @@ task.spawn(function()
                         eRoot.AssemblyLinearVelocity = Vector3.zero
 
                         local hitTargets = {}
-                        local EnemiesFolder = Workspace:FindFirstChild("Enemies")
                         if EnemiesFolder then
                             for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
                                 local subHum = enemy:FindFirstChildOfClass("Humanoid")
                                 local subRoot = enemy:FindFirstChild("HumanoidRootPart")
                                 if subHum and subHum.Health > 0 and subRoot then
                                     local matchName = (enemyName == "" or enemy.Name == enemyName or string.find(enemy.Name, enemyName))
-                                    if matchName and (subRoot.Position - RootPart.Position).Magnitude <= 60 then
+                                    if matchName and (subRoot.Position - RootPart.Position).Magnitude <= 50 then
                                         table.insert(hitTargets, subRoot)
                                     end
                                 end
@@ -1022,7 +1017,7 @@ task.spawn(function()
                 end
 
             -- ==========================================
-            -- 2. FARM THEO LEVEL (KHÓA MỤC TIÊU ĐẾN KHI CHẾT)
+            -- MODE 2: THEO LEVEL (LEVEL)
             -- ==========================================
             elseif isLevelMode then
                 local currentLevel = getPlayerLevel()
@@ -1066,11 +1061,9 @@ task.spawn(function()
 
                     if not _G.AutoFarmLevelEnabled then continue end
 
-                    local EnemiesFolder = Workspace:FindFirstChild("Enemies")
                     local targetName = currentData and currentData.EnemyName or ""
-                    
-                    -- Tìm một con quái làm tâm chính
                     local primaryEnemy = nil
+                    
                     if EnemiesFolder then
                         for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
                             local eHum = enemy:FindFirstChildOfClass("Humanoid")
@@ -1090,7 +1083,6 @@ task.spawn(function()
                         local pRoot = primaryEnemy.HumanoidRootPart
                         local pHum = primaryEnemy:FindFirstChildOfClass("Humanoid")
 
-                        -- Đánh liên tục CON NÀY CHO ĐẾN KHI NÓ CHẾT (Máu về 0 hoặc bị mất)
                         while _G.AutoFarmLevelEnabled and pHum and pHum.Health > 0 and primaryEnemy.Parent do
                             task.wait(0.04)
 
@@ -1107,10 +1099,8 @@ task.spawn(function()
                             pRoot.CanCollide = false
                             pRoot.AssemblyLinearVelocity = Vector3.zero
 
-                            -- Giữ nhân vật ở trên đầu quái chính
                             curRoot.CFrame = pRoot.CFrame * CFrame.new(0, FarmHeight or 10, 0)
 
-                            -- Quét tất cả quái xung quanh con chính để gom và chém cùng lúc
                             local hitTargets = {}
                             if EnemiesFolder then
                                 for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
@@ -1118,7 +1108,7 @@ task.spawn(function()
                                     local eRoot = enemy:FindFirstChild("HumanoidRootPart")
                                     if eHum and eHum.Health > 0 and eRoot then
                                         local matchName = (targetName == "" or enemy.Name == targetName or string.find(enemy.Name, targetName))
-                                        if matchName and (eRoot.Position - curRoot.Position).Magnitude <= 60 then
+                                        if matchName and (eRoot.Position - curRoot.Position).Magnitude <= 50 then
                                             table.insert(hitTargets, eRoot)
                                         end
                                     end
