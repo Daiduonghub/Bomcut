@@ -1745,7 +1745,7 @@ PvpTab:CreateToggle("Auto Attack Selected Player", false, function(state)
     _G.VirtualAttackPlayerEnabled = state
 end)
 
-PingLabel = StatsTab:CreateLabel("📡 Ping: Đang tải...", false, function(state) end)
-FpsLabel = StatsTab:CreateLabel("⚡ FPS: Đang tải...", false, function(state) end)
-MoonLabel = StatsTab:CreateLabel("🌕 Trăng (Moon): Đang quét...", false, function(state) end)
-MirageLabel = StatsTab:CreateLabel("🏝️ Đảo Bí Ẩn (Mirage): Không thấy", false, function(state) end)
+StatsTab:CreateLabel("📡 Ping: Đang tải...", false, function(state) end)
+StatsTab:CreateLabel("⚡ FPS: Đang tải...", false, function(state) end)
+StatsTab:CreateLabel("🌕 Trăng (Moon): Đang quét...", false, function(state) end)
+StatsTab:CreateLabel("🏝️ Đảo Bí Ẩn (Mirage): Không thấy", false, function(state) end)
