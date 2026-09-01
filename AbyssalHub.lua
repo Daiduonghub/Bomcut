@@ -974,7 +974,7 @@ task.spawn(function()
         local isLevelMode = (mode == "level" or mode == "farm level")
 
         local Character = LocalPlayer.Character
-        -- Khắc phục lỗi reset: Nếu nhân vật chưa load xong hoặc đã chết thì đợi 1 nhịp rồi tiếp tục, tránh đứng im đơ máy
+        -- Khắc phục lỗi reset: Nếu nhân vật chưa load xong hoặc đã chết thì đợi 1 nhịp rồi tiếp tục
         if not Character or not Character:FindFirstChild("HumanoidRootPart") or not Character:FindFirstChildOfClass("Humanoid") or Character.Humanoid.Health <= 0 then
             task.wait(1)
             continue
@@ -1061,7 +1061,6 @@ task.spawn(function()
                             local startWait = tick()
                             repeat
                                 task.wait(0.1)
-                                -- Ngắt ngay lập tức nếu tắt toggle giữa lúc đang di chuyển nhận quest
                                 if not _G.AutoFarmLevelEnabled then break end
                                 
                                 local curChar = LocalPlayer.Character
@@ -1070,7 +1069,6 @@ task.spawn(function()
                             until tick() - startWait > 8
                         end
 
-                        -- Kiểm tra lại lần nữa trước khi gửi lệnh gọi nhận quest
                         if not _G.AutoFarmLevelEnabled then continue end
 
                         if CommF then
@@ -1132,28 +1130,25 @@ task.spawn(function()
                             end
                         end
 
-if targetEnemyRoot and targetEnemyRoot.Parent then
-    farmDuration = tick()
-    
-    pcall(AutoHaki)
-    pcall(AutoEquipWeapon)
+                        if targetEnemyRoot and targetEnemyRoot.Parent then
+                            farmDuration = tick()
+                            
+                            pcall(AutoHaki)
+                            pcall(AutoEquipWeapon)
 
-    -- Lưu tọa độ gốc của quái
-    local enemyCF = targetEnemyRoot.CFrame
+                            local enemyCF = targetEnemyRoot.CFrame
 
-    if _G.BringMobEnabled then
-        pcall(function()
-            BringMobs(enemyCF, currentData)
-        end)
-    end
+                            if _G.BringMobEnabled then
+                                pcall(function()
+                                    BringMobs(enemyCF, currentData)
+                                end)
+                            end
 
-    -- Giữ nhân vật lơ lửng trên đầu quái
-    curRoot.CFrame = enemyCF * CFrame.new(0, FarmHeight, 0)
+                            curRoot.CFrame = enemyCF * CFrame.new(0, FarmHeight, 0)
 
-    pcall(function()
-        DoFastAttack(Net, hitTargets)
-    end)
-end
+                            pcall(function()
+                                DoFastAttack(Net, hitTargets)
+                            end)
                         else
                             if enemySpot then
                                 curRoot.CFrame = enemySpot * CFrame.new(0, FarmHeight, 0)
