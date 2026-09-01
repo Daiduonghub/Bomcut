@@ -792,9 +792,9 @@ end
 
 local lastBring = 0
 local function BringMobs(targetCF, currentData)
-    if not _G.BringMobEnabled or not targetCF or not currentData or tick() - lastBring < 0.2 then return end
-    lastBring = tick()
-
+    if not _G.BringMobEnabled or not targetCF or not currentData then return end
+    
+    -- Tăng tốc độ gom và ép quái đứng im liên tục mỗi frame hoặc tần suất dày hơn
     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
     if not EnemiesFolder then return end
 
@@ -808,11 +808,21 @@ local function BringMobs(targetCF, currentData)
 
             if eHum and eRoot and eHum.Health > 0 then
                 local dist = (eRoot.Position - targetCF.Position).Magnitude
-                if dist <= 150 and dist > 4 then
+                -- Nếu quái ở trong phạm vi quét
+                if dist <= 150 then
                     eRoot.CanCollide = false
+                    -- Khóa hẳn vận tốc để nó không bị trôi đi chỗ khác
                     eRoot.AssemblyLinearVelocity = Vector3.zero
+                    eRoot.AssemblyAngularVelocity = Vector3.zero
+                    
+                    -- Ép vị trí dính chặt vào targetCF
                     eRoot.CFrame = targetCF
                     
+                    -- Vô hiệu hóa hành vi di chuyển của quái tạm thời
+                    pcall(function()
+                        eHum:ChangeState(Enum.HumanoidStateType.Physics)
+                    end)
+
                     broughtCount = broughtCount + 1
                     if broughtCount >= maxMobs then break end
                 end
