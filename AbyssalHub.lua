@@ -804,42 +804,18 @@ local lastBring = 0
 local function BringMobs(targetInput, enemyNameInput)
     if not _G.BringMobEnabled or not targetInput then return end
 
-    pcall(function()
-        if sethiddenproperty then
-            sethiddenproperty(LocalPlayer, "MaximumSimulationRadius", math.huge)
-            sethiddenproperty(LocalPlayer, "SimulationRadius", math.huge)
-        end
-        if setsimulationradius then
-            setsimulationradius(math.huge)
-        end
-    end)
-
     local targetCF = nil
-    local primaryEnemy = nil
-
     if typeof(targetInput) == "Instance" and targetInput:FindFirstChild("HumanoidRootPart") then
-        primaryEnemy = targetInput
         targetCF = targetInput.HumanoidRootPart.CFrame
     elseif typeof(targetInput) == "CFrame" then
         targetCF = targetInput
-    elseif typeof(targetInput) == "Vector3" then
-        targetCF = CFrame.new(targetInput)
     end
-
     if not targetCF then return end
 
-    local rawName = ""
-    if type(enemyNameInput) == "string" then
-        rawName = enemyNameInput
-    elseif type(enemyNameInput) == "table" and enemyNameInput.EnemyName then
-        rawName = enemyNameInput.EnemyName
-    elseif primaryEnemy then
-        rawName = primaryEnemy.Name
-    end
-
+    local rawName = type(enemyNameInput) == "string" and enemyNameInput or ""
     local targetName = rawName:gsub("%s*%[.-%]", ""):lower()
 
-    local EnemiesFolder = Workspace:FindFirstChild("Enemies")
+    local EnemiesFolder = workspace:FindFirstChild("Enemies")
     if not EnemiesFolder then return end
 
     local maxMobs = _G.MaxBringMobs or 4
@@ -851,18 +827,17 @@ local function BringMobs(targetInput, enemyNameInput)
 
         if eHum and eRoot and eHum.Health > 0 then
             local eName = enemy.Name:gsub("%s*%[.-%]", ""):lower()
-            local matchName = (targetName == "" or string.find(eName, targetName, 1, true) or string.find(targetName, eName, 1, true))
-
-            if matchName then
+            if targetName == "" or string.find(eName, targetName, 1, true) then
                 local dist = (eRoot.Position - targetCF.Position).Magnitude
-                if dist <= 250 then
+                
+                -- CHỈ GOM KHI QUÁI BỊ DẠT RA XA (> 2 studs)
+                -- Đã ở sát bên rồi thì thả ra để server nhận dame, không đè CFrame nữa
+                if dist > 2 and dist <= 150 then
                     count = count + 1
 
                     pcall(function()
-                        eHum.PlatformStand = true
                         eRoot.CanCollide = false
                         eRoot.AssemblyLinearVelocity = Vector3.zero
-                        eRoot.AssemblyAngularVelocity = Vector3.zero
                         eRoot.CFrame = targetCF
                     end)
 
