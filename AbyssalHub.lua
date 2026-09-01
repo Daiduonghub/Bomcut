@@ -794,7 +794,6 @@ local lastBring = 0
 local function BringMobs(targetCF, currentData)
     if not _G.BringMobEnabled or not targetCF or not currentData then return end
     
-    -- Tăng tốc độ gom và ép quái đứng im liên tục mỗi frame hoặc tần suất dày hơn
     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
     if not EnemiesFolder then return end
 
@@ -808,19 +807,19 @@ local function BringMobs(targetCF, currentData)
 
             if eHum and eRoot and eHum.Health > 0 then
                 local dist = (eRoot.Position - targetCF.Position).Magnitude
-                -- Nếu quái ở trong phạm vi quét
                 if dist <= 150 then
                     eRoot.CanCollide = false
-                    -- Khóa hẳn vận tốc để nó không bị trôi đi chỗ khác
+                    -- Khóa tuyệt đối vận tốc để tránh bị game đẩy trôi đi
                     eRoot.AssemblyLinearVelocity = Vector3.zero
                     eRoot.AssemblyAngularVelocity = Vector3.zero
                     
-                    -- Ép vị trí dính chặt vào targetCF
-                    eRoot.CFrame = targetCF
+                    -- Đặt quái gom tụm lại ngay phía trước mặt nhân vật thay vì đè bẹp dí vào chính giữa
+                    eRoot.CFrame = targetCF * CFrame.new(math.random(-2, 2), 0, math.random(-2, 2))
                     
-                    -- Vô hiệu hóa hành vi di chuyển của quái tạm thời
                     pcall(function()
                         eHum:ChangeState(Enum.HumanoidStateType.Physics)
+                        eHum.WalkSpeed = 0
+                        eHum.JumpPower = 0
                     end)
 
                     broughtCount = broughtCount + 1
