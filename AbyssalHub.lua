@@ -791,36 +791,37 @@ local function AutoEquipWeapon()
 end
 
 local lastBring = 0
+local lastAttack = 0
+
+-- Hàm gom và khóa cứng quái hoàn toàn tại chỗ
 local function BringMobs(targetCF, currentData)
     if not _G.BringMobEnabled or not targetCF then return end
     
-    -- Giãn nhịp kéo ra một chút để server kịp đồng bộ, tránh bị khóa cứng anti-cheat
-    if tick() - lastBring < 0.15 then return end
-    lastBring = tick()
-
     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
     if not EnemiesFolder then return end
 
     local maxMobs = _G.MaxBringMobs or 3
     local targetsToBring = {}
+    local targetName = currentData and currentData.EnemyName or ""
 
-    -- Quét toàn bộ quái xung quanh trong phạm vi
     for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
         local eHum = enemy:FindFirstChildOfClass("Humanoid")
         local eRoot = enemy:FindFirstChild("HumanoidRootPart")
 
         if eHum and eRoot and eHum.Health > 0 then
-            local dist = (eRoot.Position - targetCF.Position).Magnitude
-            if dist <= 200 then
-                table.insert(targetsToBring, {Root = eRoot, Hum = eHum})
-                if #targetsToBring >= maxMobs then
-                    break
+            local matchName = (targetName == "" or enemy.Name == targetName or string.find(enemy.Name, targetName))
+            if matchName then
+                local dist = (eRoot.Position - targetCF.Position).Magnitude
+                if dist <= 250 then
+                    table.insert(targetsToBring, {Root = eRoot, Hum = eHum})
+                    if #targetsToBring >= maxMobs then
+                        break
+                    end
                 end
             end
         end
     end
 
-    -- Gom và ghim chặt quái đứng im một chỗ thành vòng tròn quanh nhân vật
     if #targetsToBring > 0 then
         local angleStep = (math.pi * 2) / #targetsToBring
         for i, mob in ipairs(targetsToBring) do
@@ -829,73 +830,76 @@ local function BringMobs(targetCF, currentData)
 
             pcall(function()
                 eRoot.CanCollide = false
-                -- Khóa triệt để mọi hướng di chuyển và vận tốc văng ngang của quái
                 eRoot.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                 eRoot.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
 
                 local angle = i * angleStep
-                local radius = 3 -- Khoảng cách ôm sát quanh người
+                local radius = 3
                 local offsetX = math.cos(angle) * radius
                 local offsetZ = math.sin(angle) * radius
 
-                -- Ghim cố định tọa độ vòng tròn quanh nhân vật
+                -- Ghim chặt cứng tọa độ ngay cạnh nhân vật, không cho dịch chuyển thoát
                 eRoot.CFrame = targetCF + Vector3.new(offsetX, 0, offsetZ)
 
-                -- Ép quái ở trạng thái bình thường, không bị gục ngã hay đơ cứng
-                eHum.PlatformStand = false
-                eHum.Sit = false
+                eHum.PlatformStand = true
+                eHum.WalkSpeed = 0
+                eHum.JumpPower = 0
             end)
         end
     end
 end
 
--- Biến tốc độ mặc định ban đầu (phòng hờ chưa bấm dropdown)
-local lastAttack = 0
-
-local function DoFastAttack(Net, hitTargets)
-    if not _G.FastAttackEnabled or not hitTargets or #hitTargets == 0 or not Net then return end
-
-    -- Lấy giá trị tốc độ an toàn (phòng hờ nếu biến FastAttackSpeed là string hoặc số)
-    local speed = tonumber(_G.FastAttackSpeed) or 10
-    local cooldown = math.max(0.01, 0.15 / speed)
+-- Hàm Fast Attack Multi-hit càn quét toàn bộ quái đang bị khóa
+local function DoFastAttack(Net, currentData)
+    if not _G.FastAttackEnabled or not Net then return end
+    
+    local speed = tonumber(_G.FastAttackSpeed) or 15
+    local cooldown = math.max(0.01, 0.1 / speed)
     
     if tick() - lastAttack < cooldown then return end
     lastAttack = tick()
 
-    local registerAttack = Net:FindFirstChild("RE/RegisterAttack")
-    local registerHit = Net:FindFirstChild("RE/RegisterHit")
+    pcall(function()
+        local localPlayer = game:GetService("Players").LocalPlayer
+        local myChar = localPlayer.Character
+        if not myChar then return end
+        local rootPart = myChar:FindFirstChild("HumanoidRootPart")
+        if not rootPart then return end
 
-    if registerAttack then
-        pcall(function()
+        local enemiesFolder = workspace:FindFirstChild("Enemies")
+        if not enemiesFolder then return end
+
+        local registerAttack = Net:FindFirstChild("RE/RegisterAttack")
+        local registerHit = Net:FindFirstChild("RE/RegisterHit")
+
+        if registerAttack then
             registerAttack:FireServer(0.1)
-        end)
-    end
+        end
 
-    if registerHit then
-        pcall(function()
-            -- Gom toàn bộ các phần tử quái vào một bảng chung để gửi một nhịp ăn tất cả
-            local hitList = {}
-            for i = 1, #hitTargets do
-                local part = hitTargets[i]
-                if part and part.Parent then
-                    table.insert(hitList, {
-                        [1] = part,
-                        [2] = {},
-                        [4] = "15822e18"
-                    })
+        if registerHit then
+            local targetName = currentData and currentData.EnemyName or ""
+            for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+                local eHum = enemy:FindFirstChildOfClass("Humanoid")
+                local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+                
+                if eHum and eRoot and eHum.Health > 0 then
+                    local matchName = (targetName == "" or enemy.Name == targetName or string.find(enemy.Name, targetName))
+                    if matchName then
+                        local dist = (eRoot.Position - rootPart.Position).Magnitude
+                        -- Quét mọi con trong bán kính 15 studs quanh người (phạm vi ôm vòng tròn)
+                        if dist <= 15 then
+                            local args = {
+                                [1] = eRoot,
+                                [2] = {},
+                                [4] = "15822e18"
+                            }
+                            registerHit:FireServer(unpack(args))
+                        end
+                    end
                 end
             end
-
-            -- Nếu có danh sách quái hợp lệ, tiến hành bắn packet tổng đồng loạt
-            if #hitList > 0 then
-                -- Một số bản script dùng cách gửi từng con nhưng tối ưu thời gian, 
-                -- cách chuẩn nhất là bắn trực tiếp vòng lặp với độ trễ cực nhỏ hoặc gom mảng:
-                for _, data in ipairs(hitList) do
-                    registerHit:FireServer(data[1], data[2], nil, data[4])
-                end
-            end
-        end)
-    end
+        end
+    end)
 end
 
 local function GetNearestEnemy()
