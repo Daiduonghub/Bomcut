@@ -1441,20 +1441,14 @@ task.spawn(function()
     end
 end)
 
--- ==========================================
--- VIRTUAL ATTACK PLAYER (TỰ ĐỘNG QUÉT SERVER, KHÔNG CẦN DROPDOWN)
--- ==========================================
-local VirtualInputManager = game:GetService("VirtualInputManager")
-local Players = game:GetService("Players")
-local localPlayer = Players.LocalPlayer
-
-_G.VirtualAttackPlayerEnabled = false
-
-local currentAttackTarget = nil
-
 task.spawn(function()
+    local VirtualInputManager = game:GetService("VirtualInputManager")
+    local Players = game:GetService("Players")
+    local localPlayer = Players.LocalPlayer
+    local camera = workspace.CurrentCamera
+
     while true do
-        task.wait(0.08)
+        task.wait() -- Chạy nhanh hết mức có thể từng frame một
         pcall(function()
             if _G.VirtualAttackPlayerEnabled then
                 local myChar = localPlayer.Character
@@ -1462,59 +1456,51 @@ task.spawn(function()
                 local myHum = myChar and myChar:FindFirstChildOfClass("Humanoid")
                 
                 if myChar and myRoot and myHum and myHum.Health > 0 then
-                    -- 1. Nếu chưa có mục tiêu hoặc mục tiêu cũ đã chết/thoát, tự động quét tìm người chơi khác trong server
-                    if not currentAttackTarget or not currentAttackTarget.Parent or not currentAttackTarget.Character then
-                        currentAttackTarget = nil
-                        for _, p in ipairs(Players:GetPlayers()) do
-                            if p ~= localPlayer and p.Character then
-                                local tHum = p.Character:FindFirstChildOfClass("Humanoid")
-                                local tRoot = p.Character:FindFirstChild("HumanoidRootPart")
-                                if tHum and tHum.Health > 0 and tRoot then
-                                    currentAttackTarget = p
-                                    break
+                    -- 1. Tự động tìm và cầm vũ khí nếu chưa cầm
+                    local currentTool = myChar:FindFirstChildOfClass("Tool")
+                    if not currentTool then
+                        local backpack = localPlayer:FindFirstChildOfClass("Backpack")
+                        if backpack then
+                            local firstTool = backpack:FindFirstChildOfClass("Tool")
+                            if firstTool then
+                                myHum:EquipTool(firstTool)
+                            end
+                        end
+                    end
+
+                    -- 2. Quét mục tiêu gần nhất trong server để tẩn ngay lập tức
+                    local nearestTarget = nil
+                    local shortestDistance = math.huge
+                    
+                    for _, p in ipairs(Players:GetPlayers()) do
+                        if p ~= localPlayer and p.Character then
+                            local tRoot = p.Character:FindFirstChild("HumanoidRootPart")
+                            local tHum = p.Character:FindFirstChildOfClass("Humanoid")
+                            if tRoot and tHum and tHum.Health > 0 then
+                                local dist = (myRoot.Position - tRoot.Position).Magnitude
+                                if dist < shortestDistance then
+                                    shortestDistance = dist
+                                    nearestTarget = p
                                 end
                             end
                         end
                     end
 
-                    -- 2. Tiến hành tấn công mục tiêu tìm được
-                    if currentAttackTarget and currentAttackTarget.Character then
-                        local tRoot = currentAttackTarget.Character:FindFirstChild("HumanoidRootPart")
-                        local tHum = currentAttackTarget.Character:FindFirstChildOfClass("Humanoid")
-                        
-                        if tRoot and tHum and tHum.Health > 0 then
-                            -- Tự động cầm vũ khí nếu chưa cầm
-                            local currentTool = myChar:FindFirstChildOfClass("Tool")
-                            if not currentTool then
-                                local backpack = localPlayer:FindFirstChildOfClass("Backpack")
-                                if backpack then
-                                    local firstTool = backpack:FindFirstChildOfClass("Tool")
-                                    if firstTool then
-                                        myHum:EquipTool(firstTool)
-                                    end
-                                end
-                            end
-
-                            -- Xoay nhân vật hướng thẳng mặt về phía đối thủ
+                    -- 3. Nếu thấy mục tiêu thì khóa góc nhìn, xoay mặt và spam click siêu tốc
+                    if nearestTarget and nearestTarget.Character then
+                        local tRoot = nearestTarget.Character:FindFirstChild("HumanoidRootPart")
+                        if tRoot then
                             myRoot.CFrame = CFrame.new(myRoot.Position, Vector3.new(tRoot.Position.X, myRoot.Position.Y, tRoot.Position.Z))
-
-                            -- Mô phỏng click chuột ảo tại tâm màn hình để tấn công
-                            local viewportSize = workspace.CurrentCamera.ViewportSize
-                            local centerX = viewportSize.X / 2
-                            local centerY = viewportSize.Y / 2
-
-                            VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, true, game, 0)
-                            task.wait(0.02)
-                            VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, false, game, 0)
-                        else
-                            -- Mục tiêu ngỏm thì reset để tìm đứa khác ngay
-                            currentAttackTarget = nil
+                            
+                            -- Spam click liên tục tại tâm màn hình để đánh bét nhè không kịp thở
+                            local viewportSize = camera.ViewportSize
+                            local cx, cy = viewportSize.X / 2, viewportSize.Y / 2
+                            
+                            VirtualInputManager:SendMouseButtonEvent(cx, cy, 0, true, game, 0)
+                            VirtualInputManager:SendMouseButtonEvent(cx, cy, 0, false, game, 0)
                         end
                     end
                 end
-            else
-                -- Khi tắt toggle thì reset mục tiêu
-                currentAttackTarget = nil
             end
         end)
     end
