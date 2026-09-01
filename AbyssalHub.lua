@@ -550,44 +550,54 @@ end
         end
 
         -- LABEL (Sửa lại chuẩn cú pháp để nhận trực tiếp từ Tab mà không cần truyền parentFrame thủ công)
-        function TabElements:CreateLabel(initialText, defaultState, callback)
-            local labelContainer = Instance.new("Frame")
-            labelContainer.Size = UDim2.new(1, -6, 0, 36)
-            labelContainer.BackgroundColor3 = Color3.fromRGB(21, 27, 36)
-            labelContainer.BorderSizePixel = 0
-            labelContainer.Parent = TabPage
+        -- Sửa lại hàm CreateLabel trong UI Library của cậu thành thế này:
+function TabElements:CreateLabel(initialText, updateFunction)
+    local labelContainer = Instance.new("Frame")
+    labelContainer.Size = UDim2.new(1, -6, 0, 36)
+    labelContainer.BackgroundColor3 = Color3.fromRGB(21, 27, 36)
+    labelContainer.BorderSizePixel = 0
+    labelContainer.Parent = TabPage
 
-            local corner = Instance.new("UICorner")
-            corner.CornerRadius = UDim.new(0, 6)
-            corner.Parent = labelContainer
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = labelContainer
 
-            local textLabel = Instance.new("TextLabel")
-            textLabel.Size = UDim2.new(1, -15, 1, 0)
-            textLabel.Position = UDim2.new(0, 10, 0, 0)
-            textLabel.BackgroundTransparency = 1
-            textLabel.TextColor3 = Color3.fromRGB(240, 240, 240)
-            textLabel.TextSize = 12
-            textLabel.Font = Enum.Font.GothamMedium
-            textLabel.TextXAlignment = Enum.TextXAlignment.Left
-            textLabel.Text = initialText or "Label Text"
-            textLabel.Parent = labelContainer
+    local textLabel = Instance.new("TextLabel")
+    textLabel.Size = UDim2.new(1, -15, 1, 0)
+    textLabel.Position = UDim2.new(0, 10, 0, 0)
+    textLabel.BackgroundTransparency = 1
+    textLabel.TextColor3 = Color3.fromRGB(240, 240, 240)
+    textLabel.TextSize = 12
+    textLabel.Font = Enum.Font.GothamMedium
+    textLabel.TextXAlignment = Enum.TextXAlignment.Left
+    textLabel.Text = initialText or "Label Text"
+    textLabel.Parent = labelContainer
 
-            local labelObject = {}
-            
-            function labelObject:Set(newText)
-                textLabel.Text = newText
+    -- Tự động chạy luồng ngầm cập nhật chữ nếu có truyền vào hàm update
+    if updateFunction and type(updateFunction) == "function" then
+        task.spawn(function()
+            while labelContainer and labelContainer.Parent do
+                pcall(function()
+                    local newText = updateFunction()
+                    if newText then
+                        textLabel.Text = tostring(newText)
+                    end
+                end)
+                task.wait(0.2) -- Cập nhật mỗi 0.2s cho mượt mà, không bị lag game
             end
+        end)
+    end
 
-            function labelObject:Destroy()
-                labelContainer:Destroy()
-            end
+    local labelObject = {}
+    function labelObject:Set(newText)
+        textLabel.Text = newText
+    end
+    function labelObject:Destroy()
+        labelContainer:Destroy()
+    end
 
-            if callback then
-                pcall(callback, defaultState)
-            end
-
-            return labelObject
-        end
+    return labelObject
+end
 
         return TabElements
     end
@@ -1596,6 +1606,7 @@ task.spawn(function()
     end
 end)
 
+-- Vòng lặp cập nhật thông tin liên tục mỗi 1 giây
 task.spawn(function()
     local lastUpdate = 0
 
@@ -1800,7 +1811,7 @@ PvpTab:CreateToggle("Auto Attack Selected Player", false, function(state)
     _G.VirtualAttackPlayerEnabled = state
 end)
 
-StatsTab:CreateLabel("📡 Ping: Đang tải...", false, function(state) end)
-StatsTab:CreateLabel("⚡ FPS: Đang tải...", false, function(state) end)
-StatsTab:CreateLabel("🌕 Trăng (Moon): Đang quét...", false, function(state) end)
-StatsTab:CreateLabel("🏝️ Đảo Bí Ẩn (Mirage): Không thấy", false, function(state) end)
+local PingLabel   = StatsTab:CreateLabel("📡 Ping: Đang tải...", false, function(state) end)
+local FpsLabel    = StatsTab:CreateLabel("⚡ FPS: Đang tải...", false, function(state) end)
+local MoonLabel   = StatsTab:CreateLabel("🌕 Trăng (Moon): Đang quét...", false, function(state) end)
+local MirageLabel = StatsTab:CreateLabel("🏝️ Đảo Bí Ẩn (Mirage): Không thấy", false, function(state) end)
