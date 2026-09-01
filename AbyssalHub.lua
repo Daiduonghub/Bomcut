@@ -1297,24 +1297,21 @@ task.spawn(function()
     
     while task.wait(0.05) do
         if _G.AutoBountyEnabled then
+            AutoHaki()
+
             local myChar = LocalPlayer.Character
             local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
             local myHum = myChar and myChar:FindFirstChildOfClass("Humanoid")
 
-            -- Phát hiện nhân vật vừa chết và hồi sinh lại (Character mới)
             if myChar and myChar ~= lastChar then
                 lastChar = myChar
-                
-                -- Đợi nhân vật load xong máu thì tự động bật PVP
                 task.wait(1)
                 pcall(function()
                     game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("EnablePvp")
                 end)
             end
 
-            -- Tiến hành Auto Bounty khi nhân vật sống và có target
             if myChar and myRoot and myHum and myHum.Health > 0 then
-                -- Gọi hàm lấy target (đảm bảo hàm GetAutoBountyTarget đã tồn tại trong source của cậu)
                 local targetPlayer = type(GetAutoBountyTarget) == "function" and GetAutoBountyTarget() or nil
 
                 if targetPlayer and targetPlayer.Character then
@@ -1322,13 +1319,11 @@ task.spawn(function()
                     local tHum = targetPlayer.Character:FindFirstChildOfClass("Humanoid")
 
                     if tRoot and tHum and tHum.Health > 0 then
-                        -- Bay thẳng tới ngay gần mục tiêu (cách 2 studs)
                         local targetCF = tRoot.CFrame * CFrame.new(0, 2, 2)
                         if type(DirectFlyToPlayer) == "function" then
                             DirectFlyToPlayer(targetCF, 300)
                         end
 
-                        -- Tự động xả Skill Võ (Melee)
                         if _G.AutoSkillMeleeEnabled and type(SmartEquipWeapon) == "function" and type(PressKey) == "function" then
                             SmartEquipWeapon("Melee")
                             local mSkill = _G.SelectedSelectedMeleeSkill or _G.SelectedMeleeSkill or ""
@@ -1337,7 +1332,6 @@ task.spawn(function()
                             if string.find(mSkill, "C") then PressKey("C") end
                         end
 
-                        -- Tự động xả Skill Trái (Fruit)
                         if _G.AutoSkillFruitEnabled and type(SmartEquipWeapon) == "function" and type(PressKey) == "function" then
                             SmartEquipWeapon("Fruit")
                             local fSkill = _G.SelectedFruitSkill or ""
