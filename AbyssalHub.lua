@@ -825,11 +825,11 @@ local function BringMobs(targetMob)
                 if eName == targetName or string.find(eName, targetName, 1, true) then
                     local dist = (eRoot.Position - targetCF.Position).Magnitude
 
-                    if dist > 3 and dist <= 150 then
+                    -- RÚT NGẮN BÁN KÍNH Gom xuống 65 studs để Server không giật quái về spawn
+                    if dist > 2 and dist <= 65 then
                         count = count + 1
 
                         pcall(function()
-                            -- Tắt va chạm tất cả bộ phận quái để không bị dội vật lý
                             for _, part in ipairs(enemy:GetChildren()) do
                                 if part:IsA("BasePart") then
                                     part.CanCollide = false
