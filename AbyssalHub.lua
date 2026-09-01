@@ -842,11 +842,11 @@ local function BringMobs(currentData)
                 eRoot.AssemblyAngularVelocity = Vector3.zero
 
                 local angle = i * angleStep
-                local radius = 3 -- Khoảng cách gom sát sạt người
+                local radius = 3 -- Khoảng cách gom sát người
                 local offsetX = math.cos(angle) * radius
                 local offsetZ = math.sin(angle) * radius
 
-                -- Ghim chặt cứng ngay tâm vị trí nhân vật đang đứng, giữ nguyên độ cao Y
+                -- Ghim chặt cứng quanh nhân vật
                 eRoot.CFrame = rootPart.CFrame + Vector3.new(offsetX, 0, offsetZ)
 
                 eHum.PlatformStand = true
