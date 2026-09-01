@@ -804,24 +804,46 @@ local lastBring = 0
 local function BringMobs(targetInput, enemyNameInput)
     if not _G.BringMobEnabled or not targetInput then return end
 
-    -- Lấy CFrame của quái mục tiêu
+    pcall(function()
+        if sethiddenproperty then
+            sethiddenproperty(LocalPlayer, "MaximumSimulationRadius", math.huge)
+            sethiddenproperty(LocalPlayer, "SimulationRadius", math.huge)
+        end
+        if setsimulationradius then
+            setsimulationradius(math.huge)
+        end
+    end)
+
     local targetCF = nil
+    local primaryEnemy = nil
+
     if typeof(targetInput) == "Instance" and targetInput:FindFirstChild("HumanoidRootPart") then
+        primaryEnemy = targetInput
         targetCF = targetInput.HumanoidRootPart.CFrame
     elseif typeof(targetInput) == "CFrame" then
         targetCF = targetInput
+    elseif typeof(targetInput) == "Vector3" then
+        targetCF = CFrame.new(targetInput)
     end
+
     if not targetCF then return end
 
-    -- Chuẩn hóa tên quái (xóa bỏ phần [Lv. ...])
-    local rawName = type(enemyNameInput) == "string" and enemyNameInput or ""
+    local rawName = ""
+    if type(enemyNameInput) == "string" then
+        rawName = enemyNameInput
+    elseif type(enemyNameInput) == "table" and enemyNameInput.EnemyName then
+        rawName = enemyNameInput.EnemyName
+    elseif primaryEnemy then
+        rawName = primaryEnemy.Name
+    end
+
     local targetName = rawName:gsub("%s*%[.-%]", ""):lower()
 
     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
     if not EnemiesFolder then return end
 
+    local maxMobs = _G.MaxBringMobs or 4
     local count = 0
-    local maxMobs = _G.MaxBringMobs or 3
 
     for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
         local eHum = enemy:FindFirstChildOfClass("Humanoid")
@@ -829,18 +851,18 @@ local function BringMobs(targetInput, enemyNameInput)
 
         if eHum and eRoot and eHum.Health > 0 then
             local eName = enemy.Name:gsub("%s*%[.-%]", ""):lower()
+            local matchName = (targetName == "" or string.find(eName, targetName, 1, true) or string.find(targetName, eName, 1, true))
 
-            -- Kiểm tra tên quái
-            if targetName == "" or string.find(eName, targetName, 1, true) then
+            if matchName then
                 local dist = (eRoot.Position - targetCF.Position).Magnitude
-
-                -- Chỉ gom quái ở khoảng cách an toàn (từ 5 đến 120 studs)
-                -- Nếu quá xa server sẽ reset quái, nếu quá gần thì không cần gom tiếp
-                if dist > 5 and dist <= 120 then
+                if dist <= 250 then
                     count = count + 1
 
                     pcall(function()
+                        eHum.PlatformStand = true
                         eRoot.CanCollide = false
+                        eRoot.AssemblyLinearVelocity = Vector3.zero
+                        eRoot.AssemblyAngularVelocity = Vector3.zero
                         eRoot.CFrame = targetCF
                     end)
 
