@@ -809,6 +809,9 @@ local function BringMobs(targetInput, enemyNameInput)
             sethiddenproperty(LocalPlayer, "MaximumSimulationRadius", math.huge)
             sethiddenproperty(LocalPlayer, "SimulationRadius", math.huge)
         end
+        if setsimulationradius then
+            setsimulationradius(math.huge)
+        end
     end)
 
     local targetCF = nil
@@ -825,12 +828,17 @@ local function BringMobs(targetInput, enemyNameInput)
 
     if not targetCF then return end
 
-    local targetName = ""
+    local rawName = ""
     if type(enemyNameInput) == "string" then
-        targetName = enemyNameInput
+        rawName = enemyNameInput
     elseif type(enemyNameInput) == "table" and enemyNameInput.EnemyName then
-        targetName = enemyNameInput.EnemyName
+        rawName = enemyNameInput.EnemyName
+    elseif primaryEnemy then
+        rawName = primaryEnemy.Name
     end
+
+    -- Lọc bỏ phần [Lv. ...] để tìm tên quái chính xác
+    local targetName = rawName:gsub("%s*%[.-%]", ""):lower()
 
     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
     if not EnemiesFolder then return end
@@ -842,23 +850,22 @@ local function BringMobs(targetInput, enemyNameInput)
         if enemy ~= primaryEnemy then
             local eHum = enemy:FindFirstChildOfClass("Humanoid")
             local eRoot = enemy:FindFirstChild("HumanoidRootPart")
-            local eHead = enemy:FindFirstChild("Head")
 
-            -- CHECK TRẠNG THÁI CHUẨN: Quái sống, không chết, đã load đầy đủ Head & RootPart
-            if eHum and eRoot and eHead and eHum.Health > 0 and eHum:GetState() ~= Enum.HumanoidStateType.Dead then
-                local matchName = (targetName == "" or enemy.Name == targetName or string.find(enemy.Name, targetName))
+            if eHum and eRoot and eHum.Health > 0 then
+                local eName = enemy.Name:gsub("%s*%[.-%]", ""):lower()
+                
+                -- Khớp tên dạng chuỗi thuần không dùng pattern
+                local matchName = (targetName == "" or string.find(eName, targetName, 1, true) or string.find(targetName, eName, 1, true))
+                
                 if matchName then
                     local dist = (eRoot.Position - targetCF.Position).Magnitude
                     if dist <= 250 then
                         count = count + 1
 
                         pcall(function()
-                            -- Triệt tiêu hoàn toàn lực đẩy để hitbox trùng khớp 100%
                             eRoot.CanCollide = false
                             eRoot.AssemblyLinearVelocity = Vector3.zero
                             eRoot.AssemblyAngularVelocity = Vector3.zero
-                            
-                            -- Đưa quái về chính xác vị trí quái chính
                             eRoot.CFrame = targetCF
                         end)
 
