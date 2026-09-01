@@ -793,32 +793,24 @@ end
 local lastAttack = 0
 
 local lastBring = 0
-local function BringMobs(targetCF, currentData)
-    if not _G.BringMobEnabled or not targetCF then return end
+local function BringMobs(spawnPos, currentData)
+    if not _G.BringMobEnabled or not spawnPos then return end
     
     if tick() - lastBring < 0.1 then return end
     lastBring = tick()
 
     local myChar = LocalPlayer and LocalPlayer.Character
-    if not myChar then return end
-    local rootPart = myChar:FindFirstChild("HumanoidRootPart")
-    if not rootPart then return end
+    if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
 
     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
     if not EnemiesFolder then return end
 
-    local maxMobs = _G.MaxBringMobs or 3
+    local maxMobs = _G.MaxBringMobs or 4
     local targetsToBring = {}
     local targetName = currentData and currentData.EnemyName or ""
-    local basePos = targetCF.Position
 
-    -- Tăng bán kính nhận sát thương client nếu Executor hỗ trợ
-    if sethiddenproperty then
-        pcall(function()
-            sethiddenproperty(LocalPlayer, "MaximumSimulationRadius", math.huge)
-            sethiddenproperty(LocalPlayer, "SimulationRadius", 99999)
-        end)
-    end
+    -- Lấy vị trí TÂM CỐ ĐỊNH của bãi spawn (không lấy theo tọa độ quái đang di chuyển)
+    local baseVector = (typeof(spawnPos) == "CFrame" and spawnPos.Position or spawnPos)
 
     for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
         local eHum = enemy:FindFirstChildOfClass("Humanoid")
@@ -827,9 +819,9 @@ local function BringMobs(targetCF, currentData)
         if eHum and eRoot and eHum.Health > 0 then
             local matchName = (targetName == "" or enemy.Name == targetName or string.find(enemy.Name, targetName))
             if matchName then
-                -- Chỉ gom quái trong tầm Leash an toàn (<= 150 studs từ bãi gốc)
-                local dist = (eRoot.Position - basePos).Magnitude
-                if dist <= 150 then
+                -- Chỉ gom quái trong bán kính bãi spawn
+                local distFromSpawn = (eRoot.Position - baseVector).Magnitude
+                if distFromSpawn <= 180 then
                     table.insert(targetsToBring, {Root = eRoot, Hum = eHum})
                     if #targetsToBring >= maxMobs then
                         break
@@ -846,24 +838,22 @@ local function BringMobs(targetCF, currentData)
             local eHum = mob.Hum
 
             pcall(function()
-                -- Triệt tiêu hoàn toàn lực di chuyển và va chạm
+                -- Vô hiệu hóa vật lý di chuyển của quái
                 eRoot.CanCollide = false
                 eRoot.AssemblyLinearVelocity = Vector3.zero
                 eRoot.AssemblyAngularVelocity = Vector3.zero
 
-                -- Ép quái vào trạng thái Physics để ngắt AI tự đi về Spawn
-                eHum:ChangeState(Enum.HumanoidStateType.Physics)
-                eHum.PlatformStand = true
                 eHum.WalkSpeed = 0
                 eHum.JumpPower = 0
+                eHum.PlatformStand = true
 
+                -- Gom vòng tròn ngay tại TÂM BÃI SPAWN cố định
                 local angle = i * angleStep
-                local radius = 2.5
+                local radius = 3
                 local offsetX = math.cos(angle) * radius
                 local offsetZ = math.sin(angle) * radius
 
-                -- Cố định quái ngay bãi gốc (basePos)
-                eRoot.CFrame = CFrame.new(basePos.X + offsetX, basePos.Y, basePos.Z + offsetZ)
+                eRoot.CFrame = CFrame.new(baseVector.X + offsetX, baseVector.Y, baseVector.Z + offsetZ)
             end)
         end
     end
@@ -1276,11 +1266,12 @@ task.spawn(function()
 
                             local enemyCF = targetEnemyRoot.CFrame
 
-                            if _G.BringMobEnabled then
-                                pcall(function()
-                                    BringMobs(enemyCF, currentData)
-                                end)
-                            end
+-- Chỗ gọi BringMobs trong luồng Farm Level:
+if _G.BringMobEnabled and enemySpot then
+    pcall(function()
+        BringMobs(enemySpot, currentData)
+    end)
+end
 
                             curRoot.CFrame = enemyCF * CFrame.new(0, FarmHeight, 0)
 
