@@ -794,6 +794,10 @@ local lastBring = 0
 local function BringMobs(targetCF, currentData)
     if not _G.BringMobEnabled or not targetCF or not currentData then return end
     
+    -- Giới hạn tần suất kéo để quái có thời gian thở và hồi phục hoạt động (tránh bị đơ cứng)
+    if tick() - lastBring < 0.15 then return end
+    lastBring = tick()
+
     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
     if not EnemiesFolder then return end
 
@@ -809,12 +813,14 @@ local function BringMobs(targetCF, currentData)
                 local dist = (eRoot.Position - targetCF.Position).Magnitude
                 if dist <= 150 then
                     eRoot.CanCollide = false
-                    -- Khóa nhẹ vận tốc để nó không bị trôi văng lung tung
-                    eRoot.AssemblyLinearVelocity = Vector3.zero
-                    eRoot.AssemblyAngularVelocity = Vector3.zero
                     
-                    -- Kéo quái gom lại xung quanh mặt mình và cho phép nó đứng bình thường
-                    eRoot.CFrame = targetCF * CFrame.new(math.random(-2, 2), 0, math.random(-2, 2))
+                    -- Thay vì khóa cứng bằng Vector3.zero gây lỗi đơ, ta chỉ dịch chuyển trực tiếp nhẹ nhàng quanh tâm nhân vật
+                    eRoot.CFrame = targetCF * CFrame.new(math.random(-3, 3), 0, math.random(-3, 3))
+                    
+                    -- Đảm bảo quái không bị mất máu oan hay chuyển nhầm sang trạng thái physics chết đứng
+                    if eHum.PlatformStand then
+                        eHum.PlatformStand = false
+                    end
 
                     broughtCount = broughtCount + 1
                     if broughtCount >= maxMobs then break end
