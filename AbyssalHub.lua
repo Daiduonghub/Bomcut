@@ -790,9 +790,9 @@ local function AutoEquipWeapon()
     end
 end
 
-local lastBring = 0
 local lastAttack = 0
 
+local lastBring = 0
 local function BringMobs(targetCF, currentData)
     if not _G.BringMobEnabled then return end
     
@@ -831,6 +831,18 @@ local function BringMobs(targetCF, currentData)
     end
 
     if #targetsToBring > 0 then
+        -- Dùng Raycast từ người chơi chiếu thẳng xuống đất để tìm độ cao Y của mặt đất
+        local pPos = rootPart.Position
+        local raycastParams = RaycastParams.new()
+        raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+        raycastParams.IgnoreWater = true
+        
+        local groundY = pPos.Y - 10 -- Mặc định trừ hao nếu không bắt được raycast
+        local rayResult = workspace:Raycast(pPos + Vector3.new(0, 5, 0), Vector3.new(0, -100, 0), raycastParams)
+        if rayResult then
+            groundY = rayResult.Position.Y
+        end
+
         local angleStep = (math.pi * 2) / #targetsToBring
         for i, mob in ipairs(targetsToBring) do
             local eRoot = mob.Root
@@ -842,12 +854,12 @@ local function BringMobs(targetCF, currentData)
                 eRoot.AssemblyAngularVelocity = Vector3.zero
 
                 local angle = i * angleStep
-                local radius = 3 -- Khoảng cách gom sát người
+                local radius = 3 -- Khoảng cách gom quanh tâm
                 local offsetX = math.cos(angle) * radius
                 local offsetZ = math.sin(angle) * radius
 
-                -- Ghim chặt cứng quanh nhân vật theo tọa độ thực tế của player
-                eRoot.CFrame = rootPart.CFrame + Vector3.new(offsetX, 0, offsetZ)
+                -- Ghim chặt quái xuống đúng mặt đất bên dưới, không bị bay lên trời nữa
+                eRoot.CFrame = CFrame.new(pPos.X + offsetX, groundY + 1, pPos.Z + offsetZ)
 
                 eHum.PlatformStand = true
                 eHum.WalkSpeed = 0
