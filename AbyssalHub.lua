@@ -1392,7 +1392,7 @@ end
 -- ==========================================
 -- PHẦN 1: AUTO BOUNTY & XẢ SKILL TỰ ĐỘNG
 -- ==========================================
-Task.spawn(function()
+task.spawn(function()
     local lastChar = nil
     local currentTarget = nil
     local attackStartTime = 0
