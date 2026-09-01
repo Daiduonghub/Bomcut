@@ -790,60 +790,58 @@ local function AutoEquipWeapon()
     end
 end
 
--- ==========================================
--- HÀM BRING MOBS CHUẨN XÁC CHO CẢ 2 CHẾ ĐỘ
--- ==========================================
 local lastBring = 0
 local function BringMobs(targetCF, currentData)
     if not _G.BringMobEnabled or not targetCF then return end
     
-    if tick() - lastBring < 0.1 then return end
+    -- Giãn nhịp kéo ra một chút để server kịp đồng bộ, tránh bị khóa cứng anti-cheat
+    if tick() - lastBring < 0.15 then return end
     lastBring = tick()
 
     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
     if not EnemiesFolder then return end
 
     local maxMobs = _G.MaxBringMobs or 3
-    local targetName = currentData and currentData.EnemyName or ""
     local targetsToBring = {}
 
+    -- Quét toàn bộ quái xung quanh trong phạm vi
     for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
         local eHum = enemy:FindFirstChildOfClass("Humanoid")
         local eRoot = enemy:FindFirstChild("HumanoidRootPart")
 
         if eHum and eRoot and eHum.Health > 0 then
-            local matchName = (targetName == "" or enemy.Name == targetName or string.find(enemy.Name, targetName))
-            
-            if matchName then
-                local dist = (eRoot.Position - targetCF.Position).Magnitude
-                if dist <= 200 then
-                    table.insert(targetsToBring, {Root = eRoot, Hum = eHum})
-                    if #targetsToBring >= maxMobs then
-                        break
-                    end
+            local dist = (eRoot.Position - targetCF.Position).Magnitude
+            if dist <= 200 then
+                table.insert(targetsToBring, {Root = eRoot, Hum = eHum})
+                if #targetsToBring >= maxMobs then
+                    break
                 end
             end
         end
     end
 
+    -- Gom và ghim chặt quái đứng im một chỗ thành vòng tròn quanh nhân vật
     if #targetsToBring > 0 then
         local angleStep = (math.pi * 2) / #targetsToBring
         for i, mob in ipairs(targetsToBring) do
             local eRoot = mob.Root
             local eHum = mob.Hum
 
-            eRoot.CanCollide = false
-            eRoot.AssemblyLinearVelocity = Vector3.zero
-            eRoot.AssemblyAngularVelocity = Vector3.zero
-
-            local angle = i * angleStep
-            local radius = 3
-            local offsetX = math.cos(angle) * radius
-            local offsetZ = math.sin(angle) * radius
-
-            eRoot.CFrame = targetCF + Vector3.new(offsetX, 0, offsetZ)
-
             pcall(function()
+                eRoot.CanCollide = false
+                -- Khóa triệt để mọi hướng di chuyển và vận tốc văng ngang của quái
+                eRoot.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                eRoot.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+
+                local angle = i * angleStep
+                local radius = 3 -- Khoảng cách ôm sát quanh người
+                local offsetX = math.cos(angle) * radius
+                local offsetZ = math.sin(angle) * radius
+
+                -- Ghim cố định tọa độ vòng tròn quanh nhân vật
+                eRoot.CFrame = targetCF + Vector3.new(offsetX, 0, offsetZ)
+
+                -- Ép quái ở trạng thái bình thường, không bị gục ngã hay đơ cứng
                 eHum.PlatformStand = false
                 eHum.Sit = false
             end)
