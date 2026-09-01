@@ -1290,10 +1290,7 @@ local function DirectFlyToPlayer(targetCF, speed)
 end
 
 -- ==========================================
--- LOGIC AUTO BOUNTY & XỬ LÝ RESPAWN
--- ==========================================
--- ==========================================
--- LOGIC AUTO BOUNTY & TỰ ĐỘNG BẬT PVP KHI CHẾT
+-- PHẦN 1: AUTO BOUNTY & XẢ SKILL TỰ ĐỘNG
 -- ==========================================
 task.spawn(function()
     local lastChar = nil
@@ -1317,7 +1314,8 @@ task.spawn(function()
 
             -- Tiến hành Auto Bounty khi nhân vật sống và có target
             if myChar and myRoot and myHum and myHum.Health > 0 then
-                local targetPlayer = GetAutoBountyTarget()
+                -- Gọi hàm lấy target (đảm bảo hàm GetAutoBountyTarget đã tồn tại trong source của cậu)
+                local targetPlayer = type(GetAutoBountyTarget) == "function" and GetAutoBountyTarget() or nil
 
                 if targetPlayer and targetPlayer.Character then
                     local tRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
@@ -1326,23 +1324,27 @@ task.spawn(function()
                     if tRoot and tHum and tHum.Health > 0 then
                         -- Bay thẳng tới ngay gần mục tiêu (cách 2 studs)
                         local targetCF = tRoot.CFrame * CFrame.new(0, 2, 2)
-                        DirectFlyToPlayer(targetCF, 300)
+                        if type(DirectFlyToPlayer) == "function" then
+                            DirectFlyToPlayer(targetCF, 300)
+                        end
 
                         -- Tự động xả Skill Võ (Melee)
-                        if _G.AutoSkillMeleeEnabled then
+                        if _G.AutoSkillMeleeEnabled and type(SmartEquipWeapon) == "function" and type(PressKey) == "function" then
                             SmartEquipWeapon("Melee")
-                            if string.find(_G.SelectedMeleeSkill or "", "Z") then PressKey("Z") end
-                            if string.find(_G.SelectedMeleeSkill or "", "X") then PressKey("X") end
-                            if string.find(_G.SelectedMeleeSkill or "", "C") then PressKey("C") end
+                            local mSkill = _G.SelectedSelectedMeleeSkill or _G.SelectedMeleeSkill or ""
+                            if string.find(mSkill, "Z") then PressKey("Z") end
+                            if string.find(mSkill, "X") then PressKey("X") end
+                            if string.find(mSkill, "C") then PressKey("C") end
                         end
 
                         -- Tự động xả Skill Trái (Fruit)
-                        if _G.AutoSkillFruitEnabled then
+                        if _G.AutoSkillFruitEnabled and type(SmartEquipWeapon) == "function" and type(PressKey) == "function" then
                             SmartEquipWeapon("Fruit")
-                            if string.find(_G.SelectedFruitSkill or "", "Z") then PressKey("Z") end
-                            if string.find(_G.SelectedFruitSkill or "", "X") then PressKey("X") end
-                            if string.find(_G.SelectedFruitSkill or "", "C") then PressKey("C") end
-                            if string.find(_G.SelectedFruitSkill or "", "V") then PressKey("V") end
+                            local fSkill = _G.SelectedFruitSkill or ""
+                            if string.find(fSkill, "Z") then PressKey("Z") end
+                            if string.find(fSkill, "X") then PressKey("X") end
+                            if string.find(fSkill, "C") then PressKey("C") end
+                            if string.find(fSkill, "V") then PressKey("V") end
                         end
                     end
                 end
@@ -1352,7 +1354,7 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- NÚT NỔI KHẨN CẤP (TỰ ĐỘNG HIỆN/ẨN THEO AUTO ATTACK)
+-- NÚT NỔI KHẨN CẤP (TỰ ĐỘNG TẮT CẢ BIẾN VÀ TOGGLE UI)
 -- ==========================================
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
@@ -1392,10 +1394,17 @@ uiStroke.Color = Color3.fromRGB(255, 255, 255)
 uiStroke.Thickness = 2
 uiStroke.Parent = stopButton
 
--- Khi bấm vào nút thì tắt auto attack và tự ẩn nút đi
+-- Khi bấm vào nút thì tắt auto attack, tắt toggle trên UI và tự ẩn nút đi
 stopButton.MouseButton1Click:Connect(function()
     _G.VirtualAttackPlayerEnabled = false
     stopButton.Visible = false
+    
+    -- Đồng bộ tắt luôn Toggle trên Menu UI (nếu cậu có gán biến cho toggle, ví dụ: VirtualAttackToggle)
+    if VirtualAttackToggle and type(VirtualAttackToggle.Set) == "function" then
+        VirtualAttackToggle:Set(false)
+    elseif VirtualAttackToggle and type(VirtualAttackToggle.SetValue) == "function" then
+        VirtualAttackToggle:SetValue(false)
+    end
 end)
 
 -- Vòng lặp kiểm tra trạng thái để tự động Hiện/Ẩn nút
@@ -1411,53 +1420,79 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- AUTO VIRTUAL ATTACK PLAYER CHUẨN XÁC
+-- VIRTUAL ATTACK PLAYER (TỰ ĐỘNG QUÉT SERVER, KHÔNG CẦN DROPDOWN)
 -- ==========================================
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
+
+_G.VirtualAttackPlayerEnabled = false
+
+local currentAttackTarget = nil
 
 task.spawn(function()
     while true do
         task.wait(0.08)
         pcall(function()
-            if _G.VirtualAttackPlayerEnabled and _G.SelectedPlayer and _G.SelectedPlayer ~= "" then
-                local target = Players:FindFirstChild(_G.SelectedPlayer)
-                local localPlayer = Players.LocalPlayer
+            if _G.VirtualAttackPlayerEnabled then
                 local myChar = localPlayer.Character
+                local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+                local myHum = myChar and myChar:FindFirstChildOfClass("Humanoid")
                 
-                if target and target.Character and myChar then
-                    local tRoot = target.Character:FindFirstChild("HumanoidRootPart")
-                    local myRoot = myChar:FindFirstChild("HumanoidRootPart")
-                    local tHum = target.Character:FindFirstChildOfClass("Humanoid")
-                    local myHum = myChar:FindFirstChildOfClass("Humanoid")
-                    
-                    if tRoot and myRoot and tHum and tHum.Health > 0 and myHum and myHum.Health > 0 then
-                        -- 1. Tự động cầm vũ khí (Tool) nếu chưa cầm để có cái mà đánh
-                        local currentTool = myChar:FindFirstChildOfClass("Tool")
-                        if not currentTool then
-                            local backpack = localPlayer:FindFirstChildOfClass("Backpack")
-                            if backpack then
-                                local firstTool = backpack:FindFirstChildOfClass("Tool")
-                                if firstTool then
-                                    myHum:EquipTool(firstTool)
+                if myChar and myRoot and myHum and myHum.Health > 0 then
+                    -- 1. Nếu chưa có mục tiêu hoặc mục tiêu cũ đã chết/thoát, tự động quét tìm người chơi khác trong server
+                    if not currentAttackTarget or not currentAttackTarget.Parent or not currentAttackTarget.Character then
+                        currentAttackTarget = nil
+                        for _, p in ipairs(Players:GetPlayers()) do
+                            if p ~= localPlayer and p.Character then
+                                local tHum = p.Character:FindFirstChildOfClass("Humanoid")
+                                local tRoot = p.Character:FindFirstChild("HumanoidRootPart")
+                                if tHum and tHum.Health > 0 and tRoot then
+                                    currentAttackTarget = p
+                                    break
                                 end
                             end
                         end
+                    end
 
-                        -- 2. Xoay nhân vật hướng thẳng mặt về phía đối thủ
-                        myRoot.CFrame = CFrame.new(myRoot.Position, Vector3.new(tRoot.Position.X, myRoot.Position.Y, tRoot.Position.Z))
+                    -- 2. Tiến hành tấn công mục tiêu tìm được
+                    if currentAttackTarget and currentAttackTarget.Character then
+                        local tRoot = currentAttackTarget.Character:FindFirstChild("HumanoidRootPart")
+                        local tHum = currentAttackTarget.Character:FindFirstChildOfClass("Humanoid")
+                        
+                        if tRoot and tHum and tHum.Health > 0 then
+                            -- Tự động cầm vũ khí nếu chưa cầm
+                            local currentTool = myChar:FindFirstChildOfClass("Tool")
+                            if not currentTool then
+                                local backpack = localPlayer:FindFirstChildOfClass("Backpack")
+                                if backpack then
+                                    local firstTool = backpack:FindFirstChildOfClass("Tool")
+                                    if firstTool then
+                                        myHum:EquipTool(firstTool)
+                                    end
+                                end
+                            end
 
-                        -- 3. Dùng VirtualInputManager kích hoạt phím chuột trái (Click đánh thật)
-                        -- Lấy tọa độ tâm màn hình thiết bị để click chính xác không bị lệch mở kho đồ
-                        local viewportSize = workspace.CurrentCamera.ViewportSize
-                        local centerX = viewportSize.X / 2
-                        local centerY = viewportSize.Y / 2
+                            -- Xoay nhân vật hướng thẳng mặt về phía đối thủ
+                            myRoot.CFrame = CFrame.new(myRoot.Position, Vector3.new(tRoot.Position.X, myRoot.Position.Y, tRoot.Position.Z))
 
-                        VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, true, game, 0)
-                        task.wait(0.02)
-                        VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, false, game, 0)
+                            -- Mô phỏng click chuột ảo tại tâm màn hình để tấn công
+                            local viewportSize = workspace.CurrentCamera.ViewportSize
+                            local centerX = viewportSize.X / 2
+                            local centerY = viewportSize.Y / 2
+
+                            VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, true, game, 0)
+                            task.wait(0.02)
+                            VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, false, game, 0)
+                        else
+                            -- Mục tiêu ngỏm thì reset để tìm đứa khác ngay
+                            currentAttackTarget = nil
+                        end
                     end
                 end
+            else
+                -- Khi tắt toggle thì reset mục tiêu
+                currentAttackTarget = nil
             end
         end)
     end
