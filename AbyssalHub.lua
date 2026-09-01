@@ -795,7 +795,8 @@ end
 -- ==========================================
 local lastBring = 0
 local function BringAndOriginalHit(targetCF, currentData)
-    if not _G.BringMobEnabled or not targetCF or not currentData then return end
+    -- Kiểm tra nếu tắt Bring Mob thì cút luôn
+    if not _G.BringMobEnabled or not targetCF then return end
     
     -- Nhịp quét ổn định
     if tick() - lastBring < 0.1 then return end
@@ -807,15 +808,21 @@ local function BringAndOriginalHit(targetCF, currentData)
     local maxMobs = _G.MaxBringMobs or 3
     local targetsToBring = {}
 
-    -- Bước 1: Quét và gom quái quanh vị trí chỉ định
-    for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
-        if enemy.Name == currentData.EnemyName then
-            local eHum = enemy:FindFirstChildOfClass("Humanoid")
-            local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+    local targetName = currentData and currentData.EnemyName or ""
 
-            if eHum and eRoot and eHum.Health > 0 then
+    -- Bước 1: Quét toàn bộ quái trong Workspace
+    for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
+        local eHum = enemy:FindFirstChildOfClass("Humanoid")
+        local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+
+        if eHum and eRoot and eHum.Health > 0 then
+            -- Nếu có tên nhiệm vụ thì khớp tên, nếu không thì vớt bất kỳ con nào gần nhất trong bán kính
+            local matchName = (targetName == "" or enemy.Name == targetName or string.find(enemy.Name, targetName))
+            
+            if matchName then
                 local dist = (eRoot.Position - targetCF.Position).Magnitude
-                if dist <= 150 then
+                -- Tăng phạm vi quét lên 250 để chắc chắn không bị hụt quái
+                if dist <= 250 then
                     table.insert(targetsToBring, {Root = eRoot, Hum = eHum})
                     if #targetsToBring >= maxMobs then
                         break
@@ -825,7 +832,7 @@ local function BringAndOriginalHit(targetCF, currentData)
         end
     end
 
-    -- Bước 2: Xếp vòng tròn cố định quanh nhân vật để đánh chuẩn bài gốc
+    -- Bước 2: Xếp vòng tròn cố định quanh nhân vật
     if #targetsToBring > 0 then
         local angleStep = (math.pi * 2) / #targetsToBring
         for i, mob in ipairs(targetsToBring) do
