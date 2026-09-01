@@ -799,15 +799,14 @@ local lastAttack = 0
 local lastBring = 0
 
 -- ==========================================
--- 1. HÀM GOM QUÁI CHUẨN (CÓ SIMULATION RADIUS)
+-- 1. HÀM GOM QUÁI MƯỢT (TRÁNH ĐƠ AI / RESET SERVER)
 -- ==========================================
 local function BringMobs(targetInput, enemyNameInput)
     if not _G.BringMobEnabled or not targetInput then return end
     
-    if tick() - lastBring < 0.05 then return end
+    if tick() - lastBring < 0.08 then return end
     lastBring = tick()
 
-    -- Mở rộng quyền vật lý Simulation Radius để client kéo được NPC ở xa
     pcall(function()
         if sethiddenproperty then
             sethiddenproperty(LocalPlayer, "MaximumSimulationRadius", math.huge)
@@ -839,7 +838,7 @@ local function BringMobs(targetInput, enemyNameInput)
     local EnemiesFolder = Workspace:FindFirstChild("Enemies")
     if not EnemiesFolder then return end
 
-    local maxMobs = _G.MaxBringMobs or 4
+    local maxMobs = _G.MaxBringMobs or 3
     local count = 0
 
     for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
@@ -851,20 +850,21 @@ local function BringMobs(targetInput, enemyNameInput)
                 local matchName = (targetName == "" or enemy.Name == targetName or string.find(enemy.Name, targetName))
                 if matchName then
                     local dist = (eRoot.Position - targetCF.Position).Magnitude
-                    if dist <= 250 then
+                    if dist <= 200 then
+                        count = count + 1
+                        
+                        -- Tán nhẹ tọa độ để các quái không bị đè trùng khít 100% làm đơ AI
+                        local offsetX = (count % 2 == 0 and 1.5 or -1.5)
+                        local offsetZ = (count > 2 and 1.5 or -1.5)
+                        local mobTargetCF = targetCF * CFrame.new(offsetX, 0, offsetZ)
+
                         pcall(function()
                             eRoot.CanCollide = false
                             eRoot.AssemblyLinearVelocity = Vector3.zero
                             eRoot.AssemblyAngularVelocity = Vector3.zero
-                            
-                            eHum.PlatformStand = true
-                            eHum.WalkSpeed = 0
-
-                            -- Gom quái phụ đè trực tiếp vào vị trí quái chính
-                            eRoot.CFrame = targetCF
+                            eRoot.CFrame = mobTargetCF
                         end)
 
-                        count = count + 1
                         if count >= maxMobs then break end
                     end
                 end
@@ -987,21 +987,17 @@ task.spawn(function()
                     local eHum = targetEnemy:FindFirstChildOfClass("Humanoid")
 
                     if eRoot and eHum and eHum.Health > 0 then
-                        -- 1. Giữ nhân vật trên đầu quái
                         RootPart.AssemblyLinearVelocity = Vector3.zero
                         RootPart.CanCollide = false
                         RootPart.CFrame = eRoot.CFrame * CFrame.new(0, FarmHeight or 10, 0)
 
-                        -- 2. Khóa quái chính
                         eRoot.CanCollide = false
                         eRoot.AssemblyLinearVelocity = Vector3.zero
 
-                        -- 3. Gom quái phụ TRƯỚC
                         if _G.BringMobEnabled then
                             BringMobs(targetEnemy, enemyName)
                         end
 
-                        -- 4. Quét danh sách quái đánh (bao gồm cả quái vừa gom về)
                         local hitTargets = {}
                         local EnemiesFolder = Workspace:FindFirstChild("Enemies")
                         if EnemiesFolder then
@@ -1116,28 +1112,18 @@ task.spawn(function()
                         if primaryEnemy and primaryEnemy:FindFirstChild("HumanoidRootPart") then
                             farmDuration = tick()
                             local pRoot = primaryEnemy.HumanoidRootPart
-                            local pHum = primaryEnemy:FindFirstChildOfClass("Humanoid")
 
-                            -- Khóa quái chính
                             pRoot.CanCollide = false
                             pRoot.AssemblyLinearVelocity = Vector3.zero
-                            pRoot.AssemblyAngularVelocity = Vector3.zero
-                            if pHum then
-                                pHum.PlatformStand = true
-                                pHum.WalkSpeed = 0
-                            end
 
-                            -- 1. Gom quái phụ TRƯỚC
                             if _G.BringMobEnabled then
                                 pcall(function()
                                     BringMobs(primaryEnemy, currentData and currentData.EnemyName or "")
                                 end)
                             end
 
-                            -- 2. Đứng trên đầu quái chính
                             curRoot.CFrame = pRoot.CFrame * CFrame.new(0, FarmHeight or 10, 0)
 
-                            -- 3. Quét quái bị gom để đánh
                             local hitTargets = {}
                             local targetName = currentData and currentData.EnemyName or ""
                             for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
@@ -1151,7 +1137,6 @@ task.spawn(function()
                                 end
                             end
 
-                            -- 4. Đánh quái
                             pcall(AutoHaki)
                             pcall(AutoEquipWeapon)
                             pcall(function()
@@ -1170,7 +1155,6 @@ task.spawn(function()
         end
     end
 end)
-
                         
 -- SEA 1 TELEPORT LOCATIONS
 local IslandTeleports = {
