@@ -1392,7 +1392,7 @@ end
 -- ==========================================
 -- PHẦN 1: AUTO BOUNTY & XẢ SKILL TỰ ĐỘNG
 -- ==========================================
-task.spawn(function()
+Task.spawn(function()
     local lastChar = nil
     local currentTarget = nil
     local attackStartTime = 0
@@ -1431,11 +1431,13 @@ task.spawn(function()
                     local tHum = currentTarget.Character:FindFirstChildOfClass("Humanoid")
 
                     if tRoot and tHum and tHum.Health > 0 then
+                        -- Kiểm tra nếu qua 10 giây mà không gây được sát thương (máu không giảm so với mốc ban đầu)
                         if tick() - attackStartTime >= 10 then
                             if tHum.Health >= lastHealth then
-                                currentTarget = nil
+                                currentTarget = nil -- Bỏ qua mục tiêu bất tử/không đánh được
                                 continue
                             else
+                                -- Nếu máu đã giảm thì cập nhật lại mốc thời gian và lượng máu mới để tiếp tục tính
                                 attackStartTime = tick()
                                 lastHealth = tHum.Health
                             end
@@ -1606,33 +1608,62 @@ task.spawn(function()
     end
 end)
 
--- Vòng lặp cập nhật thông tin liên tục mỗi 1 giây
+local StatsService = game:GetService("Stats")
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+local LocalPlayer = game.Players.LocalPlayer
+
 task.spawn(function()
     local lastUpdate = 0
 
     RunService.RenderStepped:Connect(function(dt)
-        if tick() - lastUpdate < 1 then return end
+        if tick() - lastUpdate < 0.5 then return end -- Cập nhật mỗi 0.5 giây cho mượt và đỡ nặng game
         lastUpdate = tick()
 
+        -- 1. Cập nhật FPS an toàn
         pcall(function()
-            -- 1. FPS & Ping
             local fps = math.floor(1 / dt)
             FpsLabel:Set("⚡ FPS: " .. fps)
-            
-            local ping = math.floor(LocalPlayer.NetworkPing * 1000)
-            PingLabel:Set("📡 Ping: " .. ping .. " ms")
+        end)
 
-            -- 2. Trăng (Moon)
+        -- 2. Cập nhật Ping an toàn
+        pcall(function()
+            local ping = 0
+            if LocalPlayer and LocalPlayer.NetworkPing then
+                ping = math.floor(LocalPlayer.NetworkPing * 1000)
+            else
+                local networkStats = StatsService:FindFirstChild("Network")
+                local serverStatsItem = networkStats and networkStats:FindFirstChild("ServerStatsItem")
+                local dataPing = serverStatsItem and serverStatsItem:FindFirstChild("Data Ping")
+                if dataPing then
+                    ping = math.floor(dataPing:GetValue())
+                end
+            end
+            PingLabel:Set("📡 Ping: " .. ping .. " ms")
+        end)
+
+        -- 3. Cập nhật Trăng & Phát hiện Full Moon (Trăng Tròn)
+        pcall(function()
             local clockTime = Lighting.ClockTime
-            if clockTime < 6 or clockTime > 18 then
-                MoonLabel:Set("🌕 Trăng: Đang ban đêm")
+            local isNight = (clockTime < 6 or clockTime > 18)
+            
+            if isNight then
+                local moonId = tostring(Lighting.MoonTextureId or "")
+                -- ID texture trăng tròn thường chứa chuỗi đặc trưng hoặc check độ sáng mặt trăng trong Blox Fruits
+                if moonId:find("9701506161") or moonId:find("1440") or Lighting.MoonSize > 2 then 
+                    MoonLabel:Set("🌕 Trăng: 🟢 FULL MOON (TRĂNG TRÒN!)")
+                else
+                    MoonLabel:Set("🌕 Trăng: Đang ban đêm (Chưa Full)")
+                end
             else
                 MoonLabel:Set("🌕 Trăng: Đang ban ngày ☀️")
             end
+        end)
 
-            -- 3. Đảo bí ẩn (Mirage Island)
+        -- 4. Cập nhật Đảo bí ẩn (Mirage Island)
+        pcall(function()
             local foundMirage = false
-            for _, obj in ipairs(Workspace:GetChildren()) do
+            for _, obj in ipairs(workspace:GetChildren()) do
                 if obj.Name == "Mirage Island" or obj.Name:lower():find("mirage") then
                     foundMirage = true
                     break
