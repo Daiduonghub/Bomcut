@@ -1586,6 +1586,7 @@ end)
 -- GIAO DIỆN UI
 -- ====================================================================
 local Window = Library:CreateWindow("ABYSSAL HUB")
+local StatsTab = Window:CreateTab("Stats and sever")
 local MainTab = Window:CreateTab("Farming Tab")
 local SettingTab = Window:CreateTab("Farm settings")
 local PlayerTab = Window:CreateTab("Player")
