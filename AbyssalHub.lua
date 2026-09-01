@@ -829,23 +829,27 @@ local function BringMobs(targetMob)
                 if eName == targetName or string.find(eName, targetName, 1, true) then
                     local dist = (eRoot.Position - targetCF.Position).Magnitude
 
-                    -- Bỏ điều kiện dist > 2 để giữ quái liên tục tại tâm
                     if dist <= 120 then
                         count = count + 1
 
                         pcall(function()
-                            -- Tắt va chạm tất cả bộ phận quái
+                            -- Tắt va toàn bộ Part
                             for _, part in ipairs(enemy:GetChildren()) do
                                 if part:IsA("BasePart") then
                                     part.CanCollide = false
                                 end
                             end
 
-                            eHum.PlatformStand = true
-                            eHum.WalkSpeed = 0
+                            -- Ép CFrame về đúng tâm quái chính
+                            eRoot.CFrame = targetCF
+
+                            -- Triệt tiêu lực đẩy vật lý
                             eRoot.AssemblyLinearVelocity = Vector3.zero
                             eRoot.AssemblyAngularVelocity = Vector3.zero
-                            eRoot.CFrame = targetCF
+
+                            -- KHÓA CỨNG: Anchored giúp quái đứng chết dí không bị rơi hay giật
+                            eRoot.Anchored = true
+                            eHum.PlatformStand = true
                         end)
 
                         if count >= maxMobs then break end
