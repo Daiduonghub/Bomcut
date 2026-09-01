@@ -791,14 +791,12 @@ local function AutoEquipWeapon()
 end
 
 -- ==========================================
--- HẠM BRING MOBS VÀ GỬI HIT GỐC CHUẨN XÁC
+-- HÀM BRING MOBS CHUẨN XÁC CHO CẢ 2 CHẾ ĐỘ
 -- ==========================================
 local lastBring = 0
-local function BringAndOriginalHit(targetCF, currentData)
-    -- Kiểm tra nếu tắt Bring Mob thì cút luôn
+local function BringMobs(targetCF, currentData)
     if not _G.BringMobEnabled or not targetCF then return end
     
-    -- Nhịp quét ổn định
     if tick() - lastBring < 0.1 then return end
     lastBring = tick()
 
@@ -806,23 +804,19 @@ local function BringAndOriginalHit(targetCF, currentData)
     if not EnemiesFolder then return end
 
     local maxMobs = _G.MaxBringMobs or 3
+    local targetName = currentData and currentData.EnemyName or ""
     local targetsToBring = {}
 
-    local targetName = currentData and currentData.EnemyName or ""
-
-    -- Bước 1: Quét toàn bộ quái trong Workspace
     for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
         local eHum = enemy:FindFirstChildOfClass("Humanoid")
         local eRoot = enemy:FindFirstChild("HumanoidRootPart")
 
         if eHum and eRoot and eHum.Health > 0 then
-            -- Nếu có tên nhiệm vụ thì khớp tên, nếu không thì vớt bất kỳ con nào gần nhất trong bán kính
             local matchName = (targetName == "" or enemy.Name == targetName or string.find(enemy.Name, targetName))
             
             if matchName then
                 local dist = (eRoot.Position - targetCF.Position).Magnitude
-                -- Tăng phạm vi quét lên 250 để chắc chắn không bị hụt quái
-                if dist <= 250 then
+                if dist <= 200 then
                     table.insert(targetsToBring, {Root = eRoot, Hum = eHum})
                     if #targetsToBring >= maxMobs then
                         break
@@ -832,7 +826,6 @@ local function BringAndOriginalHit(targetCF, currentData)
         end
     end
 
-    -- Bước 2: Xếp vòng tròn cố định quanh nhân vật
     if #targetsToBring > 0 then
         local angleStep = (math.pi * 2) / #targetsToBring
         for i, mob in ipairs(targetsToBring) do
