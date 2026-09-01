@@ -833,23 +833,35 @@ local function BringMobs(targetMob)
                         count = count + 1
 
                         pcall(function()
-                            -- Tắt va toàn bộ Part
+                            -- Tắt va chạm để không bị dội vật lý
                             for _, part in ipairs(enemy:GetChildren()) do
                                 if part:IsA("BasePart") then
                                     part.CanCollide = false
                                 end
                             end
 
-                            -- Ép CFrame về đúng tâm quái chính
-                            eRoot.CFrame = targetCF
+                            -- KHÔNG DÙNG Anchored = true ĐỂ SERVER KHÔNG KHÓA DAME
+                            eRoot.Anchored = false
+                            
+                            -- Vô hiệu hóa hành vi di chuyển và nhảy của AI quái
+                            eHum.PlatformStand = true
+                            eHum.WalkSpeed = 0
+                            eHum.JumpPower = 0
 
-                            -- Triệt tiêu lực đẩy vật lý
+                            -- Giữ vị trí bằng CFrame và triệt tiêu toàn bộ vận tốc
+                            eRoot.CFrame = targetCF
                             eRoot.AssemblyLinearVelocity = Vector3.zero
                             eRoot.AssemblyAngularVelocity = Vector3.zero
 
-                            -- KHÓA CỨNG: Anchored giúp quái đứng chết dí không bị rơi hay giật
-                            eRoot.Anchored = true
-                            eHum.PlatformStand = true
+                            -- Khóa trọng lực bằng BodyVelocity tạm thời
+                            local bv = eRoot:FindFirstChild("BringBV")
+                            if not bv then
+                                bv = Instance.new("BodyVelocity")
+                                bv.Name = "BringBV"
+                                bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+                                bv.Velocity = Vector3.zero
+                                bv.Parent = eRoot
+                            end
                         end)
 
                         if count >= maxMobs then break end
