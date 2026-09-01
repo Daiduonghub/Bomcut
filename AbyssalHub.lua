@@ -810,6 +810,7 @@ local function BringMobs(targetMob)
     local targetHum = targetMob:FindFirstChildOfClass("Humanoid")
     if not targetHum or targetHum.Health <= 0 then return end
 
+    -- Lấy vị trí chuẩn của quái chính làm tâm
     local targetCF = targetMob.HumanoidRootPart.CFrame
     local targetName = targetMob.Name:gsub("%s*%[.-%]", ""):lower()
     local maxMobs = _G.MaxBringMobs or 4
@@ -829,21 +830,28 @@ local function BringMobs(targetMob)
                 if eName == targetName or string.find(eName, targetName, 1, true) then
                     local dist = (eRoot.Position - targetMob.HumanoidRootPart.Position).Magnitude
 
+                    -- Quét quái trong phạm vi bán kính 150 studs
                     if dist <= 150 then
                         count = count + 1
 
                         pcall(function()
-                            -- Tắt va chạm để quái không đẩy văng nhau
+                            -- Tắt va chạm để các con quái không húc văng nhau ra ngoài
                             for _, part in ipairs(enemy:GetChildren()) do
                                 if part:IsA("BasePart") then
                                     part.CanCollide = false
                                 end
                             end
 
-                            -- Ép tọa độ dính thẳng vào quái chính và triệt tiêu lực vật lý
+                            -- Ép thẳng vị trí quái phụ chồng khít lên quái chính
                             eRoot.CFrame = targetCF
+                            
+                            -- Triệt tiêu lực vật lý hoàn toàn để không bị văng
                             eRoot.AssemblyLinearVelocity = Vector3.zero
                             eRoot.AssemblyAngularVelocity = Vector3.zero
+                            
+                            -- Mở khóa AI cho quái liên tục để không bao giờ bị đơ/khóa AI
+                            eHum.PlatformStand = false
+                            eHum.WalkSpeed = 16 -- Trả lại tốc độ gốc để Server tưởng quái vẫn bình thường
                         end)
 
                         if count >= maxMobs then break end
