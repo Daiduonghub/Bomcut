@@ -804,7 +804,7 @@ local lastBring = 0
 local function BringMobs(targetInput, enemyNameInput)
     if not _G.BringMobEnabled or not targetInput then return end
     
-    if tick() - lastBring < 0.08 then return end
+    if tick() - lastBring < 0.1 then return end
     lastBring = tick()
 
     pcall(function()
@@ -850,19 +850,16 @@ local function BringMobs(targetInput, enemyNameInput)
                 local matchName = (targetName == "" or enemy.Name == targetName or string.find(enemy.Name, targetName))
                 if matchName then
                     local dist = (eRoot.Position - targetCF.Position).Magnitude
-                    if dist <= 200 then
+                    
+                    -- Chỉ húc CFrame khi quái cách xa hơn 3 studs, đến gần rồi thì ngưng đè để tránh server reset
+                    if dist > 3 and dist <= 200 then
                         count = count + 1
-                        
-                        -- Tán nhẹ tọa độ để các quái không bị đè trùng khít 100% làm đơ AI
-                        local offsetX = (count % 2 == 0 and 1.5 or -1.5)
-                        local offsetZ = (count > 2 and 1.5 or -1.5)
-                        local mobTargetCF = targetCF * CFrame.new(offsetX, 0, offsetZ)
 
                         pcall(function()
                             eRoot.CanCollide = false
                             eRoot.AssemblyLinearVelocity = Vector3.zero
                             eRoot.AssemblyAngularVelocity = Vector3.zero
-                            eRoot.CFrame = mobTargetCF
+                            eRoot.CFrame = targetCF * CFrame.new(0, 0, -1)
                         end)
 
                         if count >= maxMobs then break end
