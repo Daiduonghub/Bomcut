@@ -810,6 +810,7 @@ local function BringMobs(targetMob)
     local targetHum = targetMob:FindFirstChildOfClass("Humanoid")
     if not targetHum or targetHum.Health <= 0 then return end
 
+    -- Lấy vị trí chuẩn của con quái chính làm tâm cố định để gom
     local targetCF = targetMob.HumanoidRootPart.CFrame
     local targetName = targetMob.Name:gsub("%s*%[.-%]", ""):lower()
     local maxMobs = _G.MaxBringMobs or 4
@@ -829,25 +830,24 @@ local function BringMobs(targetMob)
                 if eName == targetName or string.find(eName, targetName, 1, true) then
                     local dist = (eRoot.Position - targetMob.HumanoidRootPart.Position).Magnitude
 
-                    -- Quét quái trong phạm vi rộng (130 studs) để kéo về
+                    -- Quét quái trong phạm vi bán kính 130 studs quanh bãi
                     if dist <= 130 then
                         count = count + 1
 
                         pcall(function()
-                            -- Tắt va chạm để không bị đẩy văng
+                            -- Tắt va chạm toàn bộ các bộ phận để quái không bị đẩy văng ra ngoài
                             for _, part in ipairs(enemy:GetChildren()) do
                                 if part:IsA("BasePart") then
                                     part.CanCollide = false
                                 end
                             end
 
-                            -- Ép vị trí dính chặt vào quái chính để nhận chung sát thương
+                            -- Ép thẳng tọa độ quái phụ trùng khớp với quái chính
                             eRoot.CFrame = targetCF
+                            
+                            -- Triệt tiêu lực vật lý để quái không bị văng, NHƯNG TUYỆT ĐỐI KHÔNG ĐỤNG ĐẾN HUAMNOID (giúp quái không bị khóa AI)
                             eRoot.AssemblyLinearVelocity = Vector3.zero
                             eRoot.AssemblyAngularVelocity = Vector3.zero
-
-                            -- Chỉ khóa nhẹ di chuyển, KHÔNG bật PlatformStand để quái không bị khóa AI chết cứng
-                            eHum.WalkSpeed = 0
                         end)
 
                         if count >= maxMobs then break end
