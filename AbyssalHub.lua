@@ -818,6 +818,9 @@ local function BringMobs(targetMob)
     local Enemies = workspace:FindFirstChild("Enemies")
     if not Enemies then return end
 
+    -- Lấy vị trí nhân vật hoặc quái chính làm tâm để quét quái ở xa xung quanh
+    local centerPos = targetMob.HumanoidRootPart.Position
+
     for _, enemy in ipairs(Enemies:GetChildren()) do
         if enemy ~= targetMob then
             local eHum = enemy:FindFirstChildOfClass("Humanoid")
@@ -826,33 +829,30 @@ local function BringMobs(targetMob)
             if eHum and eRoot and eHum.Health > 0 then
                 local eName = enemy.Name:gsub("%s*%[.-%]", ""):lower()
 
+                -- Kiểm tra đúng tên quái nhiệm vụ
                 if eName == targetName or string.find(eName, targetName, 1, true) then
-                    local dist = (eRoot.Position - targetCF.Position).Magnitude
+                    -- Tính khoảng cách từ quái phụ đến quái chính (cho phép gom quái ở xa tới 130 studs)
+                    local dist = (eRoot.Position - centerPos).Magnitude
 
-                    -- Giới hạn tầm gom tối đa 60 studs để Server không phát hiện và giật quái về spawn
-                    if dist <= 60 then
+                    if dist <= 130 then
                         count = count + 1
 
                         pcall(function()
-                            -- Tắt va chạm giữa các quái
+                            -- Tắt va chạm để quái không bị đẩy văng ra
                             for _, part in ipairs(enemy:GetChildren()) do
                                 if part:IsA("BasePart") then
                                     part.CanCollide = false
                                 end
                             end
 
-                            -- Ép vị trí dính chặt vào quái chính
+                            -- Ép vị trí dính thẳng vào con quái chính
                             eRoot.CFrame = targetCF
                             eRoot.AssemblyLinearVelocity = Vector3.zero
                             eRoot.AssemblyAngularVelocity = Vector3.zero
 
-                            -- Giữ trạng thái để quái không tự chạy đi nhưng không bị khóa cứng AI chết
+                            -- Khóa đứng yên không cho AI chạy lung tung
                             eHum.PlatformStand = true
                             eHum.WalkSpeed = 0
-                            
-                            -- Xóa bỏ BodyVelocity cũ nếu có để tránh xung đột vật lý gây đơ AI
-                            local bv = eRoot:FindFirstChild("BringBV")
-                            if bv then bv:Destroy() end
                         end)
 
                         if count >= maxMobs then break end
