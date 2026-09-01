@@ -829,39 +829,30 @@ local function BringMobs(targetMob)
                 if eName == targetName or string.find(eName, targetName, 1, true) then
                     local dist = (eRoot.Position - targetCF.Position).Magnitude
 
-                    if dist <= 120 then
+                    -- Giới hạn tầm gom tối đa 60 studs để Server không phát hiện và giật quái về spawn
+                    if dist <= 60 then
                         count = count + 1
 
                         pcall(function()
-                            -- Tắt va chạm để không bị dội vật lý
+                            -- Tắt va chạm giữa các quái
                             for _, part in ipairs(enemy:GetChildren()) do
                                 if part:IsA("BasePart") then
                                     part.CanCollide = false
                                 end
                             end
 
-                            -- KHÔNG DÙNG Anchored = true ĐỂ SERVER KHÔNG KHÓA DAME
-                            eRoot.Anchored = false
-                            
-                            -- Vô hiệu hóa hành vi di chuyển và nhảy của AI quái
-                            eHum.PlatformStand = true
-                            eHum.WalkSpeed = 0
-                            eHum.JumpPower = 0
-
-                            -- Giữ vị trí bằng CFrame và triệt tiêu toàn bộ vận tốc
+                            -- Ép vị trí dính chặt vào quái chính
                             eRoot.CFrame = targetCF
                             eRoot.AssemblyLinearVelocity = Vector3.zero
                             eRoot.AssemblyAngularVelocity = Vector3.zero
 
-                            -- Khóa trọng lực bằng BodyVelocity tạm thời
+                            -- Giữ trạng thái để quái không tự chạy đi nhưng không bị khóa cứng AI chết
+                            eHum.PlatformStand = true
+                            eHum.WalkSpeed = 0
+                            
+                            -- Xóa bỏ BodyVelocity cũ nếu có để tránh xung đột vật lý gây đơ AI
                             local bv = eRoot:FindFirstChild("BringBV")
-                            if not bv then
-                                bv = Instance.new("BodyVelocity")
-                                bv.Name = "BringBV"
-                                bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
-                                bv.Velocity = Vector3.zero
-                                bv.Parent = eRoot
-                            end
+                            if bv then bv:Destroy() end
                         end)
 
                         if count >= maxMobs then break end
