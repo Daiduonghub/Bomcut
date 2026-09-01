@@ -863,6 +863,7 @@ local function BringMobs(targetMob)
     end
 end
 
+
 -- ==========================================
 -- 2. HÀM FAST ATTACK MULTI-HIT
 -- ==========================================
