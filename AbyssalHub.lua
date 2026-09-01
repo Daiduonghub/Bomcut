@@ -1294,6 +1294,9 @@ end
 -- ==========================================
 task.spawn(function()
     local lastChar = nil
+    local currentTarget = nil
+    local attackStartTime = 0
+    local lastHealth = 0
     
     while task.wait(0.05) do
         if _G.AutoBountyEnabled then
@@ -1314,11 +1317,30 @@ task.spawn(function()
             if myChar and myRoot and myHum and myHum.Health > 0 then
                 local targetPlayer = type(GetAutoBountyTarget) == "function" and GetAutoBountyTarget() or nil
 
-                if targetPlayer and targetPlayer.Character then
-                    local tRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
-                    local tHum = targetPlayer.Character:FindFirstChildOfClass("Humanoid")
+                if not currentTarget or not currentTarget.Parent or not currentTarget.Character then
+                    currentTarget = targetPlayer
+                    attackStartTime = tick()
+                    if currentTarget and currentTarget.Character then
+                        local tHum = currentTarget.Character:FindFirstChildOfClass("Humanoid")
+                        lastHealth = tHum and tHum.Health or 0
+                    end
+                end
+
+                if currentTarget and currentTarget.Character then
+                    local tRoot = currentTarget.Character:FindFirstChild("HumanoidRootPart")
+                    local tHum = currentTarget.Character:FindFirstChildOfClass("Humanoid")
 
                     if tRoot and tHum and tHum.Health > 0 then
+                        if tick() - attackStartTime >= 10 then
+                            if tHum.Health >= lastHealth then
+                                currentTarget = nil
+                                continue
+                            else
+                                attackStartTime = tick()
+                                lastHealth = tHum.Health
+                            end
+                        end
+
                         local targetCF = tRoot.CFrame * CFrame.new(0, 2, 2)
                         if type(DirectFlyToPlayer) == "function" then
                             DirectFlyToPlayer(targetCF, 300)
@@ -1340,9 +1362,15 @@ task.spawn(function()
                             if string.find(fSkill, "C") then PressKey("C") end
                             if string.find(fSkill, "V") then PressKey("V") end
                         end
+                    else
+                        currentTarget = nil
                     end
+                else
+                    currentTarget = nil
                 end
             end
+        else
+            currentTarget = nil
         end
     end
 end)
