@@ -809,18 +809,12 @@ local function BringMobs(targetCF, currentData)
                 local dist = (eRoot.Position - targetCF.Position).Magnitude
                 if dist <= 150 then
                     eRoot.CanCollide = false
-                    -- Khóa tuyệt đối vận tốc để tránh bị game đẩy trôi đi
+                    -- Khóa nhẹ vận tốc để nó không bị trôi văng lung tung
                     eRoot.AssemblyLinearVelocity = Vector3.zero
                     eRoot.AssemblyAngularVelocity = Vector3.zero
                     
-                    -- Đặt quái gom tụm lại ngay phía trước mặt nhân vật thay vì đè bẹp dí vào chính giữa
+                    -- Kéo quái gom lại xung quanh mặt mình và cho phép nó đứng bình thường
                     eRoot.CFrame = targetCF * CFrame.new(math.random(-2, 2), 0, math.random(-2, 2))
-                    
-                    pcall(function()
-                        eHum:ChangeState(Enum.HumanoidStateType.Physics)
-                        eHum.WalkSpeed = 0
-                        eHum.JumpPower = 0
-                    end)
 
                     broughtCount = broughtCount + 1
                     if broughtCount >= maxMobs then break end
