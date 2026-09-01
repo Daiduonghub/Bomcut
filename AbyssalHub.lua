@@ -1431,13 +1431,11 @@ Task.spawn(function()
                     local tHum = currentTarget.Character:FindFirstChildOfClass("Humanoid")
 
                     if tRoot and tHum and tHum.Health > 0 then
-                        -- Kiểm tra nếu qua 10 giây mà không gây được sát thương (máu không giảm so với mốc ban đầu)
                         if tick() - attackStartTime >= 10 then
                             if tHum.Health >= lastHealth then
-                                currentTarget = nil -- Bỏ qua mục tiêu bất tử/không đánh được
+                                currentTarget = nil
                                 continue
                             else
-                                -- Nếu máu đã giảm thì cập nhật lại mốc thời gian và lượng máu mới để tiếp tục tính
                                 attackStartTime = tick()
                                 lastHealth = tHum.Health
                             end
@@ -1478,37 +1476,32 @@ Task.spawn(function()
 end)
 
 -- ==========================================
--- NÚT NỔI KHẨN CẤP (TỰ ĐỘNG TẮT CẢ BIẾN VÀ TOGGLE UI)
+-- NÚT NỔI KHẨN CẤP
 -- ==========================================
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 
--- Xóa nút cũ nếu có
 if CoreGui:FindFirstChild("EmergencyStopButton") then
     CoreGui.EmergencyStopButton:Destroy()
 end
 
--- Tạo ScreenGui
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "EmergencyStopButton"
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.Parent = CoreGui
 
--- Tạo nút bấm màu đỏ (Ban đầu ẩn đi)
 local stopButton = Instance.new("TextButton")
 stopButton.Name = "StopButton"
 stopButton.Size = UDim2.new(0, 130, 0, 45)
 stopButton.Position = UDim2.new(0.5, -65, 0.85, 0)
-local okBg = Color3.fromRGB(230, 50, 50)
-stopButton.BackgroundColor3 = okBg
+stopButton.BackgroundColor3 = Color3.fromRGB(230, 50, 50)
 stopButton.Text = "STOP ATTACK PLAYER 🛑"
 stopButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 stopButton.TextSize = 14
 stopButton.Font = Enum.Font.GothamBold
-stopButton.Visible = false -- Mặc định ẩn
+stopButton.Visible = false
 stopButton.Parent = screenGui
 
--- Bo góc & viền cho đẹp
 local uiCorner = Instance.new("UICorner")
 uiCorner.CornerRadius = UDim.new(0, 10)
 uiCorner.Parent = stopButton
@@ -1518,12 +1511,9 @@ uiStroke.Color = Color3.fromRGB(255, 255, 255)
 uiStroke.Thickness = 2
 uiStroke.Parent = stopButton
 
--- Khi bấm vào nút thì tắt auto attack, tắt toggle trên UI và tự ẩn nút đi
 stopButton.MouseButton1Click:Connect(function()
     _G.VirtualAttackPlayerEnabled = false
     stopButton.Visible = false
-    
-    -- Đồng bộ tắt luôn Toggle trên Menu UI (nếu cậu có gán biến cho toggle, ví dụ: VirtualAttackToggle)
     if VirtualAttackToggle and type(VirtualAttackToggle.Set) == "function" then
         VirtualAttackToggle:Set(false)
     elseif VirtualAttackToggle and type(VirtualAttackToggle.SetValue) == "function" then
@@ -1531,26 +1521,24 @@ stopButton.MouseButton1Click:Connect(function()
     end
 end)
 
--- Vòng lặp kiểm tra trạng thái để tự động Hiện/Ẩn nút
 task.spawn(function()
     while true do
         task.wait(0.2)
         if _G.VirtualAttackPlayerEnabled then
-            stopButton.Visible = true -- Bật auto thì nút hiện ra
+            stopButton.Visible = true
         else
-            stopButton.Visible = false -- Tắt auto thì nút biến mất
+            stopButton.Visible = false
         end
     end
 end)
 
 task.spawn(function()
     local VirtualInputManager = game:GetService("VirtualInputManager")
-    local Players = game:GetService("Players")
     local localPlayer = Players.LocalPlayer
     local camera = workspace.CurrentCamera
 
     while true do
-        task.wait() -- Chạy nhanh hết mức có thể từng frame một
+        task.wait()
         pcall(function()
             if _G.VirtualAttackPlayerEnabled then
                 local myChar = localPlayer.Character
@@ -1558,7 +1546,6 @@ task.spawn(function()
                 local myHum = myChar and myChar:FindFirstChildOfClass("Humanoid")
                 
                 if myChar and myRoot and myHum and myHum.Health > 0 then
-                    -- 1. Tự động tìm và cầm vũ khí nếu chưa cầm
                     local currentTool = myChar:FindFirstChildOfClass("Tool")
                     if not currentTool then
                         local backpack = localPlayer:FindFirstChildOfClass("Backpack")
@@ -1570,7 +1557,6 @@ task.spawn(function()
                         end
                     end
 
-                    -- 2. Quét mục tiêu gần nhất trong server để tẩn ngay lập tức
                     local nearestTarget = nil
                     local shortestDistance = math.huge
                     
@@ -1588,16 +1574,12 @@ task.spawn(function()
                         end
                     end
 
-                    -- 3. Nếu thấy mục tiêu thì khóa góc nhìn, xoay mặt và spam click siêu tốc
                     if nearestTarget and nearestTarget.Character then
                         local tRoot = nearestTarget.Character:FindFirstChild("HumanoidRootPart")
                         if tRoot then
                             myRoot.CFrame = CFrame.new(myRoot.Position, Vector3.new(tRoot.Position.X, myRoot.Position.Y, tRoot.Position.Z))
-                            
-                            -- Spam click liên tục tại tâm màn hình để đánh bét nhè không kịp thở
                             local viewportSize = camera.ViewportSize
                             local cx, cy = viewportSize.X / 2, viewportSize.Y / 2
-                            
                             VirtualInputManager:SendMouseButtonEvent(cx, cy, 0, true, game, 0)
                             VirtualInputManager:SendMouseButtonEvent(cx, cy, 0, false, game, 0)
                         end
@@ -1608,25 +1590,42 @@ task.spawn(function()
     end
 end)
 
+-- ====================================================================
+-- GIAO DIỆN UI & KHỞI TẠO CÁC TAB
+-- ====================================================================
+local Window = Library:CreateWindow("ABYSSAL HUB")
+local StatsTab = Window:CreateTab("Stats and sever")
+local MainTab = Window:CreateTab("Farming Tab")
+local SettingTab = Window:CreateTab("Farm settings")
+local PlayerTab = Window:CreateTab("Player")
+local TeleportTab = Window:CreateTab("Teleport (Sea1)")
+local AutoTab = Window:CreateTab("Auto stats")
+local PvpTab = Window:CreateTab("Player & PVP")
+
+-- KHỞI TẠO CÁC LABEL CHO STATS TAB (ĐÃ ĐƯA LÊN TRƯỚC ĐỂ KHÔNG BỊ LỖI NIL)
+local PingLabel   = StatsTab:CreateLabel("📡 Ping: Đang tải...", false, function(state) end)
+local FpsLabel    = StatsTab:CreateLabel("⚡ FPS: Đang tải...", false, function(state) end)
+local MoonLabel   = StatsTab:CreateLabel("🌕 Trăng (Moon): Đang quét...", false, function(state) end)
+local MirageLabel = StatsTab:CreateLabel("🏝️ Đảo Bí Ẩn (Mirage): Không thấy", false, function(state) end)
+
+-- VÒNG LẶP CẬP NHẬT STATS & SEVER
 local StatsService = game:GetService("Stats")
 local RunService = game:GetService("RunService")
 local Lighting = game:GetService("Lighting")
-local LocalPlayer = game.Players.LocalPlayer
+local LocalPlayer = Players.LocalPlayer
 
 task.spawn(function()
     local lastUpdate = 0
 
     RunService.RenderStepped:Connect(function(dt)
-        if tick() - lastUpdate < 0.5 then return end -- Cập nhật mỗi 0.5 giây cho mượt và đỡ nặng game
+        if tick() - lastUpdate < 0.5 then return end
         lastUpdate = tick()
 
-        -- 1. Cập nhật FPS an toàn
         pcall(function()
             local fps = math.floor(1 / dt)
             FpsLabel:Set("⚡ FPS: " .. fps)
         end)
 
-        -- 2. Cập nhật Ping an toàn
         pcall(function()
             local ping = 0
             if LocalPlayer and LocalPlayer.NetworkPing then
@@ -1642,14 +1641,12 @@ task.spawn(function()
             PingLabel:Set("📡 Ping: " .. ping .. " ms")
         end)
 
-        -- 3. Cập nhật Trăng & Phát hiện Full Moon (Trăng Tròn)
         pcall(function()
             local clockTime = Lighting.ClockTime
             local isNight = (clockTime < 6 or clockTime > 18)
             
             if isNight then
                 local moonId = tostring(Lighting.MoonTextureId or "")
-                -- ID texture trăng tròn thường chứa chuỗi đặc trưng hoặc check độ sáng mặt trăng trong Blox Fruits
                 if moonId:find("9701506161") or moonId:find("1440") or Lighting.MoonSize > 2 then 
                     MoonLabel:Set("🌕 Trăng: 🟢 FULL MOON (TRĂNG TRÒN!)")
                 else
@@ -1660,7 +1657,6 @@ task.spawn(function()
             end
         end)
 
-        -- 4. Cập nhật Đảo bí ẩn (Mirage Island)
         pcall(function()
             local foundMirage = false
             for _, obj in ipairs(workspace:GetChildren()) do
@@ -1679,18 +1675,7 @@ task.spawn(function()
     end)
 end)
 
--- ====================================================================
--- GIAO DIỆN UI
--- ====================================================================
-local Window = Library:CreateWindow("ABYSSAL HUB")
-local StatsTab = Window:CreateTab("Stats and sever")
-local MainTab = Window:CreateTab("Farming Tab")
-local SettingTab = Window:CreateTab("Farm settings")
-local PlayerTab = Window:CreateTab("Player")
-local TeleportTab = Window:CreateTab("Teleport (Sea1)")
-local AutoTab = Window:CreateTab("Auto stats")
-local PvpTab = Window:CreateTab("Player & PVP")
-
+-- CÁC CHỨC NĂNG TRÊN TAB
 MainTab:CreateDropdown("Farming mode", {"Level", "Nearest"}, "Level", function(selected)
     _G.AutoFarmMode = selected
 end)
@@ -1702,19 +1687,9 @@ end)
 local selectedIsland = "Pirate Starter"
 
 TeleportTab:CreateDropdown("Select Island", {
-    "Pirate Starter",
-    "Jungle",
-    "Pirate Village",
-    "Desert",
-    "Frozen Village",
-    "Marine Fortress",
-    "Skylands",
-    "Prison",
-    "Colosseum",
-    "Magma Village",
-    "Underwater City",
-    "Upper Skylands",
-    "Fountain City"
+    "Pirate Starter", "Jungle", "Pirate Village", "Desert", "Frozen Village", 
+    "Marine Fortress", "Skylands", "Prison", "Colosseum", "Magma Village", 
+    "Underwater City", "Upper Skylands", "Fountain City"
 }, "Pirate Starter", function(choice)
     selectedIsland = choice
 end)
@@ -1767,20 +1742,17 @@ SettingTab:CreateToggle("Bring Mobs(It's currently experiencing an error.)", fal
     _G.BringMobEnabled = state
 end)
 
-local chosenStatToUpgrade = "Melee" -- Biến lưu lựa chọn từ dropdown
+local chosenStatToUpgrade = "Melee"
 
--- 1. Dropdown để đổi hướng chọn stat
 AutoTab:CreateDropdown("Select Stats to Boost", {"Melee", "Defense", "Sword", "Demon Fruit", "Gun"}, "Melee", function(selected)
     chosenStatToUpgrade = selected
 end)
 
--- 2. Button để thực hiện lệnh cộng điểm theo cái vừa chọn
 AutoTab:CreateButton("Add Selected Points", function()
     local CommF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
     local playerStats = LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Points")
     
     if CommF and playerStats and playerStats.Value > 0 then
-        -- Gọi server cộng điểm vào đúng cái môn đang chọn trong dropdown (cộng toàn bộ số điểm dư)
         CommF:InvokeServer("AddPoint", chosenStatToUpgrade, playerStats.Value)
         print("Đã cộng toàn bộ điểm vào: " .. chosenStatToUpgrade)
     else
@@ -1792,7 +1764,6 @@ SettingTab:CreateToggle("Auto Haki", true, function(state)
     _G.AutoHakiEnabled = state
 end)
 
--- Chọn Player & Refresh Danh Sách
 local PlayerDropdown = PvpTab:CreateDropdown("Select Player", GetPlayerList(), "", function(selected)
     _G.SelectedPlayer = selected
 end)
@@ -1812,7 +1783,6 @@ PvpTab:CreateButton("Teleport to Target", function()
     end
 end)
 
--- Aimbot & Target Farm
 PvpTab:CreateToggle("Aimbot Player (Skill Lock)", false, function(state)
     _G.AimbotPlayerEnabled = state
 end)
@@ -1821,7 +1791,6 @@ PvpTab:CreateToggle("Auto Farm Bounty Target", false, function(state)
     _G.AutoBountyEnabled = state
 end)
 
--- Cấu hình Skill Võ & Trái
 PvpTab:CreateDropdown("Melee Skill Select", {"Z", "X", "C", "Z-X-C"}, "Z-X-C", function(selected)
     _G.SelectedMeleeSkill = selected
 end)
@@ -1841,8 +1810,3 @@ end)
 PvpTab:CreateToggle("Auto Attack Selected Player", false, function(state)
     _G.VirtualAttackPlayerEnabled = state
 end)
-
-local PingLabel   = StatsTab:CreateLabel("📡 Ping: Đang tải...", false, function(state) end)
-local FpsLabel    = StatsTab:CreateLabel("⚡ FPS: Đang tải...", false, function(state) end)
-local MoonLabel   = StatsTab:CreateLabel("🌕 Trăng (Moon): Đang quét...", false, function(state) end)
-local MirageLabel = StatsTab:CreateLabel("🏝️ Đảo Bí Ẩn (Mirage): Không thấy", false, function(state) end)
