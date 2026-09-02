@@ -828,8 +828,7 @@ local function BringMobs(targetMob)
         Vector3.new(1.2, 0, 0),
         Vector3.new(-1.2, 0, 0),
         Vector3.new(0, 0, 1.2),
-        Vector3.new(0, 0, -1.2),
-        Vector3.new(0, 0, 0)
+        Vector3.new(0, 0, -1.2)
     }
 
     local count = 0
@@ -844,18 +843,16 @@ local function BringMobs(targetMob)
             local eRoot = enemy:FindFirstChild("HumanoidRootPart")
 
             if eHum and eRoot and eHum.Health > 0 then
-
                 local eName = enemy.Name:gsub("%s*%[.-%]", ""):lower()
 
                 if eName == targetName or string.find(eName, targetName, 1, true) then
-
                     local distance =
                         (eRoot.Position - targetRoot.Position).Magnitude
 
                     if distance <= 250 then
                         count += 1
 
-                        local offset = offsets[count]
+                        local offset = offsets[count] or Vector3.zero
                         local desiredPosition =
                             targetRoot.Position + offset
 
@@ -863,7 +860,6 @@ local function BringMobs(targetMob)
                         local last = BringCooldown[enemy] or 0
 
                         if now - last >= 0.4 then
-
                             local distToSpot =
                                 (eRoot.Position - desiredPosition).Magnitude
 
@@ -871,12 +867,11 @@ local function BringMobs(targetMob)
                                 BringCooldown[enemy] = now
 
                                 pcall(function()
-                                    eRoot.CanCollide = false
-
-                                    eRoot.CFrame = CFrame.lookAt(
-                                        desiredPosition,
-                                        targetRoot.Position
-                                    )
+                                    -- Giữ nguyên hướng quay hiện tại của NPC
+                                    -- Chỉ thay đổi vị trí
+                                    eRoot.CFrame =
+                                        CFrame.new(desiredPosition)
+                                        * eRoot.CFrame.Rotation
                                 end)
                             end
                         end
