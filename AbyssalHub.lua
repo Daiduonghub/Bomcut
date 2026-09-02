@@ -853,15 +853,19 @@ local function BringMobs(targetMob)
     local maxMobs = math.max(1, tonumber(_G.MaxBringMobs) or 5)
 
     local offsets = {
-        Vector3.new(1.2, 0, 0),
-        Vector3.new(-1.2, 0, 0),
-        Vector3.new(0, 0, 1.2),
-        Vector3.new(0, 0, -1.2)
+        Vector3.new(1.5, 0, 0),
+        Vector3.new(-1.5, 0, 0),
+        Vector3.new(0, 0, 1.5),
+        Vector3.new(0, 0, -1.5)
     }
 
     local count = 0
 
     for _, enemy in ipairs(Enemies:GetChildren()) do
+        if count >= maxMobs - 1 then
+            break
+        end
+
         if enemy ~= targetMob then
             local eHum = enemy:FindFirstChildOfClass("Humanoid")
             local eRoot = enemy:FindFirstChild("HumanoidRootPart")
@@ -869,28 +873,31 @@ local function BringMobs(targetMob)
             if eHum and eRoot and eHum.Health > 0 then
                 local eName = enemy.Name:gsub("%s*%[.-%]", ""):lower()
 
-                if eName == targetName or string.find(eName, targetName, 1, true) then
-                    local distance = (eRoot.Position - targetRoot.Position).Magnitude
+                if eName == targetName then
+                    local distance =
+                        (eRoot.Position - targetRoot.Position).Magnitude
 
                     if distance <= 250 then
                         count += 1
-                        if count > (maxMobs - 1) then break end
 
-                        local offset = offsets[count] or Vector3.zero
-                        local desiredPosition = targetRoot.Position + offset
+                        local desiredPosition =
+                            targetRoot.Position + offsets[count]
 
                         local now = tick()
-                        local last = BringCooldown[enemy] or 0
+                        local lastBring = BringCooldown[enemy] or 0
 
-                        if now - last >= 0.5 then
-                            local distToSpot = (eRoot.Position - desiredPosition).Magnitude
+                        if now - lastBring >= 0.5 then
+                            local distToSpot =
+                                (eRoot.Position - desiredPosition).Magnitude
 
-                            if distToSpot > 4 then
+                            if distToSpot > 2.5 then
                                 BringCooldown[enemy] = now
 
                                 pcall(function()
-                                    eRoot.CanCollide = false
-                                    eRoot.CFrame = CFrame.lookAt(desiredPosition, targetRoot.Position)
+                                    -- Chỉ đổi vị trí, giữ nguyên rotation hiện tại
+                                    local rotation = eRoot.CFrame.Rotation
+                                    eRoot.CFrame =
+                                        CFrame.new(desiredPosition) * rotation
                                 end)
                             end
                         end
