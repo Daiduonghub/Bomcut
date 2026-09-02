@@ -834,57 +834,87 @@ end
 -- 2. HÀM GOM MỚI (CHẠY ĐỒNG BỘ)
 -- ==========================================
 local BringCooldown = {}
+
 local function BringMobs(targetMob)
-    if not targetMob then return end
+    if not _G.BringMobEnabled or not targetMob then
+        return
+    end
 
     local targetRoot = targetMob:FindFirstChild("HumanoidRootPart")
     local targetHum = targetMob:FindFirstChildOfClass("Humanoid")
-    if not targetRoot or not targetHum or targetHum.Health <= 0 then return end
+
+    if not targetRoot or not targetHum or targetHum.Health <= 0 then
+        return
+    end
 
     local Enemies = workspace:FindFirstChild("Enemies")
-    if not Enemies then return end
+    if not Enemies then
+        return
+    end
 
     local targetName = targetMob.Name:gsub("%s*%[.-%]", ""):lower()
-    local maxMobs = math.max(1, tonumber(_G.MaxBringMobs) or 5)
+    local maxMobs = math.clamp(
+        tonumber(_G.MaxBringMobs) or 5,
+        1,
+        10
+    )
 
     local offsets = {
-        Vector3.new(1.2, 0, 0),
-        Vector3.new(-1.2, 0, 0),
-        Vector3.new(0, 0, 1.2),
-        Vector3.new(0, 0, -1.2)
+        Vector3.new(2, 0, 0),
+        Vector3.new(-2, 0, 0),
+        Vector3.new(0, 0, 2),
+        Vector3.new(0, 0, -2),
+        Vector3.new(2, 0, 2),
+        Vector3.new(-2, 0, 2),
+        Vector3.new(2, 0, -2),
+        Vector3.new(-2, 0, -2),
     }
 
     local count = 0
 
     for _, enemy in ipairs(Enemies:GetChildren()) do
-        if enemy ~= targetMob then
+        if enemy ~= targetMob and count < maxMobs - 1 then
+
             local eHum = enemy:FindFirstChildOfClass("Humanoid")
             local eRoot = enemy:FindFirstChild("HumanoidRootPart")
 
             if eHum and eRoot and eHum.Health > 0 then
+
                 local eName = enemy.Name:gsub("%s*%[.-%]", ""):lower()
 
-                if eName == targetName or string.find(eName, targetName, 1, true) then
-                    local distance = (eRoot.Position - targetRoot.Position).Magnitude
+                if eName == targetName then
+
+                    local distance =
+                        (eRoot.Position - targetRoot.Position).Magnitude
 
                     if distance <= 250 then
+
                         count += 1
-                        if count > (maxMobs - 1) then break end
 
-                        local offset = offsets[count] or Vector3.zero
-                        local desiredPosition = targetRoot.Position + offset
+                        local offset =
+                            offsets[count] or Vector3.zero
 
-                        local now = tick()
-                        local last = BringCooldown[enemy] or 0
+                        local desiredPosition =
+                            targetRoot.Position + offset
 
-                        if now - last >= 0.5 then
-                            local distToSpot = (eRoot.Position - desiredPosition).Magnitude
+                        local dist =
+                            (eRoot.Position - desiredPosition).Magnitude
 
-                            if distToSpot > 4 then
+                        if dist > 2 then
+
+                            local now = os.clock()
+                            local last = BringCooldown[enemy] or 0
+
+                            if now - last >= 0.12 then
                                 BringCooldown[enemy] = now
+
                                 pcall(function()
-                                    eRoot.CanCollide = false
-                                    eRoot.CFrame = CFrame.lookAt(desiredPosition, targetRoot.Position)
+                                    -- Chỉ di chuyển MODEL.
+                                    -- Không đụng CanCollide/Velocity.
+                                    enemy:PivotTo(
+                                        CFrame.new(desiredPosition)
+                                        * eRoot.CFrame.Rotation
+                                    )
                                 end)
                             end
                         end
@@ -1025,8 +1055,34 @@ task.spawn(function()
                             pcall(function() BringMobs(targetEnemy) end)
                         end
 
-                        local hitTargets = GetHitTargets(enemyName, RootPart, 50)
+                        local hitTargets = GetHitTargets(targetName, curRoot, 50)
 
+local function DebugNotify(text)
+    pcall(function()
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "BringMob Debug",
+            Text = tostring(text),
+            Duration = 5
+        })
+    end)
+end
+
+DebugNotify("Hit targets: " .. tostring(#hitTargets))
+
+for i, root in ipairs(hitTargets) do
+    local mob = root.Parent
+    local hum = mob and mob:FindFirstChildOfClass("Humanoid")
+
+    local name = mob and mob.Name or "nil"
+    local hp = hum and math.floor(hum.Health) or 0
+    local dist = math.floor((root.Position - curRoot.Position).Magnitude)
+
+    DebugNotify(
+        i .. ". " .. name ..
+        " | HP: " .. hp ..
+        " | Dist: " .. dist
+    )
+end
                         pcall(AutoHaki)
                         pcall(AutoEquipWeapon)
                         pcall(function()
@@ -1131,6 +1187,32 @@ task.spawn(function()
                             -- 3. Quét hitTargets sau khi đã gom xong xuôi
                             local hitTargets = GetHitTargets(targetName, curRoot, 50)
 
+local function DebugNotify(text)
+    pcall(function()
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "BringMob Debug",
+            Text = tostring(text),
+            Duration = 5
+        })
+    end)
+end
+
+DebugNotify("Hit targets: " .. tostring(#hitTargets))
+
+for i, root in ipairs(hitTargets) do
+    local mob = root.Parent
+    local hum = mob and mob:FindFirstChildOfClass("Humanoid")
+
+    local name = mob and mob.Name or "nil"
+    local hp = hum and math.floor(hum.Health) or 0
+    local dist = math.floor((root.Position - curRoot.Position).Magnitude)
+
+    DebugNotify(
+        i .. ". " .. name ..
+        " | HP: " .. hp ..
+        " | Dist: " .. dist
+    )
+end
                             pcall(AutoHaki)
                             pcall(AutoEquipWeapon)
                             pcall(function()
