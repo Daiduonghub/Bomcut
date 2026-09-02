@@ -893,7 +893,7 @@ local function BringMobs(targetMob)
             continue
         end
 
-        -- Đang release → bỏ qua hoàn toàn
+        -- Đang release thì không đụng vào
         if ReleaseUntil[enemy]
             and now < ReleaseUntil[enemy] then
             continue
@@ -909,7 +909,6 @@ local function BringMobs(targetMob)
 
         local last = BringCooldown[enemy] or 0
 
-        -- Chỉ kéo khi lệch xa
         if distance > 6
             and now - last >= 0.8 then
 
@@ -922,7 +921,7 @@ local function BringMobs(targetMob)
                 )
             end)
 
-            -- Sau khi kéo xong: không đụng NPC trong 2 giây
+            -- Release 2 giây
             ReleaseUntil[enemy] = now + 2
         end
     end
@@ -988,7 +987,6 @@ end
 local RunService = game:GetService("RunService")
 
 task.spawn(function()
-
     local CommF =
         ReplicatedStorage
             :WaitForChild("Remotes")
@@ -999,40 +997,25 @@ task.spawn(function()
             :WaitForChild("Modules")
             :WaitForChild("Net")
 
-
-    --------------------------------------------------
-    -- LEVEL
-    --------------------------------------------------
-
     local function getPlayerLevel()
-
         local data =
             LocalPlayer
             and LocalPlayer:FindFirstChild("Data")
 
-        if data
-            and data:FindFirstChild("Level") then
-
+        if data and data:FindFirstChild("Level") then
             return data.Level.Value
         end
 
         return 1
     end
 
-
-    --------------------------------------------------
-    -- QUEST CACHE
-    --------------------------------------------------
-
     local lastQuestCheck = 0
     local isQuestActiveCache = false
 
     local function checkQuestActive()
-
         local now = os.clock()
 
         if now - lastQuestCheck > 0.4 then
-
             lastQuestCheck = now
 
             local playerGui =
@@ -1055,16 +1038,10 @@ task.spawn(function()
         return isQuestActiveCache
     end
 
-
-    --------------------------------------------------
-    -- FIND PRIMARY MOB
-    --------------------------------------------------
-
     local function FindPrimaryEnemy(
         enemiesFolder,
         targetName
     )
-
         if not enemiesFolder then
             return nil
         end
@@ -1075,7 +1052,6 @@ task.spawn(function()
                 :lower()
 
         for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-
             local hum =
                 enemy:FindFirstChildOfClass("Humanoid")
 
@@ -1100,17 +1076,11 @@ task.spawn(function()
         return nil
     end
 
-
-    --------------------------------------------------
-    -- CHECK CURRENT TARGET
-    --------------------------------------------------
-
     local function IsValidTarget(
         target,
         enemiesFolder,
         targetName
     )
-
         if not target
             or not target.Parent
             or not enemiesFolder
@@ -1145,30 +1115,21 @@ task.spawn(function()
         return actualName == wantedName
     end
 
-
-    --------------------------------------------------
-    -- GET / KEEP TARGET
-    --------------------------------------------------
-
     local function GetStableTarget(
         enemiesFolder,
         targetName
     )
-
         local current =
             _G.CurrentTargetMob
 
-        -- Giữ mob cũ nếu nó vẫn còn hợp lệ
         if IsValidTarget(
             current,
             enemiesFolder,
             targetName
         ) then
-
             return current
         end
 
-        -- Mob cũ chết/mất mới tìm mob mới
         local newTarget =
             FindPrimaryEnemy(
                 enemiesFolder,
@@ -1181,40 +1142,17 @@ task.spawn(function()
         return newTarget
     end
 
-
-    --------------------------------------------------
-    -- CLEAR TARGET
-    --------------------------------------------------
-
     local function ClearTarget()
         _G.CurrentTargetMob = nil
     end
 
-
-    --------------------------------------------------
-    -- MAIN FARM LOOP
-    --------------------------------------------------
-
     while true do
-
         RunService.Heartbeat:Wait()
 
-
-        --------------------------------------------------
-        -- FARM OFF
-        --------------------------------------------------
-
         if not _G.AutoFarmLevelEnabled then
-
             ClearTarget()
-
             continue
         end
-
-
-        --------------------------------------------------
-        -- CHARACTER
-        --------------------------------------------------
 
         local Character =
             LocalPlayer
@@ -1238,24 +1176,12 @@ task.spawn(function()
             or Humanoid.Health <= 0 then
 
             ClearTarget()
-
             task.wait(0.25)
-
             continue
         end
 
-
-        --------------------------------------------------
-        -- ENEMIES
-        --------------------------------------------------
-
         local EnemiesFolder =
             Workspace:FindFirstChild("Enemies")
-
-
-        --------------------------------------------------
-        -- MODE
-        --------------------------------------------------
 
         local mode =
             tostring(
@@ -1271,17 +1197,10 @@ task.spawn(function()
             mode == "level"
             or mode == "farm level"
 
-
-        --------------------------------------------------
-        -- NEAREST MODE
-        --------------------------------------------------
-
         if isNearMode then
-
             local targetEnemy =
                 _G.CurrentTargetMob
 
-            -- Giữ target hiện tại nếu còn sống
             if not targetEnemy
                 or not targetEnemy.Parent then
 
@@ -1292,7 +1211,6 @@ task.spawn(function()
                     targetEnemy
 
             else
-
                 local hum =
                     targetEnemy:FindFirstChildOfClass(
                         "Humanoid"
@@ -1315,9 +1233,7 @@ task.spawn(function()
                 end
             end
 
-
             if targetEnemy then
-
                 local eRoot =
                     targetEnemy:FindFirstChild(
                         "HumanoidRootPart"
@@ -1332,15 +1248,14 @@ task.spawn(function()
                     and eHum
                     and eHum.Health > 0 then
 
-
-                    --------------------------------------------------
-                    -- PLAYER POSITION
-                    --------------------------------------------------
+                    if _G.BringMobEnabled then
+                        pcall(function()
+                            BringMobs(targetEnemy)
+                        end)
+                    end
 
                     pcall(function()
-
-                        RootPart.CanCollide =
-                            false
+                        RootPart.CanCollide = false
 
                         RootPart.AssemblyLinearVelocity =
                             Vector3.zero
@@ -1352,13 +1267,7 @@ task.spawn(function()
                                 FarmHeight or 10,
                                 0
                             )
-
                     end)
-
-
-                    --------------------------------------------------
-                    -- HIT TARGETS
-                    --------------------------------------------------
 
                     local hitTargets =
                         GetHitTargets(
@@ -1367,72 +1276,42 @@ task.spawn(function()
                             50
                         )
 
-
-                    --------------------------------------------------
-                    -- ATTACK
-                    --------------------------------------------------
-
                     pcall(AutoHaki)
-
                     pcall(AutoEquipWeapon)
 
                     pcall(function()
-
                         DoFastAttack(
                             Net,
                             hitTargets
                         )
-
                     end)
 
                 else
-
                     ClearTarget()
-
                 end
-
             else
-
                 ClearTarget()
-
             end
 
-
-        --------------------------------------------------
-        -- LEVEL MODE
-        --------------------------------------------------
-
         elseif isLevelMode then
-
-
-            --------------------------------------------------
-            -- LEVEL
-            --------------------------------------------------
-
             local currentLevel =
                 getPlayerLevel()
 
             local currentData = nil
 
             for _, q in ipairs(QuestDatabase) do
-
                 if currentLevel >= q.MinLevel
                     and currentLevel <= q.MaxLevel then
 
                     currentData = q
-
                     break
                 end
             end
 
-
             if not currentData then
-
                 ClearTarget()
-
                 continue
             end
-
 
             local npcPos =
                 NpcPositions[
@@ -1444,21 +1323,13 @@ task.spawn(function()
                     currentData.EnemyName
                 ]
 
-
-            --------------------------------------------------
-            -- NHẬN QUEST
-            --------------------------------------------------
-
             if not checkQuestActive() then
-
                 ClearTarget()
 
                 if npcPos then
-
                     pcall(function()
                         smoothMoveTo(npcPos)
                     end)
-
 
                     local npcVector =
                         typeof(npcPos) == "CFrame"
@@ -1469,7 +1340,6 @@ task.spawn(function()
                         os.clock()
 
                     repeat
-
                         RunService.Heartbeat:Wait()
 
                         if not _G.AutoFarmLevelEnabled then
@@ -1497,37 +1367,22 @@ task.spawn(function()
 
                     until
                         os.clock() - startWait > 8
-
                 end
-
 
                 if not _G.AutoFarmLevelEnabled then
                     continue
                 end
 
-
-                --------------------------------------------------
-                -- START QUEST
-                --------------------------------------------------
-
                 pcall(function()
-
                     CommF:InvokeServer(
                         "StartQuest",
                         currentData.QuestName,
                         currentData.QuestNumber
                     )
-
                 end)
 
                 task.wait(0.3)
-
             end
-
-
-            --------------------------------------------------
-            -- QUEST CHECK
-            --------------------------------------------------
 
             if not _G.AutoFarmLevelEnabled then
                 continue
@@ -1537,18 +1392,8 @@ task.spawn(function()
                 continue
             end
 
-
-            --------------------------------------------------
-            -- TARGET NAME
-            --------------------------------------------------
-
             local targetName =
                 currentData.EnemyName
-
-
-            --------------------------------------------------
-            -- STABLE PRIMARY TARGET
-            --------------------------------------------------
 
             local primaryEnemy =
                 GetStableTarget(
@@ -1556,13 +1401,7 @@ task.spawn(function()
                     targetName
                 )
 
-
-            --------------------------------------------------
-            -- CÓ MOB
-            --------------------------------------------------
-
             if primaryEnemy then
-
                 local pRoot =
                     primaryEnemy:FindFirstChild(
                         "HumanoidRootPart"
@@ -1577,15 +1416,14 @@ task.spawn(function()
                     and pHum
                     and pHum.Health > 0 then
 
-
-                    --------------------------------------------------
-                    -- PLAYER → MOB
-                    --------------------------------------------------
+                    if _G.BringMobEnabled then
+                        pcall(function()
+                            BringMobs(primaryEnemy)
+                        end)
+                    end
 
                     pcall(function()
-
-                        RootPart.CanCollide =
-                            false
+                        RootPart.CanCollide = false
 
                         RootPart.AssemblyLinearVelocity =
                             Vector3.zero
@@ -1597,21 +1435,7 @@ task.spawn(function()
                                 FarmHeight or 10,
                                 0
                             )
-
                     end)
-
-
-                    --------------------------------------------------
-                    -- KHÔNG GỌI BRING
-                    --
-                    -- Bring loop riêng tự lấy:
-                    -- _G.CurrentTargetMob
-                    --------------------------------------------------
-
-
-                    --------------------------------------------------
-                    -- HIT TARGETS
-                    --------------------------------------------------
 
                     local hitTargets =
                         GetHitTargets(
@@ -1620,43 +1444,25 @@ task.spawn(function()
                             50
                         )
 
-
-                    --------------------------------------------------
-                    -- ATTACK
-                    --------------------------------------------------
-
                     pcall(AutoHaki)
-
                     pcall(AutoEquipWeapon)
 
                     pcall(function()
-
                         DoFastAttack(
                             Net,
                             hitTargets
                         )
-
                     end)
 
                 else
-
                     ClearTarget()
-
                 end
 
-
-            --------------------------------------------------
-            -- CHƯA CÓ MOB
-            --------------------------------------------------
-
             else
-
                 ClearTarget()
 
                 if enemySpot then
-
                     pcall(function()
-
                         smoothMoveTo(
                             enemySpot
                             * CFrame.new(
@@ -1665,13 +1471,10 @@ task.spawn(function()
                                 0
                             )
                         )
-
                     end)
-
                 end
 
                 task.wait(0.15)
-
             end
         end
     end
