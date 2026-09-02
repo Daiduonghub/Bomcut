@@ -812,56 +812,43 @@ local function BringMobs(targetMob)
 
     local targetCF = targetMob.HumanoidRootPart.CFrame
     local targetName = targetMob.Name:gsub("%s*%[.-%]", ""):lower()
-    local maxMobs = _G.MaxBringMobs or 4
-    local count = 0
 
     local Enemies = workspace:FindFirstChild("Enemies")
     if not Enemies then return end
-
-    -- Tọa độ rải vòng tròn rộng rãi để quái không bị chồng xác
-    local offsets = {
-        CFrame.new(4, 0, 0),
-        CFrame.new(-4, 0, 0),
-        CFrame.new(0, 0, 4),
-        CFrame.new(0, 0, -4)
-    }
 
     for _, enemy in ipairs(Enemies:GetChildren()) do
         if enemy ~= targetMob then
             local eHum = enemy:FindFirstChildOfClass("Humanoid")
             local eRoot = enemy:FindFirstChild("HumanoidRootPart")
 
-            if eHum and eRoot and eHum.Health > 5 then
+            if eHum and eRoot and eHum.Health > 0 then
                 local eName = enemy.Name:gsub("%s*%[.-%]", ""):lower()
 
                 if eName == targetName or string.find(eName, targetName, 1, true) then
                     local dist = (eRoot.Position - targetMob.HumanoidRootPart.Position).Magnitude
 
-                    if dist <= 150 then
-                        count = count + 1
-                        local offsetCF = offsets[count] or CFrame.new(math.random(-3, 3), 0, math.random(-3, 3))
-
+                    -- Quét quái trong bán kính 250 studs
+                    if dist <= 250 then
                         pcall(function()
-                            for _, part in ipairs(enemy:GetChildren()) do
-                                if part:IsA("BasePart") then
-                                    part.CanCollide = false
-                                end
+                            -- 1. TẮT HOÀN TOÀN ANIMATION: Ngăn Server cố gắng di chuyển quái gây lệch đồng bộ
+                            if eHum:FindFirstChild("Animator") then
+                                eHum.Animator:Destroy()
                             end
 
-                            -- CHỈ KÉO KHI QUÁI Ở XA (tránh spam lệnh liên tục làm Server khóa AI)
-                            if (eRoot.Position - targetMob.HumanoidRootPart.Position).Magnitude > 5 then
-                                eRoot.CFrame = targetCF * offsetCF
-                                eRoot.AssemblyLinearVelocity = Vector3.zero
-                                eRoot.AssemblyAngularVelocity = Vector3.zero
-                            end
+                            -- 2. ÉP NGỒI: Vô hiệu hóa AI tự động đi bộ của quái
+                            eHum.Sit = true 
 
-                            -- Duy trì AI luôn mở để quái không bị đóng băng
-                            eHum.PlatformStand = false
-                            eHum.Sit = false
-                            eHum.AutoRotate = true
+                            -- 3. HACK HITBOX: Phóng to cục RootPart lên 50x50x50. 
+                            -- Bằng cách này, dù Server có tính toán quái đang ở đâu, Fast Attack của cậu vẫn 100% chém trúng!
+                            eRoot.Size = Vector3.new(50, 50, 50)
+                            eRoot.Transparency = 1 -- Ẩn đi cho đỡ vướng màn hình
+                            eRoot.CanCollide = false
+
+                            -- 4. Gom thẳng vào một điểm trước mặt con chính (không cần rải vòng tròn nữa)
+                            eRoot.CFrame = targetCF * CFrame.new(0, 0, 2)
+                            eRoot.AssemblyLinearVelocity = Vector3.zero
+                            eRoot.AssemblyAngularVelocity = Vector3.zero
                         end)
-
-                        if count >= (maxMobs - 1) then break end
                     end
                 end
             end
