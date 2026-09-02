@@ -810,12 +810,16 @@ local function BringMobs(targetMob)
     local targetHum = targetMob:FindFirstChildOfClass("Humanoid")
     if not targetHum or targetHum.Health <= 0 then return end
 
-    local targetCF = targetMob.HumanoidRootPart.CFrame
+    local targetRoot = targetMob.HumanoidRootPart
     local targetName = targetMob.Name:gsub("%s*%[.-%]", ""):lower()
+    local maxMobs = _G.MaxBringMobs or 4
+    local radius = 6 -- Bán kính vòng tròn (để 6 studs là đẹp, không quá xa không quá gần)
 
     local Enemies = workspace:FindFirstChild("Enemies")
     if not Enemies then return end
 
+    -- Bước 1: Lọc danh sách những con quái hợp lệ ở xung quanh
+    local validEnemies = {}
     for _, enemy in ipairs(Enemies:GetChildren()) do
         if enemy ~= targetMob then
             local eHum = enemy:FindFirstChildOfClass("Humanoid")
@@ -823,36 +827,62 @@ local function BringMobs(targetMob)
 
             if eHum and eRoot and eHum.Health > 0 then
                 local eName = enemy.Name:gsub("%s*%[.-%]", ""):lower()
-
                 if eName == targetName or string.find(eName, targetName, 1, true) then
-                    local dist = (eRoot.Position - targetMob.HumanoidRootPart.Position).Magnitude
-
-                    -- Quét quái trong bán kính 250 studs
-                    if dist <= 250 then
-                        pcall(function()
-                            -- 1. TẮT HOÀN TOÀN ANIMATION: Ngăn Server cố gắng di chuyển quái gây lệch đồng bộ
-                            if eHum:FindFirstChild("Animator") then
-                                eHum.Animator:Destroy()
-                            end
-
-                            -- 2. ÉP NGỒI: Vô hiệu hóa AI tự động đi bộ của quái
-                            eHum.Sit = true 
-
-                            -- 3. HACK HITBOX: Phóng to cục RootPart lên 50x50x50. 
-                            -- Bằng cách này, dù Server có tính toán quái đang ở đâu, Fast Attack của cậu vẫn 100% chém trúng!
-                            eRoot.Size = Vector3.new(50, 50, 50)
-                            eRoot.Transparency = 1 -- Ẩn đi cho đỡ vướng màn hình
-                            eRoot.CanCollide = false
-
-                            -- 4. Gom thẳng vào một điểm trước mặt con chính (không cần rải vòng tròn nữa)
-                            eRoot.CFrame = targetCF * CFrame.new(0, 0, 2)
-                            eRoot.AssemblyLinearVelocity = Vector3.zero
-                            eRoot.AssemblyAngularVelocity = Vector3.zero
-                        end)
+                    local dist = (eRoot.Position - targetRoot.Position).Magnitude
+                    if dist <= 250 then -- Quét quái trong phạm vi 250 studs
+                        table.insert(validEnemies, enemy)
+                        if #validEnemies >= (maxMobs - 1) then break end
                     end
                 end
             end
         end
+    end
+
+    -- Bước 2: Dùng toán học (Sin/Cos) để xếp quái thành vòng tròn
+    local totalValid = #validEnemies
+    if totalValid == 0 then return end
+
+    for i, enemy in ipairs(validEnemies) do
+        local eHum = enemy:FindFirstChildOfClass("Humanoid")
+        local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+
+        -- Tính toán góc và vị trí cho từng con quái trên vòng tròn
+        local angle = (math.pi * 2 / totalValid) * i
+        local offsetX = math.cos(angle) * radius
+        local offsetZ = math.sin(angle) * radius
+
+        -- Tính vị trí đích (Giữ nguyên trục Y của con quái chính để không bị lơ lửng)
+        local targetPosition = Vector3.new(
+            targetRoot.Position.X + offsetX,
+            targetRoot.Position.Y,
+            targetRoot.Position.Z + offsetZ
+        )
+
+        pcall(function()
+            -- Tắt va chạm để chúng không xô đẩy nhau
+            for _, part in ipairs(enemy:GetChildren()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+
+            -- CHỈ DỊCH CHUYỂN NẾU QUÁI NẰM NGOÀI VỊ TRÍ ĐÃ ĐỊNH (Ngăn spam CFrame)
+            local distToSpot = (eRoot.Position - targetPosition).Magnitude
+            if distToSpot > 3 then 
+                -- Xoay mặt quái hướng về con quái chính
+                eRoot.CFrame = CFrame.lookAt(targetPosition, targetRoot.Position)
+            end
+
+            -- Triệt tiêu lực để không bị văng
+            eRoot.AssemblyLinearVelocity = Vector3.zero
+            eRoot.AssemblyAngularVelocity = Vector3.zero
+
+            -- Reset trạng thái AI chuẩn
+            eHum.PlatformStand = false
+            eHum.Sit = false
+            eHum.AutoRotate = true
+            eHum:ChangeState(Enum.HumanoidStateType.RunningNoPhysics) -- Trạng thái này giúp quái không bị rớt xuyên map
+        end)
     end
 end
 
