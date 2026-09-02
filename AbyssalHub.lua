@@ -830,6 +830,125 @@ local function GetHitTargets(targetName, centerRoot, maxDistance)
     return hitTargets
 end
 
+local BringCooldown = {}
+
+local function BringMobs(targetMob)
+    if not _G.BringMobEnabled then
+        return
+    end
+
+    if not targetMob or not targetMob.Parent then
+        return
+    end
+
+    local targetRoot = targetMob:FindFirstChild("HumanoidRootPart")
+    local targetHum = targetMob:FindFirstChildOfClass("Humanoid")
+
+    if not targetRoot or not targetHum or targetHum.Health <= 0 then
+        return
+    end
+
+    local Enemies = Workspace:FindFirstChild("Enemies")
+    if not Enemies then
+        return
+    end
+
+    local targetName =
+        targetMob.Name:gsub("%s*%[.-%]", ""):lower()
+
+    local maxMobs = math.clamp(
+        tonumber(_G.MaxBringMobs) or 5,
+        1,
+        5
+    )
+
+    local offsets = {
+        Vector3.new(3, 0, 0),
+        Vector3.new(-3, 0, 0),
+        Vector3.new(0, 0, 3),
+        Vector3.new(0, 0, -3)
+    }
+
+    local candidates = {}
+
+    for _, enemy in ipairs(Enemies:GetChildren()) do
+        if enemy ~= targetMob then
+
+            local hum = enemy:FindFirstChildOfClass("Humanoid")
+            local root = enemy:FindFirstChild("HumanoidRootPart")
+
+            if hum and root and hum.Health > 0 then
+
+                local enemyName =
+                    enemy.Name:gsub("%s*%[.-%]", ""):lower()
+
+                if enemyName == targetName then
+
+                    local dist =
+                        (root.Position - targetRoot.Position).Magnitude
+
+                    if dist <= 250 then
+                        table.insert(candidates, {
+                            model = enemy,
+                            root = root,
+                            hum = hum,
+                            distance = dist
+                        })
+                    end
+                end
+            end
+        end
+    end
+
+    table.sort(candidates, function(a, b)
+        return a.distance < b.distance
+    end)
+
+    local amount = math.min(
+        #candidates,
+        maxMobs - 1
+    )
+
+    for i = 1, amount do
+
+        local data = candidates[i]
+
+        local enemy = data.model
+        local root = data.root
+        local hum = data.hum
+
+        if enemy.Parent and root.Parent and hum.Health > 0 then
+
+            local offset = offsets[i]
+
+            if offset then
+                local desiredPosition =
+                    targetRoot.Position + offset
+
+                local distance =
+                    (root.Position - desiredPosition).Magnitude
+
+                if distance > 5 then
+
+                    local now = os.clock()
+                    local last = BringCooldown[enemy] or 0
+
+                    if now - last >= 0.15 then
+
+                        BringCooldown[enemy] = now
+
+                        pcall(function()
+                            root.CFrame =
+                                CFrame.new(desiredPosition)
+                                * root.CFrame.Rotation
+                        end)
+                    end
+                end
+            end
+        end
+    end
+end
+
 -- ==========================================
 -- 2. HÀM FAST ATTACK MULTI-HIT
 -- ==========================================
