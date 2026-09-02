@@ -818,12 +818,12 @@ local function BringMobs(targetMob)
     local Enemies = workspace:FindFirstChild("Enemies")
     if not Enemies then return end
 
-    -- Mở rộng khoảng cách rải ra một chút (5-6 studs) để chúng không bị dính sát đè lên nhau gây lỗi vật lý
+    -- Tọa độ rải vòng tròn rộng rãi để quái không bị chồng xác
     local offsets = {
-        CFrame.new(5, 0, 0),
-        CFrame.new(-5, 0, 0),
-        CFrame.new(0, 0, 5),
-        CFrame.new(0, 0, -5)
+        CFrame.new(4, 0, 0),
+        CFrame.new(-4, 0, 0),
+        CFrame.new(0, 0, 4),
+        CFrame.new(0, 0, -4)
     }
 
     for _, enemy in ipairs(Enemies:GetChildren()) do
@@ -831,7 +831,7 @@ local function BringMobs(targetMob)
             local eHum = enemy:FindFirstChildOfClass("Humanoid")
             local eRoot = enemy:FindFirstChild("HumanoidRootPart")
 
-            if eHum and eRoot and eHum.Health > 0 then
+            if eHum and eRoot and eHum.Health > 5 then
                 local eName = enemy.Name:gsub("%s*%[.-%]", ""):lower()
 
                 if eName == targetName or string.find(eName, targetName, 1, true) then
@@ -839,7 +839,7 @@ local function BringMobs(targetMob)
 
                     if dist <= 150 then
                         count = count + 1
-                        local offsetCF = offsets[count] or CFrame.new(math.random(-4, 4), 0, math.random(-4, 4))
+                        local offsetCF = offsets[count] or CFrame.new(math.random(-3, 3), 0, math.random(-3, 3))
 
                         pcall(function()
                             for _, part in ipairs(enemy:GetChildren()) do
@@ -848,21 +848,17 @@ local function BringMobs(targetMob)
                                 end
                             end
 
-                            -- Chỉ kéo về quanh quái chính nếu nó đang đứng quá xa (tránh spam lệnh liên tục làm đơ AI)
-                            if (eRoot.Position - targetMob.HumanoidRootPart.Position).Magnitude > 6 then
+                            -- CHỈ KÉO KHI QUÁI Ở XA (tránh spam lệnh liên tục làm Server khóa AI)
+                            if (eRoot.Position - targetMob.HumanoidRootPart.Position).Magnitude > 5 then
                                 eRoot.CFrame = targetCF * offsetCF
+                                eRoot.AssemblyLinearVelocity = Vector3.zero
+                                eRoot.AssemblyAngularVelocity = Vector3.zero
                             end
 
-                            eRoot.AssemblyLinearVelocity = Vector3.zero
-                            eRoot.AssemblyAngularVelocity = Vector3.zero
-
+                            -- Duy trì AI luôn mở để quái không bị đóng băng
                             eHum.PlatformStand = false
                             eHum.Sit = false
                             eHum.AutoRotate = true
-                            
-                            if eHum.Health > 0 then
-                                eHum:ChangeState(Enum.HumanoidStateType.Running)
-                            end
                         end)
 
                         if count >= (maxMobs - 1) then break end
