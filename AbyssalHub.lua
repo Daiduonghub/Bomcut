@@ -847,78 +847,86 @@ local function BringMobs(targetMob)
         return
     end
 
-    local Enemies = workspace:FindFirstChild("Enemies")
+    local Enemies = Workspace:FindFirstChild("Enemies")
     if not Enemies then
         return
     end
 
-    local targetName = targetMob.Name:gsub("%s*%[.-%]", ""):lower()
+    local targetName =
+        targetMob.Name:gsub("%s*%[.-%]", ""):lower()
+
     local maxMobs = math.clamp(
         tonumber(_G.MaxBringMobs) or 5,
         1,
-        10
+        5
     )
 
+    -- Không ép NPC chồng lên nhau
     local offsets = {
-        Vector3.new(2, 0, 0),
-        Vector3.new(-2, 0, 0),
-        Vector3.new(0, 0, 2),
-        Vector3.new(0, 0, -2),
-        Vector3.new(2, 0, 2),
-        Vector3.new(-2, 0, 2),
-        Vector3.new(2, 0, -2),
-        Vector3.new(-2, 0, -2),
+        Vector3.new(3, 0, 0),
+        Vector3.new(-3, 0, 0),
+        Vector3.new(0, 0, 3),
+        Vector3.new(0, 0, -3)
     }
 
-    local count = 0
+    local candidates = {}
 
+    -- Tìm mob trước
     for _, enemy in ipairs(Enemies:GetChildren()) do
-        if enemy ~= targetMob and count < maxMobs - 1 then
+        if enemy ~= targetMob then
+            local hum = enemy:FindFirstChildOfClass("Humanoid")
+            local root = enemy:FindFirstChild("HumanoidRootPart")
 
-            local eHum = enemy:FindFirstChildOfClass("Humanoid")
-            local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+            if hum and root and hum.Health > 0 then
+                local name =
+                    enemy.Name:gsub("%s*%[.-%]", ""):lower()
 
-            if eHum and eRoot and eHum.Health > 0 then
+                if name == targetName then
+                    local dist =
+                        (root.Position - targetRoot.Position).Magnitude
 
-                local eName = enemy.Name:gsub("%s*%[.-%]", ""):lower()
-
-                if eName == targetName then
-
-                    local distance =
-                        (eRoot.Position - targetRoot.Position).Magnitude
-
-                    if distance <= 250 then
-
-                        count += 1
-
-                        local offset =
-                            offsets[count] or Vector3.zero
-
-                        local desiredPosition =
-                            targetRoot.Position + offset
-
-                        local dist =
-                            (eRoot.Position - desiredPosition).Magnitude
-
-                        if dist > 2 then
-
-                            local now = os.clock()
-                            local last = BringCooldown[enemy] or 0
-
-                            if now - last >= 0.12 then
-                                BringCooldown[enemy] = now
-
-                                pcall(function()
-                                    -- Chỉ di chuyển MODEL.
-                                    -- Không đụng CanCollide/Velocity.
-                                    enemy:PivotTo(
-                                        CFrame.new(desiredPosition)
-                                        * eRoot.CFrame.Rotation
-                                    )
-                                end)
-                            end
-                        end
+                    if dist <= 250 then
+                        table.insert(candidates, {
+                            model = enemy,
+                            root = root,
+                            dist = dist
+                        })
                     end
+                end
+            end
+        end
+    end
+
+    table.sort(candidates, function(a, b)
+        return a.dist < b.dist
+    end)
+
+    for i = 1, math.min(#candidates, maxMobs - 1) do
+        local data = candidates[i]
+        local enemy = data.model
+        local root = data.root
+
+        if enemy.Parent and root.Parent then
+            local desiredPosition =
+                targetRoot.Position + offsets[i]
+
+            local distance =
+                (root.Position - desiredPosition).Magnitude
+
+            if distance > 2.5 then
+                local now = os.clock()
+                local last = BringCooldown[enemy] or 0
+
+                if now - last >= 0.2 then
+                    BringCooldown[enemy] = now
+
+                    pcall(function()
+                        -- Chỉ di chuyển HRP
+                        -- Không PivotTo toàn bộ model
+                        root.CFrame =
+                            CFrame.new(desiredPosition)
+                            * root.CFrame.Rotation
+                    end)
                 end
             end
         end
@@ -1055,34 +1063,8 @@ task.spawn(function()
                             pcall(function() BringMobs(targetEnemy) end)
                         end
 
-                        local hitTargets = GetHitTargets(targetName, curRoot, 50)
+                        local hitTargets = GetHitTargets(enemyName, RootPart, 50)
 
-local function DebugNotify(text)
-    pcall(function()
-        game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "BringMob Debug",
-            Text = tostring(text),
-            Duration = 5
-        })
-    end)
-end
-
-DebugNotify("Hit targets: " .. tostring(#hitTargets))
-
-for i, root in ipairs(hitTargets) do
-    local mob = root.Parent
-    local hum = mob and mob:FindFirstChildOfClass("Humanoid")
-
-    local name = mob and mob.Name or "nil"
-    local hp = hum and math.floor(hum.Health) or 0
-    local dist = math.floor((root.Position - curRoot.Position).Magnitude)
-
-    DebugNotify(
-        i .. ". " .. name ..
-        " | HP: " .. hp ..
-        " | Dist: " .. dist
-    )
-end
                         pcall(AutoHaki)
                         pcall(AutoEquipWeapon)
                         pcall(function()
@@ -1174,7 +1156,7 @@ end
 
                             curRoot.AssemblyLinearVelocity = Vector3.zero
                             curRoot.CanCollide = false
-                            pRoot.CanCollide = false
+                            --pRoot.CanCollide = false
 
                             -- 1. Teleport player lên trên đầu mob chính
                             curRoot.CFrame = pRoot.CFrame * CFrame.new(0, FarmHeight or 10, 0)
@@ -1187,32 +1169,6 @@ end
                             -- 3. Quét hitTargets sau khi đã gom xong xuôi
                             local hitTargets = GetHitTargets(targetName, curRoot, 50)
 
-local function DebugNotify(text)
-    pcall(function()
-        game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "BringMob Debug",
-            Text = tostring(text),
-            Duration = 5
-        })
-    end)
-end
-
-DebugNotify("Hit targets: " .. tostring(#hitTargets))
-
-for i, root in ipairs(hitTargets) do
-    local mob = root.Parent
-    local hum = mob and mob:FindFirstChildOfClass("Humanoid")
-
-    local name = mob and mob.Name or "nil"
-    local hp = hum and math.floor(hum.Health) or 0
-    local dist = math.floor((root.Position - curRoot.Position).Magnitude)
-
-    DebugNotify(
-        i .. ". " .. name ..
-        " | HP: " .. hp ..
-        " | Dist: " .. dist
-    )
-end
                             pcall(AutoHaki)
                             pcall(AutoEquipWeapon)
                             pcall(function()
