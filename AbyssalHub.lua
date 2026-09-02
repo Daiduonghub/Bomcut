@@ -799,13 +799,14 @@ local LocalPlayer = Players.LocalPlayer
 local lastAttack = 0
 local lastBring = 0
 
--- Hàm lấy toàn bộ danh sách hitTargets chuẩn chỉnh trong bán kính
--- Hàm lấy toàn bộ danh sách hitTargets chuẩn chỉnh
+-- ==========================================
+-- 1. HÀM HỖ TRỢ: LẤY DANH SÁCH HIT TARGETS
+-- ==========================================
 local function GetHitTargets(targetName, centerRoot, maxDistance)
     local hitTargets = {}
     if not centerRoot then return hitTargets end
 
-    local EnemiesFolder = Workspace:FindFirstChild("Enemies")
+    local EnemiesFolder = workspace:FindFirstChild("Enemies")
     if not EnemiesFolder then return hitTargets end
 
     for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
@@ -829,43 +830,33 @@ local function GetHitTargets(targetName, centerRoot, maxDistance)
     return hitTargets
 end
 
--- Bộ điều khiển BringMobs đã tối ưu cooldown và không còn ép velocity
+-- ==========================================
+-- 2. HÀM GOM MỚI (CHẠY ĐỒNG BỘ)
+-- ==========================================
 local BringCooldown = {}
-
 local function BringMobs(targetMob)
-    if not _G.BringMobEnabled or not targetMob then
-        return
-    end
+    if not targetMob then return end
 
     local targetRoot = targetMob:FindFirstChild("HumanoidRootPart")
     local targetHum = targetMob:FindFirstChildOfClass("Humanoid")
-
-    if not targetRoot or not targetHum or targetHum.Health <= 0 then
-        return
-    end
+    if not targetRoot or not targetHum or targetHum.Health <= 0 then return end
 
     local Enemies = workspace:FindFirstChild("Enemies")
-    if not Enemies then
-        return
-    end
+    if not Enemies then return end
 
     local targetName = targetMob.Name:gsub("%s*%[.-%]", ""):lower()
     local maxMobs = math.max(1, tonumber(_G.MaxBringMobs) or 5)
 
     local offsets = {
-        Vector3.new(1.5, 0, 0),
-        Vector3.new(-1.5, 0, 0),
-        Vector3.new(0, 0, 1.5),
-        Vector3.new(0, 0, -1.5)
+        Vector3.new(1.2, 0, 0),
+        Vector3.new(-1.2, 0, 0),
+        Vector3.new(0, 0, 1.2),
+        Vector3.new(0, 0, -1.2)
     }
 
     local count = 0
 
     for _, enemy in ipairs(Enemies:GetChildren()) do
-        if count >= maxMobs - 1 then
-            break
-        end
-
         if enemy ~= targetMob then
             local eHum = enemy:FindFirstChildOfClass("Humanoid")
             local eRoot = enemy:FindFirstChild("HumanoidRootPart")
@@ -873,31 +864,27 @@ local function BringMobs(targetMob)
             if eHum and eRoot and eHum.Health > 0 then
                 local eName = enemy.Name:gsub("%s*%[.-%]", ""):lower()
 
-                if eName == targetName then
-                    local distance =
-                        (eRoot.Position - targetRoot.Position).Magnitude
+                if eName == targetName or string.find(eName, targetName, 1, true) then
+                    local distance = (eRoot.Position - targetRoot.Position).Magnitude
 
                     if distance <= 250 then
                         count += 1
+                        if count > (maxMobs - 1) then break end
 
-                        local desiredPosition =
-                            targetRoot.Position + offsets[count]
+                        local offset = offsets[count] or Vector3.zero
+                        local desiredPosition = targetRoot.Position + offset
 
                         local now = tick()
-                        local lastBring = BringCooldown[enemy] or 0
+                        local last = BringCooldown[enemy] or 0
 
-                        if now - lastBring >= 0.5 then
-                            local distToSpot =
-                                (eRoot.Position - desiredPosition).Magnitude
+                        if now - last >= 0.5 then
+                            local distToSpot = (eRoot.Position - desiredPosition).Magnitude
 
-                            if distToSpot > 2.5 then
+                            if distToSpot > 4 then
                                 BringCooldown[enemy] = now
-
                                 pcall(function()
-                                    -- Chỉ đổi vị trí, giữ nguyên rotation hiện tại
-                                    local rotation = eRoot.CFrame.Rotation
-                                    eRoot.CFrame =
-                                        CFrame.new(desiredPosition) * rotation
+                                    eRoot.CanCollide = false
+                                    eRoot.CFrame = CFrame.lookAt(desiredPosition, targetRoot.Position)
                                 end)
                             end
                         end
@@ -965,19 +952,12 @@ local function GetNearestEnemy()
     return nearest
 end
 
+-- ==========================================
+-- 3. LUỒNG FARM CHÍNH (FULL TASK)
+-- ==========================================
 task.spawn(function()
     local CommF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
     local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
-
-    -- Luồng gom quái chạy ngầm liên tục từng frame
-    task.spawn(function()
-        while true do
-            task.wait()
-            if _G.BringMobEnabled and _G.CurrentTargetMob then
-                BringMobs(_G.CurrentTargetMob)
-            end
-        end
-    end)
 
     local function getPlayerLevel()
         local data = LocalPlayer and LocalPlayer:FindFirstChild("Data")
@@ -1038,10 +1018,13 @@ task.spawn(function()
                         RootPart.CanCollide = false
                         RootPart.CFrame = eRoot.CFrame * CFrame.new(0, FarmHeight or 10, 0)
 
-                        -- Đã bỏ reset velocity của quái, chỉ tắt va chạm để tránh đẩy văng
                         eRoot.CanCollide = false
 
-                        -- Dùng hàm GetHitTargets sạch sẽ thay vì lặp code thô
+                        -- Gom mob đồng bộ ngay tại đây nếu bật
+                        if _G.BringMobEnabled then
+                            pcall(function() BringMobs(targetEnemy) end)
+                        end
+
                         local hitTargets = GetHitTargets(enemyName, RootPart, 50)
 
                         pcall(AutoHaki)
@@ -1135,14 +1118,17 @@ task.spawn(function()
 
                             curRoot.AssemblyLinearVelocity = Vector3.zero
                             curRoot.CanCollide = false
-                            
-                            -- ĐÃ XÓA BỎ: pRoot.AssemblyLinearVelocity = Vector3.zero 
-                            -- Giờ quái có thể tự do thở và không bị khóa AI nữa!
                             pRoot.CanCollide = false
 
+                            -- 1. Teleport player lên trên đầu mob chính
                             curRoot.CFrame = pRoot.CFrame * CFrame.new(0, FarmHeight or 10, 0)
 
-                            -- Gom hitTargets gọn gàng bằng hàm chung
+                            -- 2. Gom mob đồng bộ ngay trong vòng lặp (Đã bỏ task.spawn thừa thãi)
+                            if _G.BringMobEnabled then
+                                pcall(function() BringMobs(primaryEnemy) end)
+                            end
+
+                            -- 3. Quét hitTargets sau khi đã gom xong xuôi
                             local hitTargets = GetHitTargets(targetName, curRoot, 50)
 
                             pcall(AutoHaki)
