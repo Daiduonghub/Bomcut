@@ -802,7 +802,6 @@ local lastBring = 0
 -- ==========================================
 -- 1. HÀM BRING MOB TỐI ƯU ĐỒNG BỘ CHO CẢ 2 MODE
 -- ==========================================
--- Bảng lưu trữ cooldown và cache trạng thái kéo quái
 local BringCooldown = {}
 
 local function BringMobs(targetMob)
@@ -818,24 +817,29 @@ local function BringMobs(targetMob)
     end
 
     local Enemies = workspace:FindFirstChild("Enemies")
-    if not Enemies then return end
+    if not Enemies then
+        return
+    end
 
     local targetName = targetMob.Name:gsub("%s*%[.-%]", ""):lower()
-    local maxMobs = _G.MaxBringMobs or 4
+    local maxMobs = math.max(1, tonumber(_G.MaxBringMobs) or 5)
 
-    -- Bố trí khoảng cách cụm nhỏ gọn (2 studs) để đánh tay trúng hết cả bầy
     local offsets = {
-        Vector3.new(2, 0, 0),
-        Vector3.new(-2, 0, 0),
-        Vector3.new(0, 0, 2),
-        Vector3.new(0, 0, -2)
+        Vector3.new(1.2, 0, 0),
+        Vector3.new(-1.2, 0, 0),
+        Vector3.new(0, 0, 1.2),
+        Vector3.new(0, 0, -1.2),
+        Vector3.new(0, 0, 0)
     }
 
     local count = 0
 
     for _, enemy in ipairs(Enemies:GetChildren()) do
-        if enemy ~= targetMob and count < maxMobs - 1 then
+        if count >= maxMobs - 1 then
+            break
+        end
 
+        if enemy ~= targetMob then
             local eHum = enemy:FindFirstChildOfClass("Humanoid")
             local eRoot = enemy:FindFirstChild("HumanoidRootPart")
 
@@ -845,35 +849,37 @@ local function BringMobs(targetMob)
 
                 if eName == targetName or string.find(eName, targetName, 1, true) then
 
-                    local distance = (eRoot.Position - targetRoot.Position).Magnitude
+                    local distance =
+                        (eRoot.Position - targetRoot.Position).Magnitude
 
                     if distance <= 250 then
                         count += 1
 
-                        local offset = offsets[count] or Vector3.new(2, 0, 2)
-                        local desiredPosition = targetRoot.Position + offset
+                        local offset = offsets[count]
+                        local desiredPosition =
+                            targetRoot.Position + offset
 
-                        local lastBring = BringCooldown[enemy] or 0
+                        local now = tick()
+                        local last = BringCooldown[enemy] or 0
 
-                        -- Chỉ teleport khi quái thực sự chạy ra xa (> 8 studs) và đã qua thời gian hồi cooldown
-                        if distance > 8 and tick() - lastBring > 0.35 then
-                            BringCooldown[enemy] = tick()
+                        if now - last >= 0.4 then
 
-                            pcall(function()
-                                -- Tắt va chạm tạm thời để chúng không đẩy nhau văng mạng
-                                for _, part in ipairs(enemy:GetChildren()) do
-                                    if part:IsA("BasePart") then
-                                        part.CanCollide = false
-                                    end
-                                end
+                            local distToSpot =
+                                (eRoot.Position - desiredPosition).Magnitude
 
-                                eRoot.CFrame = CFrame.lookAt(
-                                    desiredPosition,
-                                    targetRoot.Position
-                                )
-                            end)
+                            if distToSpot > 3 then
+                                BringCooldown[enemy] = now
+
+                                pcall(function()
+                                    eRoot.CanCollide = false
+
+                                    eRoot.CFrame = CFrame.lookAt(
+                                        desiredPosition,
+                                        targetRoot.Position
+                                    )
+                                end)
+                            end
                         end
-                        -- Giữ nguyên hoàn toàn velocity và state của quái, để AI tự chạy tự thở!
                     end
                 end
             end
