@@ -830,124 +830,98 @@ local function GetHitTargets(targetName, centerRoot, maxDistance)
     return hitTargets
 end
 
-local RunService = game:GetService("RunService")
+local BringCooldown = {}
+local ReleaseUntil = {}
 
-local BringRunning = false
-local BringThread
-
-local BRING_INTERVAL = 0.35
-local BRING_RADIUS = 7
-
-local BringOffsets = {
-    Vector3.new(3, 0, 0),
-    Vector3.new(-3, 0, 0),
-    Vector3.new(0, 0, 3),
-    Vector3.new(0, 0, -3)
-}
-
-local function GetMobRoot(mob)
-    return mob and mob:FindFirstChild("HumanoidRootPart")
-end
-
-local function GetMobHumanoid(mob)
-    return mob and mob:FindFirstChildOfClass("Humanoid")
-end
-
-local function NormalizeMobName(name)
-    return tostring(name)
-        :gsub("%s*%[.-%]", "")
-        :lower()
-end
-
-local function BringMobsSmooth(targetMob)
-    if not _G.BringMobEnabled then
+local function BringMobs(targetMob)
+    if not targetMob or not _G.BringMobEnabled then
         return
     end
 
-    if not targetMob or not targetMob.Parent then
-        return
-    end
-
-    local targetRoot = GetMobRoot(targetMob)
-    local targetHum = GetMobHumanoid(targetMob)
+    local targetRoot = targetMob:FindFirstChild("HumanoidRootPart")
+    local targetHum = targetMob:FindFirstChildOfClass("Humanoid")
 
     if not targetRoot or not targetHum or targetHum.Health <= 0 then
         return
     end
 
-    local enemies = Workspace:FindFirstChild("Enemies")
-    if not enemies then
-        return
-    end
+    local Enemies = workspace:FindFirstChild("Enemies")
+    if not Enemies then return end
 
-    local targetName = NormalizeMobName(targetMob.Name)
-    local mobs = {}
+    local targetName =
+        targetMob.Name:gsub("%s*%[.-%]", ""):lower()
 
-    for _, mob in ipairs(enemies:GetChildren()) do
-        if mob ~= targetMob then
-            local hum = GetMobHumanoid(mob)
-            local root = GetMobRoot(mob)
+    local maxMobs = math.clamp(
+        tonumber(_G.MaxBringMobs) or 5,
+        1,
+        5
+    )
 
-            if hum
-                and root
-                and hum.Health > 0
-                and NormalizeMobName(mob.Name) == targetName then
+    local offsets = {
+        Vector3.new(3, 0, 0),
+        Vector3.new(-3, 0, 0),
+        Vector3.new(0, 0, 3),
+        Vector3.new(0, 0, -3)
+    }
 
-                table.insert(mobs, {
-                    Model = mob,
-                    Root = root,
-                    Humanoid = hum
-                })
-            end
+    local count = 0
+    local now = os.clock()
+
+    for _, enemy in ipairs(Enemies:GetChildren()) do
+        if enemy == targetMob then
+            continue
         end
-    end
 
-    -- Tối đa 4 mob + target = 5
-    for i = 1, math.min(#mobs, 4) do
-        local data = mobs[i]
+        local hum = enemy:FindFirstChildOfClass("Humanoid")
+        local root = enemy:FindFirstChild("HumanoidRootPart")
 
-        if data.Model.Parent
-            and data.Root.Parent
-            and data.Humanoid.Health > 0 then
+        if hum and root and hum.Health > 0 then
 
-            local desired =
-                targetRoot.Position + BringOffsets[i]
+            local enemyName =
+                enemy.Name:gsub("%s*%[.-%]", ""):lower()
 
-            local distance =
-                (data.Root.Position - desired).Magnitude
+            if enemyName == targetName
+                or string.find(enemyName, targetName, 1, true) then
 
-            -- Mob đã gần rồi thì KHÔNG đụng vào nữa
-            if distance > BRING_RADIUS then
-                pcall(function()
-                    data.Model:PivotTo(
-                        CFrame.new(desired) *
-                        data.Root.CFrame.Rotation
-                    )
-                end)
-            end
-        end
-    end
-end
+                count += 1
 
--- Loop Bring RIÊNG
-if not BringRunning then
-    BringRunning = true
+                if count > maxMobs - 1 then
+                    break
+                end
 
-    BringThread = task.spawn(function()
-        while BringRunning do
-            task.wait(BRING_INTERVAL)
+                -- ĐANG RELEASE → TUYỆT ĐỐI KHÔNG ĐỤNG NPC
+                if ReleaseUntil[enemy]
+                    and now < ReleaseUntil[enemy] then
+                    continue
+                end
 
-            if _G.AutoFarmLevelEnabled
-                and _G.BringMobEnabled then
+                local offset = offsets[count] or Vector3.zero
+                local desired = targetRoot.Position + offset
 
-                local target = _G.CurrentTargetMob
+                local distance =
+                    (root.Position - desired).Magnitude
 
-                if target and target.Parent then
-                    BringMobsSmooth(target)
+                local last = BringCooldown[enemy] or 0
+
+                -- Chỉ Pull khi thật sự lệch
+                if distance > 6
+                    and now - last >= 0.8 then
+
+                    BringCooldown[enemy] = now
+
+                    pcall(function()
+                        enemy:PivotTo(
+                            CFrame.new(desired)
+                            * root.CFrame.Rotation
+                        )
+                    end)
+
+                    -- THẢ AI trong 2 giây
+                    ReleaseUntil[enemy] = now + 2
                 end
             end
         end
-    end)
+    end
 end
 
 -- ==========================================
