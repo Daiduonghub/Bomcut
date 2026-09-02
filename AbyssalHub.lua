@@ -803,7 +803,6 @@ local lastBring = 0
 -- 1. HÀM BRING MOB TỐI ƯU ĐỒNG BỘ CHO CẢ 2 MODE
 -- ==========================================
 local function BringMobs(targetMob)
-local function BringMobs(targetMob)
     if not _G.BringMobEnabled or not targetMob or not targetMob:FindFirstChild("HumanoidRootPart") then 
         return 
     end
@@ -819,12 +818,11 @@ local function BringMobs(targetMob)
     local Enemies = workspace:FindFirstChild("Enemies")
     if not Enemies then return end
 
-    -- Danh sách tọa độ rải vòng tròn quanh quái chính
     local offsets = {
-        CFrame.new(4, 0, 0),
-        CFrame.new(-4, 0, 0),
-        CFrame.new(0, 0, 4),
-        CFrame.new(0, 0, -4)
+        CFrame.new(3, 0, 0),
+        CFrame.new(-3, 0, 0),
+        CFrame.new(0, 0, 3),
+        CFrame.new(0, 0, -3)
     }
 
     for _, enemy in ipairs(Enemies:GetChildren()) do
@@ -840,28 +838,23 @@ local function BringMobs(targetMob)
 
                     if dist <= 150 then
                         count = count + 1
-                        local offsetCF = offsets[count] or CFrame.new(math.random(-3, 3), 0, math.random(-3, 3))
+                        local offsetCF = offsets[count] or CFrame.new(math.random(-2, 2), 0, math.random(-2, 2))
 
                         pcall(function()
-                            -- Tắt va chạm toàn bộ phần cơ thể
                             for _, part in ipairs(enemy:GetChildren()) do
                                 if part:IsA("BasePart") then
                                     part.CanCollide = false
-                                    part.Massless = true
                                 end
                             end
 
-                            -- Ép sát vị trí vòng tròn
                             eRoot.CFrame = targetCF * offsetCF
                             eRoot.AssemblyLinearVelocity = Vector3.zero
                             eRoot.AssemblyAngularVelocity = Vector3.zero
 
-                            -- QUAN TRỌNG: Mở khóa trạng thái AI bị Server đóng băng
                             eHum.PlatformStand = false
                             eHum.Sit = false
                             eHum.AutoRotate = true
                             
-                            -- Kích hoạt lại health state để tránh bị đứng hình
                             if eHum.Health > 0 then
                                 eHum:ChangeState(Enum.HumanoidStateType.Running)
                             end
