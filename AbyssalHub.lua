@@ -803,82 +803,67 @@ local lastBring = 0
 -- 1. HÀM BRING MOB TỐI ƯU ĐỒNG BỘ CHO CẢ 2 MODE
 -- ==========================================
 local function BringMobs(targetMob)
-    if not _G.BringMobEnabled or not targetMob or not targetMob:FindFirstChild("HumanoidRootPart") then 
-        return 
+    if not _G.BringMobEnabled or not targetMob then
+        return
     end
 
+    local targetRoot = targetMob:FindFirstChild("HumanoidRootPart")
     local targetHum = targetMob:FindFirstChildOfClass("Humanoid")
-    if not targetHum or targetHum.Health <= 0 then return end
-
-    local targetRoot = targetMob.HumanoidRootPart
-    local targetName = targetMob.Name:gsub("%s*%[.-%]", ""):lower()
-    local maxMobs = _G.MaxBringMobs or 4
+    if not targetRoot or not targetHum or targetHum.Health <= 0 then
+        return
+    end
 
     local Enemies = workspace:FindFirstChild("Enemies")
     if not Enemies then return end
 
-    -- Bước 1: Quét danh sách quái xung quanh
-    local validEnemies = {}
+    local targetName = targetMob.Name:gsub("%s*%[.-%]", ""):lower()
+    local maxMobs = _G.MaxBringMobs or 4
+
+    local offsets = {
+        Vector3.new(4, 0, 4),
+        Vector3.new(-4, 0, 4),
+        Vector3.new(4, 0, -4),
+        Vector3.new(-4, 0, -4)
+    }
+
+    local count = 0
+
     for _, enemy in ipairs(Enemies:GetChildren()) do
-        if enemy ~= targetMob then
+        if enemy ~= targetMob and count < maxMobs - 1 then
             local eHum = enemy:FindFirstChildOfClass("Humanoid")
             local eRoot = enemy:FindFirstChild("HumanoidRootPart")
 
             if eHum and eRoot and eHum.Health > 0 then
                 local eName = enemy.Name:gsub("%s*%[.-%]", ""):lower()
+
                 if eName == targetName or string.find(eName, targetName, 1, true) then
-                    local dist = (eRoot.Position - targetRoot.Position).Magnitude
-                    if dist <= 250 then 
-                        table.insert(validEnemies, enemy)
-                        if #validEnemies >= (maxMobs - 1) then break end
+                    if (eRoot.Position - targetRoot.Position).Magnitude <= 250 then
+
+                        count += 1
+
+                        local offset = offsets[count]
+                        local desiredPos = targetRoot.Position + offset
+
+                        -- Chỉ reposition khi lệch đáng kể
+                        if (eRoot.Position - desiredPos).Magnitude > 5 then
+                            eRoot.CFrame = CFrame.lookAt(
+                                desiredPos,
+                                targetRoot.Position
+                            )
+                        end
+
+                        -- Không reset velocity liên tục
+                        for _, part in ipairs(enemy:GetDescendants()) do
+                            if part:IsA("BasePart") then
+                                part.CanCollide = false
+                            end
+                        end
+
+                        -- Không đụng vào PlatformStand/Sit/AutoRotate
                     end
                 end
             end
         end
-    end
-
-    local totalValid = #validEnemies
-    if totalValid == 0 then return end
-
-    -- Bước 2: Tạo mảng tọa độ hình vuông quanh con chính (Khoảng cách 3.5 studs để không bị khóa AI)
-    local offsets = {
-        Vector3.new(3.5, 0, 3.5),   -- Góc Đông Nam
-        Vector3.new(-3.5, 0, 3.5),  -- Góc Tây Nam
-        Vector3.new(3.5, 0, -3.5),  -- Góc Đông Bắc
-        Vector3.new(-3.5, 0, -3.5)  -- Góc Tây Bắc
-    }
-
-    for i, enemy in ipairs(validEnemies) do
-        local eHum = enemy:FindFirstChildOfClass("Humanoid")
-        local eRoot = enemy:FindFirstChild("HumanoidRootPart")
-
-        pcall(function()
-            -- Lấy vị trí theo khung hình vuông thay vì chồng lên nhau
-            local offset = offsets[i] or Vector3.new(3, 0, 3)
-            local targetPosition = targetRoot.Position + offset
-
-            -- Cho phép va chạm nhẹ nhưng tắt lực đẩy văng
-            for _, part in ipairs(enemy:GetChildren()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = false
-                end
-            end
-
-            -- Chỉ dịch chuyển nếu quái đi lạc quá xa vị trí gom
-            local distToSpot = (eRoot.Position - targetPosition).Magnitude
-            if distToSpot > 2 then 
-                eRoot.CFrame = CFrame.new(targetPosition, targetRoot.Position)
-            end
-
-            -- Triệt tiêu quán tính văng mạng
-            eRoot.AssemblyLinearVelocity = Vector3.zero
-            eRoot.AssemblyAngularVelocity = Vector3.zero
-
-            -- QUAN TRỌNG: Giữ AI luôn hoạt động bình thường, không bị đóng băng
-            eHum.PlatformStand = false
-            eHum.Sit = false
-            eHum.AutoRotate = true
-        end)
     end
 end
 
