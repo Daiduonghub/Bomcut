@@ -818,11 +818,12 @@ local function BringMobs(targetMob)
     local Enemies = workspace:FindFirstChild("Enemies")
     if not Enemies then return end
 
+    -- Mở rộng khoảng cách rải ra một chút (5-6 studs) để chúng không bị dính sát đè lên nhau gây lỗi vật lý
     local offsets = {
-        CFrame.new(3, 0, 0),
-        CFrame.new(-3, 0, 0),
-        CFrame.new(0, 0, 3),
-        CFrame.new(0, 0, -3)
+        CFrame.new(5, 0, 0),
+        CFrame.new(-5, 0, 0),
+        CFrame.new(0, 0, 5),
+        CFrame.new(0, 0, -5)
     }
 
     for _, enemy in ipairs(Enemies:GetChildren()) do
@@ -838,7 +839,7 @@ local function BringMobs(targetMob)
 
                     if dist <= 150 then
                         count = count + 1
-                        local offsetCF = offsets[count] or CFrame.new(math.random(-2, 2), 0, math.random(-2, 2))
+                        local offsetCF = offsets[count] or CFrame.new(math.random(-4, 4), 0, math.random(-4, 4))
 
                         pcall(function()
                             for _, part in ipairs(enemy:GetChildren()) do
@@ -847,7 +848,11 @@ local function BringMobs(targetMob)
                                 end
                             end
 
-                            eRoot.CFrame = targetCF * offsetCF
+                            -- Chỉ kéo về quanh quái chính nếu nó đang đứng quá xa (tránh spam lệnh liên tục làm đơ AI)
+                            if (eRoot.Position - targetMob.HumanoidRootPart.Position).Magnitude > 6 then
+                                eRoot.CFrame = targetCF * offsetCF
+                            end
+
                             eRoot.AssemblyLinearVelocity = Vector3.zero
                             eRoot.AssemblyAngularVelocity = Vector3.zero
 
