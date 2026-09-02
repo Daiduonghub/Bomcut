@@ -832,7 +832,26 @@ end
 
 local RunService = game:GetService("RunService")
 
-local BringCooldown = {}
+local BringRunning = false
+local BringThread
+
+local BRING_INTERVAL = 0.35
+local BRING_RADIUS = 7
+
+local BringOffsets = {
+    Vector3.new(3, 0, 0),
+    Vector3.new(-3, 0, 0),
+    Vector3.new(0, 0, 3),
+    Vector3.new(0, 0, -3)
+}
+
+local function GetMobRoot(mob)
+    return mob and mob:FindFirstChild("HumanoidRootPart")
+end
+
+local function GetMobHumanoid(mob)
+    return mob and mob:FindFirstChildOfClass("Humanoid")
+end
 
 local function NormalizeMobName(name)
     return tostring(name)
@@ -840,233 +859,97 @@ local function NormalizeMobName(name)
         :lower()
 end
 
-local function BringMobs(targetMob)
+local function BringMobsSmooth(targetMob)
     if not _G.BringMobEnabled then
-        return 0
+        return
     end
 
     if not targetMob or not targetMob.Parent then
-        return 0
+        return
     end
 
-    local targetRoot =
-        targetMob:FindFirstChild("HumanoidRootPart")
+    local targetRoot = GetMobRoot(targetMob)
+    local targetHum = GetMobHumanoid(targetMob)
 
-    local targetHum =
-        targetMob:FindFirstChildOfClass("Humanoid")
-
-    if not targetRoot
-        or not targetHum
-        or targetHum.Health <= 0 then
-        return 0
+    if not targetRoot or not targetHum or targetHum.Health <= 0 then
+        return
     end
 
-    local Enemies =
-        Workspace:FindFirstChild("Enemies")
-
-    if not Enemies then
-        return 0
+    local enemies = Workspace:FindFirstChild("Enemies")
+    if not enemies then
+        return
     end
 
-    local targetName =
-        NormalizeMobName(targetMob.Name)
+    local targetName = NormalizeMobName(targetMob.Name)
+    local mobs = {}
 
-    local maxMobs = math.clamp(
-        tonumber(_G.MaxBringMobs) or 5,
-        1,
-        5
-    )
-
-    --------------------------------------------------
-    -- VỊ TRÍ MOB XUNG QUANH TARGET
-    --------------------------------------------------
-
-    local offsets = {
-        Vector3.new(3, 0, 0),
-        Vector3.new(-3, 0, 0),
-        Vector3.new(0, 0, 3),
-        Vector3.new(0, 0, -3)
-    }
-
-    --------------------------------------------------
-    -- TÌM MOB
-    --------------------------------------------------
-
-    local candidates = {}
-
-    for _, enemy in ipairs(Enemies:GetChildren()) do
-
-        if enemy ~= targetMob
-            and enemy.Parent then
-
-            local hum =
-                enemy:FindFirstChildOfClass("Humanoid")
-
-            local root =
-                enemy:FindFirstChild("HumanoidRootPart")
+    for _, mob in ipairs(enemies:GetChildren()) do
+        if mob ~= targetMob then
+            local hum = GetMobHumanoid(mob)
+            local root = GetMobRoot(mob)
 
             if hum
                 and root
-                and hum.Health > 0 then
+                and hum.Health > 0
+                and NormalizeMobName(mob.Name) == targetName then
 
-                local enemyName =
-                    NormalizeMobName(enemy.Name)
-
-                if enemyName == targetName then
-
-                    local distance =
-                        (root.Position - targetRoot.Position).Magnitude
-
-                    if distance <= 250 then
-
-                        table.insert(candidates, {
-                            model = enemy,
-                            root = root,
-                            hum = hum,
-                            distance = distance
-                        })
-
-                    end
-                end
+                table.insert(mobs, {
+                    Model = mob,
+                    Root = root,
+                    Humanoid = hum
+                })
             end
         end
     end
 
-    --------------------------------------------------
-    -- MOB GẦN TARGET NHẤT ĐƯỢC ƯU TIÊN
-    --------------------------------------------------
+    -- Tối đa 4 mob + target = 5
+    for i = 1, math.min(#mobs, 4) do
+        local data = mobs[i]
 
-    table.sort(
-        candidates,
-        function(a, b)
-            return a.distance < b.distance
-        end
-    )
+        if data.Model.Parent
+            and data.Root.Parent
+            and data.Humanoid.Health > 0 then
 
-    local amount =
-        math.min(
-            #candidates,
-            maxMobs - 1
-        )
+            local desired =
+                targetRoot.Position + BringOffsets[i]
 
-    local moved = 0
+            local distance =
+                (data.Root.Position - desired).Magnitude
 
-    --------------------------------------------------
-    -- BRING
-    --------------------------------------------------
-
-    for i = 1, amount do
-
-        local data =
-            candidates[i]
-
-        local enemy =
-            data.model
-
-        local root =
-            data.root
-
-        local hum =
-            data.hum
-
-        if enemy.Parent
-            and root.Parent
-            and hum.Parent
-            and hum.Health > 0 then
-
-            local offset =
-                offsets[i]
-
-            if offset then
-
-                local desiredPosition =
-                    targetRoot.Position + offset
-
-                local distance =
-                    (root.Position - desiredPosition).Magnitude
-
-                --------------------------------------------------
-                -- CHỈ KÉO KHI MOB THỰC SỰ LỆCH
-                --------------------------------------------------
-
-                if distance > 6 then
-
-                    local now =
-                        os.clock()
-
-                    local last =
-                        BringCooldown[enemy] or 0
-
-                    --------------------------------------------------
-                    -- 0.25s / MOB
-                    -- KHÔNG SPAM CFRAME
-                    --------------------------------------------------
-
-                    if now - last >= 0.25 then
-
-                        BringCooldown[enemy] = now
-
-                        pcall(function()
-
-                            -- Không đụng Humanoid.
-                            -- Không WalkSpeed = 0.
-                            -- Không PlatformStand.
-                            -- Không ChangeState.
-
-                            enemy:PivotTo(
-                                CFrame.new(
-                                    desiredPosition
-                                ) * root.CFrame.Rotation
-                            )
-
-                        end)
-
-                        moved += 1
-                    end
-                end
+            -- Mob đã gần rồi thì KHÔNG đụng vào nữa
+            if distance > BRING_RADIUS then
+                pcall(function()
+                    data.Model:PivotTo(
+                        CFrame.new(desired) *
+                        data.Root.CFrame.Rotation
+                    )
+                end)
             end
         end
     end
-
-    return moved
 end
 
+-- Loop Bring RIÊNG
+if not BringRunning then
+    BringRunning = true
 
-------------------------------------------------------
--- BRING LOOP RIÊNG
-------------------------------------------------------
+    BringThread = task.spawn(function()
+        while BringRunning do
+            task.wait(BRING_INTERVAL)
 
-local BringConnection
+            if _G.AutoFarmLevelEnabled
+                and _G.BringMobEnabled then
 
-if BringConnection then
-    BringConnection:Disconnect()
-    BringConnection = nil
-end
+                local target = _G.CurrentTargetMob
 
-BringConnection =
-    RunService.Heartbeat:Connect(function()
-
-        if not _G.AutoFarmLevelEnabled then
-            return
+                if target and target.Parent then
+                    BringMobsSmooth(target)
+                end
+            end
         end
-
-        if not _G.BringMobEnabled then
-            return
-        end
-
-        local target =
-            _G.CurrentTargetMob
-
-        if not target
-            or not target.Parent then
-            return
-        end
-
-        pcall(function()
-            BringMobs(target)
-        end)
     end)
-    
+end
+
 -- ==========================================
 -- 2. HÀM FAST ATTACK MULTI-HIT
 -- ==========================================
@@ -1168,8 +1051,7 @@ task.spawn(function()
 
     local function checkQuestActive()
 
-        local now =
-            os.clock()
+        local now = os.clock()
 
         if now - lastQuestCheck > 0.4 then
 
@@ -1211,21 +1093,16 @@ task.spawn(function()
 
         local wantedName =
             tostring(targetName)
-            :gsub("%s*%[.-%]", "")
-            :lower()
+                :gsub("%s*%[.-%]", "")
+                :lower()
 
-        for _, enemy in
-            ipairs(enemiesFolder:GetChildren()) do
+        for _, enemy in ipairs(enemiesFolder:GetChildren()) do
 
             local hum =
-                enemy:FindFirstChildOfClass(
-                    "Humanoid"
-                )
+                enemy:FindFirstChildOfClass("Humanoid")
 
             local root =
-                enemy:FindFirstChild(
-                    "HumanoidRootPart"
-                )
+                enemy:FindFirstChild("HumanoidRootPart")
 
             if hum
                 and root
@@ -1233,8 +1110,8 @@ task.spawn(function()
 
                 local enemyName =
                     enemy.Name
-                    :gsub("%s*%[.-%]", "")
-                    :lower()
+                        :gsub("%s*%[.-%]", "")
+                        :lower()
 
                 if enemyName == wantedName then
                     return enemy
@@ -1243,6 +1120,96 @@ task.spawn(function()
         end
 
         return nil
+    end
+
+
+    --------------------------------------------------
+    -- CHECK CURRENT TARGET
+    --------------------------------------------------
+
+    local function IsValidTarget(
+        target,
+        enemiesFolder,
+        targetName
+    )
+
+        if not target
+            or not target.Parent
+            or not enemiesFolder
+            or target.Parent ~= enemiesFolder then
+
+            return false
+        end
+
+        local hum =
+            target:FindFirstChildOfClass("Humanoid")
+
+        local root =
+            target:FindFirstChild("HumanoidRootPart")
+
+        if not hum
+            or not root
+            or hum.Health <= 0 then
+
+            return false
+        end
+
+        local wantedName =
+            tostring(targetName)
+                :gsub("%s*%[.-%]", "")
+                :lower()
+
+        local actualName =
+            target.Name
+                :gsub("%s*%[.-%]", "")
+                :lower()
+
+        return actualName == wantedName
+    end
+
+
+    --------------------------------------------------
+    -- GET / KEEP TARGET
+    --------------------------------------------------
+
+    local function GetStableTarget(
+        enemiesFolder,
+        targetName
+    )
+
+        local current =
+            _G.CurrentTargetMob
+
+        -- Giữ mob cũ nếu nó vẫn còn hợp lệ
+        if IsValidTarget(
+            current,
+            enemiesFolder,
+            targetName
+        ) then
+
+            return current
+        end
+
+        -- Mob cũ chết/mất mới tìm mob mới
+        local newTarget =
+            FindPrimaryEnemy(
+                enemiesFolder,
+                targetName
+            )
+
+        _G.CurrentTargetMob =
+            newTarget
+
+        return newTarget
+    end
+
+
+    --------------------------------------------------
+    -- CLEAR TARGET
+    --------------------------------------------------
+
+    local function ClearTarget()
+        _G.CurrentTargetMob = nil
     end
 
 
@@ -1261,7 +1228,7 @@ task.spawn(function()
 
         if not _G.AutoFarmLevelEnabled then
 
-            _G.CurrentTargetMob = nil
+            ClearTarget()
 
             continue
         end
@@ -1287,19 +1254,22 @@ task.spawn(function()
                 "Humanoid"
             )
 
-
         if not Character
             or not RootPart
             or not Humanoid
             or Humanoid.Health <= 0 then
 
-            _G.CurrentTargetMob = nil
+            ClearTarget()
 
-            task.wait(0.5)
+            task.wait(0.25)
 
             continue
         end
 
+
+        --------------------------------------------------
+        -- ENEMIES
+        --------------------------------------------------
 
         local EnemiesFolder =
             Workspace:FindFirstChild("Enemies")
@@ -1331,7 +1301,42 @@ task.spawn(function()
         if isNearMode then
 
             local targetEnemy =
-                GetNearestEnemy()
+                _G.CurrentTargetMob
+
+            -- Giữ target hiện tại nếu còn sống
+            if not targetEnemy
+                or not targetEnemy.Parent then
+
+                targetEnemy =
+                    GetNearestEnemy()
+
+                _G.CurrentTargetMob =
+                    targetEnemy
+
+            else
+
+                local hum =
+                    targetEnemy:FindFirstChildOfClass(
+                        "Humanoid"
+                    )
+
+                local root =
+                    targetEnemy:FindFirstChild(
+                        "HumanoidRootPart"
+                    )
+
+                if not hum
+                    or not root
+                    or hum.Health <= 0 then
+
+                    targetEnemy =
+                        GetNearestEnemy()
+
+                    _G.CurrentTargetMob =
+                        targetEnemy
+                end
+            end
+
 
             if targetEnemy then
 
@@ -1348,14 +1353,6 @@ task.spawn(function()
                 if eRoot
                     and eHum
                     and eHum.Health > 0 then
-
-
-                    --------------------------------------------------
-                    -- CURRENT TARGET
-                    --------------------------------------------------
-
-                    _G.CurrentTargetMob =
-                        targetEnemy
 
 
                     --------------------------------------------------
@@ -1412,13 +1409,13 @@ task.spawn(function()
 
                 else
 
-                    _G.CurrentTargetMob = nil
+                    ClearTarget()
 
                 end
 
             else
 
-                _G.CurrentTargetMob = nil
+                ClearTarget()
 
             end
 
@@ -1439,9 +1436,7 @@ task.spawn(function()
 
             local currentData = nil
 
-
-            for _, q in
-                ipairs(QuestDatabase) do
+            for _, q in ipairs(QuestDatabase) do
 
                 if currentLevel >= q.MinLevel
                     and currentLevel <= q.MaxLevel then
@@ -1455,7 +1450,7 @@ task.spawn(function()
 
             if not currentData then
 
-                _G.CurrentTargetMob = nil
+                ClearTarget()
 
                 continue
             end
@@ -1478,8 +1473,7 @@ task.spawn(function()
 
             if not checkQuestActive() then
 
-                _G.CurrentTargetMob = nil
-
+                ClearTarget()
 
                 if npcPos then
 
@@ -1493,20 +1487,16 @@ task.spawn(function()
                         and npcPos.Position
                         or npcPos
 
-
                     local startWait =
                         os.clock()
-
 
                     repeat
 
                         RunService.Heartbeat:Wait()
 
-
                         if not _G.AutoFarmLevelEnabled then
                             break
                         end
-
 
                         local char =
                             LocalPlayer
@@ -1518,7 +1508,6 @@ task.spawn(function()
                                 "HumanoidRootPart"
                             )
 
-
                         if root
                             and (
                                 root.Position
@@ -1528,10 +1517,8 @@ task.spawn(function()
                             break
                         end
 
-
                     until
-                        os.clock()
-                        - startWait > 8
+                        os.clock() - startWait > 8
 
                 end
 
@@ -1555,8 +1542,8 @@ task.spawn(function()
 
                 end)
 
-
                 task.wait(0.3)
+
             end
 
 
@@ -1582,11 +1569,11 @@ task.spawn(function()
 
 
             --------------------------------------------------
-            -- FIND PRIMARY
+            -- STABLE PRIMARY TARGET
             --------------------------------------------------
 
             local primaryEnemy =
-                FindPrimaryEnemy(
+                GetStableTarget(
                     EnemiesFolder,
                     targetName
                 )
@@ -1598,10 +1585,6 @@ task.spawn(function()
 
             if primaryEnemy then
 
-                _G.CurrentTargetMob =
-                    primaryEnemy
-
-
                 local pRoot =
                     primaryEnemy:FindFirstChild(
                         "HumanoidRootPart"
@@ -1611,7 +1594,6 @@ task.spawn(function()
                     primaryEnemy:FindFirstChildOfClass(
                         "Humanoid"
                     )
-
 
                 if pRoot
                     and pHum
@@ -1642,9 +1624,9 @@ task.spawn(function()
 
 
                     --------------------------------------------------
-                    -- KHÔNG GỌI BRING Ở ĐÂY
+                    -- KHÔNG GỌI BRING
                     --
-                    -- Bring loop riêng sẽ lấy:
+                    -- Bring loop riêng tự lấy:
                     -- _G.CurrentTargetMob
                     --------------------------------------------------
 
@@ -1669,7 +1651,6 @@ task.spawn(function()
 
                     pcall(AutoEquipWeapon)
 
-
                     pcall(function()
 
                         DoFastAttack(
@@ -1679,10 +1660,9 @@ task.spawn(function()
 
                     end)
 
-
                 else
 
-                    _G.CurrentTargetMob = nil
+                    ClearTarget()
 
                 end
 
@@ -1693,8 +1673,7 @@ task.spawn(function()
 
             else
 
-                _G.CurrentTargetMob = nil
-
+                ClearTarget()
 
                 if enemySpot then
 
@@ -1713,8 +1692,8 @@ task.spawn(function()
 
                 end
 
-
                 task.wait(0.15)
+
             end
         end
     end
