@@ -846,7 +846,9 @@ local function BringMobs(targetMob)
     end
 
     local Enemies = workspace:FindFirstChild("Enemies")
-    if not Enemies then return end
+    if not Enemies then
+        return
+    end
 
     local targetName =
         targetMob.Name:gsub("%s*%[.-%]", ""):lower()
@@ -868,6 +870,10 @@ local function BringMobs(targetMob)
     local now = os.clock()
 
     for _, enemy in ipairs(Enemies:GetChildren()) do
+        if count >= maxMobs - 1 then
+            break
+        end
+
         if enemy == targetMob then
             continue
         end
@@ -875,51 +881,49 @@ local function BringMobs(targetMob)
         local hum = enemy:FindFirstChildOfClass("Humanoid")
         local root = enemy:FindFirstChild("HumanoidRootPart")
 
-        if hum and root and hum.Health > 0 then
+        if not hum or not root or hum.Health <= 0 then
+            continue
+        end
 
-            local enemyName =
-                enemy.Name:gsub("%s*%[.-%]", ""):lower()
+        local enemyName =
+            enemy.Name:gsub("%s*%[.-%]", ""):lower()
 
-            if enemyName == targetName
-                or string.find(enemyName, targetName, 1, true) then
+        if enemyName ~= targetName
+            and not string.find(enemyName, targetName, 1, true) then
+            continue
+        end
 
-                count += 1
+        -- Đang release → bỏ qua hoàn toàn
+        if ReleaseUntil[enemy]
+            and now < ReleaseUntil[enemy] then
+            continue
+        end
 
-                if count > maxMobs - 1 then
-                    break
-                end
+        count += 1
 
-                -- ĐANG RELEASE → TUYỆT ĐỐI KHÔNG ĐỤNG NPC
-                if ReleaseUntil[enemy]
-                    and now < ReleaseUntil[enemy] then
-                    continue
-                end
+        local offset = offsets[count] or Vector3.zero
+        local desired = targetRoot.Position + offset
 
-                local offset = offsets[count] or Vector3.zero
-                local desired = targetRoot.Position + offset
+        local distance =
+            (root.Position - desired).Magnitude
 
-                local distance =
-                    (root.Position - desired).Magnitude
+        local last = BringCooldown[enemy] or 0
 
-                local last = BringCooldown[enemy] or 0
+        -- Chỉ kéo khi lệch xa
+        if distance > 6
+            and now - last >= 0.8 then
 
-                -- Chỉ Pull khi thật sự lệch
-                if distance > 6
-                    and now - last >= 0.8 then
+            BringCooldown[enemy] = now
 
-                    BringCooldown[enemy] = now
+            pcall(function()
+                enemy:PivotTo(
+                    CFrame.new(desired)
+                    * root.CFrame.Rotation
+                )
+            end)
 
-                    pcall(function()
-                        enemy:PivotTo(
-                            CFrame.new(desired)
-                            * root.CFrame.Rotation
-                        )
-                    end)
-
-                    -- THẢ AI trong 2 giây
-                    ReleaseUntil[enemy] = now + 2
-                end
-            end
+            -- Sau khi kéo xong: không đụng NPC trong 2 giây
+            ReleaseUntil[enemy] = now + 2
         end
     end
 end
