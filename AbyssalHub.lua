@@ -813,13 +813,11 @@ local function BringMobs(targetMob)
     local targetRoot = targetMob.HumanoidRootPart
     local targetName = targetMob.Name:gsub("%s*%[.-%]", ""):lower()
     local maxMobs = _G.MaxBringMobs or 4
-    
-    -- Thu hẹp bán kính cực nhỏ để đòn tay ngắn vẫn trúng hết
-    local radius = 1.5 
 
     local Enemies = workspace:FindFirstChild("Enemies")
     if not Enemies then return end
 
+    -- Bước 1: Quét danh sách quái xung quanh
     local validEnemies = {}
     for _, enemy in ipairs(Enemies:GetChildren()) do
         if enemy ~= targetMob then
@@ -842,42 +840,44 @@ local function BringMobs(targetMob)
     local totalValid = #validEnemies
     if totalValid == 0 then return end
 
+    -- Bước 2: Tạo mảng tọa độ hình vuông quanh con chính (Khoảng cách 3.5 studs để không bị khóa AI)
+    local offsets = {
+        Vector3.new(3.5, 0, 3.5),   -- Góc Đông Nam
+        Vector3.new(-3.5, 0, 3.5),  -- Góc Tây Nam
+        Vector3.new(3.5, 0, -3.5),  -- Góc Đông Bắc
+        Vector3.new(-3.5, 0, -3.5)  -- Góc Tây Bắc
+    }
+
     for i, enemy in ipairs(validEnemies) do
         local eHum = enemy:FindFirstChildOfClass("Humanoid")
         local eRoot = enemy:FindFirstChild("HumanoidRootPart")
 
         pcall(function()
-            -- Tính toán tọa độ bù trừ siêu nhỏ
-            local angle = (math.pi * 2 / totalValid) * i
-            local targetPosition = Vector3.new(
-                targetRoot.Position.X + (math.cos(angle) * radius),
-                targetRoot.Position.Y,
-                targetRoot.Position.Z + (math.sin(angle) * radius)
-            )
+            -- Lấy vị trí theo khung hình vuông thay vì chồng lên nhau
+            local offset = offsets[i] or Vector3.new(3, 0, 3)
+            local targetPosition = targetRoot.Position + offset
 
-            -- Tắt va chạm để không bị lỗi văng quái
+            -- Cho phép va chạm nhẹ nhưng tắt lực đẩy văng
             for _, part in ipairs(enemy:GetChildren()) do
                 if part:IsA("BasePart") then
                     part.CanCollide = false
                 end
             end
 
-            -- [TRICK] Mở rộng Hitbox để đảm bảo chắc chắn nhận sát thương
-            eRoot.Size = Vector3.new(10, 10, 10)
-            eRoot.Transparency = 1 
-
-            -- Kiểm tra và dịch chuyển
+            -- Chỉ dịch chuyển nếu quái đi lạc quá xa vị trí gom
             local distToSpot = (eRoot.Position - targetPosition).Magnitude
-            if distToSpot > 1.5 then 
-                eRoot.CFrame = CFrame.new(targetPosition)
+            if distToSpot > 2 then 
+                eRoot.CFrame = CFrame.new(targetPosition, targetRoot.Position)
             end
 
-            -- Ghìm chặt quái tại chỗ
+            -- Triệt tiêu quán tính văng mạng
             eRoot.AssemblyLinearVelocity = Vector3.zero
             eRoot.AssemblyAngularVelocity = Vector3.zero
 
-            -- Khóa hướng để quái không tự xoay vòng vòng
-            eHum.AutoRotate = false
+            -- QUAN TRỌNG: Giữ AI luôn hoạt động bình thường, không bị đóng băng
+            eHum.PlatformStand = false
+            eHum.Sit = false
+            eHum.AutoRotate = true
         end)
     end
 end
