@@ -835,6 +835,29 @@ end
 -- ==========================================
 local BringCooldown = {}
 
+local function RestoreMobState(mob)
+    if not mob or not mob.Parent then
+        return
+    end
+
+    local hum = mob:FindFirstChildOfClass("Humanoid")
+    local root = mob:FindFirstChild("HumanoidRootPart")
+
+    if not hum or not root or hum.Health <= 0 then
+        return
+    end
+
+    pcall(function()
+        hum.PlatformStand = false
+        hum.Sit = false
+        hum.AutoRotate = true
+
+        -- Đưa Humanoid về trạng thái hoạt động
+        hum:ChangeState(Enum.HumanoidStateType.Running)
+    end)
+end
+
+
 local function BringMobs(targetMob)
     if not _G.BringMobEnabled or not targetMob then
         return
@@ -861,7 +884,6 @@ local function BringMobs(targetMob)
         5
     )
 
-    -- Không ép NPC chồng lên nhau
     local offsets = {
         Vector3.new(3, 0, 0),
         Vector3.new(-3, 0, 0),
@@ -871,17 +893,20 @@ local function BringMobs(targetMob)
 
     local candidates = {}
 
-    -- Tìm mob trước
+    -- Tìm tất cả mob hợp lệ
     for _, enemy in ipairs(Enemies:GetChildren()) do
         if enemy ~= targetMob then
+
             local hum = enemy:FindFirstChildOfClass("Humanoid")
             local root = enemy:FindFirstChild("HumanoidRootPart")
 
             if hum and root and hum.Health > 0 then
+
                 local name =
                     enemy.Name:gsub("%s*%[.-%]", ""):lower()
 
                 if name == targetName then
+
                     local dist =
                         (root.Position - targetRoot.Position).Magnitude
 
@@ -889,6 +914,7 @@ local function BringMobs(targetMob)
                         table.insert(candidates, {
                             model = enemy,
                             root = root,
+                            hum = hum,
                             dist = dist
                         })
                     end
@@ -897,37 +923,53 @@ local function BringMobs(targetMob)
         end
     end
 
+    -- Mob gần nhất được ưu tiên
     table.sort(candidates, function(a, b)
         return a.dist < b.dist
     end)
 
     for i = 1, math.min(#candidates, maxMobs - 1) do
+
         local data = candidates[i]
         local enemy = data.model
         local root = data.root
+        local hum = data.hum
 
-        if enemy.Parent and root.Parent then
+        if enemy.Parent and root.Parent and hum.Health > 0 then
+
             local desiredPosition =
                 targetRoot.Position + offsets[i]
 
             local distance =
                 (root.Position - desiredPosition).Magnitude
 
-            if distance > 2.5 then
+            -- Chỉ teleport nếu thực sự còn xa
+            if distance > 7 then
+
                 local now = os.clock()
                 local last = BringCooldown[enemy] or 0
 
-                if now - last >= 0.2 then
+                if now - last >= 0.25 then
                     BringCooldown[enemy] = now
 
                     pcall(function()
-                        -- Chỉ di chuyển HRP
-                        -- Không PivotTo toàn bộ model
                         root.CFrame =
                             CFrame.new(desiredPosition)
                             * root.CFrame.Rotation
                     end)
+
+                    -- Khôi phục trạng thái NPC ngay sau khi kéo
+                    RestoreMobState(enemy)
                 end
+
+            elseif distance > 3 then
+
+                -- Đã gần rồi thì để AI tự di chuyển phần còn lại
+                pcall(function()
+                    hum:MoveTo(desiredPosition)
+                end)
+
+                RestoreMobState(enemy)
             end
         end
     end
