@@ -813,12 +813,13 @@ local function BringMobs(targetMob)
     local targetRoot = targetMob.HumanoidRootPart
     local targetName = targetMob.Name:gsub("%s*%[.-%]", ""):lower()
     local maxMobs = _G.MaxBringMobs or 4
-    local radius = 6 -- Bán kính vòng tròn (để 6 studs là đẹp, không quá xa không quá gần)
+    
+    -- Thu hẹp bán kính cực nhỏ để đòn tay ngắn vẫn trúng hết
+    local radius = 1.5 
 
     local Enemies = workspace:FindFirstChild("Enemies")
     if not Enemies then return end
 
-    -- Bước 1: Lọc danh sách những con quái hợp lệ ở xung quanh
     local validEnemies = {}
     for _, enemy in ipairs(Enemies:GetChildren()) do
         if enemy ~= targetMob then
@@ -829,7 +830,7 @@ local function BringMobs(targetMob)
                 local eName = enemy.Name:gsub("%s*%[.-%]", ""):lower()
                 if eName == targetName or string.find(eName, targetName, 1, true) then
                     local dist = (eRoot.Position - targetRoot.Position).Magnitude
-                    if dist <= 250 then -- Quét quái trong phạm vi 250 studs
+                    if dist <= 250 then 
                         table.insert(validEnemies, enemy)
                         if #validEnemies >= (maxMobs - 1) then break end
                     end
@@ -838,7 +839,6 @@ local function BringMobs(targetMob)
         end
     end
 
-    -- Bước 2: Dùng toán học (Sin/Cos) để xếp quái thành vòng tròn
     local totalValid = #validEnemies
     if totalValid == 0 then return end
 
@@ -846,42 +846,38 @@ local function BringMobs(targetMob)
         local eHum = enemy:FindFirstChildOfClass("Humanoid")
         local eRoot = enemy:FindFirstChild("HumanoidRootPart")
 
-        -- Tính toán góc và vị trí cho từng con quái trên vòng tròn
-        local angle = (math.pi * 2 / totalValid) * i
-        local offsetX = math.cos(angle) * radius
-        local offsetZ = math.sin(angle) * radius
-
-        -- Tính vị trí đích (Giữ nguyên trục Y của con quái chính để không bị lơ lửng)
-        local targetPosition = Vector3.new(
-            targetRoot.Position.X + offsetX,
-            targetRoot.Position.Y,
-            targetRoot.Position.Z + offsetZ
-        )
-
         pcall(function()
-            -- Tắt va chạm để chúng không xô đẩy nhau
+            -- Tính toán tọa độ bù trừ siêu nhỏ
+            local angle = (math.pi * 2 / totalValid) * i
+            local targetPosition = Vector3.new(
+                targetRoot.Position.X + (math.cos(angle) * radius),
+                targetRoot.Position.Y,
+                targetRoot.Position.Z + (math.sin(angle) * radius)
+            )
+
+            -- Tắt va chạm để không bị lỗi văng quái
             for _, part in ipairs(enemy:GetChildren()) do
                 if part:IsA("BasePart") then
                     part.CanCollide = false
                 end
             end
 
-            -- CHỈ DỊCH CHUYỂN NẾU QUÁI NẰM NGOÀI VỊ TRÍ ĐÃ ĐỊNH (Ngăn spam CFrame)
+            -- [TRICK] Mở rộng Hitbox để đảm bảo chắc chắn nhận sát thương
+            eRoot.Size = Vector3.new(10, 10, 10)
+            eRoot.Transparency = 1 
+
+            -- Kiểm tra và dịch chuyển
             local distToSpot = (eRoot.Position - targetPosition).Magnitude
-            if distToSpot > 3 then 
-                -- Xoay mặt quái hướng về con quái chính
-                eRoot.CFrame = CFrame.lookAt(targetPosition, targetRoot.Position)
+            if distToSpot > 1.5 then 
+                eRoot.CFrame = CFrame.new(targetPosition)
             end
 
-            -- Triệt tiêu lực để không bị văng
+            -- Ghìm chặt quái tại chỗ
             eRoot.AssemblyLinearVelocity = Vector3.zero
             eRoot.AssemblyAngularVelocity = Vector3.zero
 
-            -- Reset trạng thái AI chuẩn
-            eHum.PlatformStand = false
-            eHum.Sit = false
-            eHum.AutoRotate = true
-            eHum:ChangeState(Enum.HumanoidStateType.RunningNoPhysics) -- Trạng thái này giúp quái không bị rớt xuyên map
+            -- Khóa hướng để quái không tự xoay vòng vòng
+            eHum.AutoRotate = false
         end)
     end
 end
