@@ -803,6 +803,7 @@ local lastBring = 0
 -- 1. HÀM BRING MOB TỐI ƯU ĐỒNG BỘ CHO CẢ 2 MODE
 -- ==========================================
 local function BringMobs(targetMob)
+local function BringMobs(targetMob)
     if not _G.BringMobEnabled or not targetMob or not targetMob:FindFirstChild("HumanoidRootPart") then 
         return 
     end
@@ -818,14 +819,12 @@ local function BringMobs(targetMob)
     local Enemies = workspace:FindFirstChild("Enemies")
     if not Enemies then return end
 
-    -- Danh sách các góc lệch hình tròn để rải quái xung quanh quái chính (tránh trùng tuyệt đối gây khóa AI)
+    -- Danh sách tọa độ rải vòng tròn quanh quái chính
     local offsets = {
-        CFrame.new(3, 0, 3),
-        CFrame.new(-3, 0, 3),
-        CFrame.new(3, 0, -3),
-        CFrame.new(-3, 0, -3),
+        CFrame.new(4, 0, 0),
+        CFrame.new(-4, 0, 0),
         CFrame.new(0, 0, 4),
-        CFrame.new(4, 0, 0)
+        CFrame.new(0, 0, -4)
     }
 
     for _, enemy in ipairs(Enemies:GetChildren()) do
@@ -844,23 +843,28 @@ local function BringMobs(targetMob)
                         local offsetCF = offsets[count] or CFrame.new(math.random(-3, 3), 0, math.random(-3, 3))
 
                         pcall(function()
-                            -- Tắt va chạm để quái không đẩy nhau văng đi
+                            -- Tắt va chạm toàn bộ phần cơ thể
                             for _, part in ipairs(enemy:GetChildren()) do
                                 if part:IsA("BasePart") then
                                     part.CanCollide = false
+                                    part.Massless = true
                                 end
                             end
 
-                            -- Ép vị trí đứng bao quanh quái chính thay vì chồng lên 1 điểm
+                            -- Ép sát vị trí vòng tròn
                             eRoot.CFrame = targetCF * offsetCF
-                            
-                            -- Triệt tiêu lực vật lý
                             eRoot.AssemblyLinearVelocity = Vector3.zero
                             eRoot.AssemblyAngularVelocity = Vector3.zero
-                            
-                            -- Giữ AI luôn hoạt động bình thường
+
+                            -- QUAN TRỌNG: Mở khóa trạng thái AI bị Server đóng băng
                             eHum.PlatformStand = false
-                            eHum.WalkSpeed = 16
+                            eHum.Sit = false
+                            eHum.AutoRotate = true
+                            
+                            -- Kích hoạt lại health state để tránh bị đứng hình
+                            if eHum.Health > 0 then
+                                eHum:ChangeState(Enum.HumanoidStateType.Running)
+                            end
                         end)
 
                         if count >= (maxMobs - 1) then break end
