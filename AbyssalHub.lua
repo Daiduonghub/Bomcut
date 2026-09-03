@@ -797,165 +797,6 @@ local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 
 local lastAttack = 0
-local lastBring = 0
-
--- ==========================================
--- 1. HÀM HỖ TRỢ: LẤY DANH SÁCH HIT TARGETS
--- ==========================================
-local function GetHitTargets(targetName, centerRoot, maxDistance)
-    local hitTargets = {}
-    if not centerRoot then return hitTargets end
-
-    local EnemiesFolder = workspace:FindFirstChild("Enemies")
-    if not EnemiesFolder then return hitTargets end
-
-    for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
-        local eHum = enemy:FindFirstChildOfClass("Humanoid")
-        local eRoot = enemy:FindFirstChild("HumanoidRootPart")
-
-        if eHum and eRoot and eHum.Health > 0 then
-            local eName = enemy.Name:gsub("%s*%[.-%]", ""):lower()
-            local wantedName = tostring(targetName):gsub("%s*%[.-%]", ""):lower()
-
-            local sameMob = (wantedName == "" or eName == wantedName or string.find(eName, wantedName, 1, true))
-
-            if sameMob then
-                local distance = (eRoot.Position - centerRoot.Position).Magnitude
-                if distance <= maxDistance then
-                    table.insert(hitTargets, eRoot)
-                end
-            end
-        end
-    end
-    return hitTargets
-end
-
-local RunService = game:GetService("RunService")
-
-local BringCooldown = {}
-local ReleaseUntil = {}
-
-local function BringMobs(targetMob)
-    if not targetMob or not _G.BringMobEnabled then
-        return
-    end
-
-    local targetRoot = targetMob:FindFirstChild("HumanoidRootPart")
-    local targetHum = targetMob:FindFirstChildOfClass("Humanoid")
-
-    if not targetRoot or not targetHum or targetHum.Health <= 0 then
-        return
-    end
-
-    local Enemies = workspace:FindFirstChild("Enemies")
-    if not Enemies then
-        return
-    end
-
-    local targetName =
-        targetMob.Name:gsub("%s*%[.-%]", ""):lower()
-
-    local maxMobs = math.clamp(
-        tonumber(_G.MaxBringMobs) or 5,
-        1,
-        5
-    )
-
-    local offsets = {
-        Vector3.new(3, 0, 0),
-        Vector3.new(-3, 0, 0),
-        Vector3.new(0, 0, 3),
-        Vector3.new(0, 0, -3)
-    }
-
-    local count = 0
-    local now = os.clock()
-
-    for _, enemy in ipairs(Enemies:GetChildren()) do
-        if count >= maxMobs - 1 then
-            break
-        end
-
-        if enemy == targetMob then
-            continue
-        end
-
-        local hum = enemy:FindFirstChildOfClass("Humanoid")
-        local root = enemy:FindFirstChild("HumanoidRootPart")
-
-        if not hum or not root or hum.Health <= 0 then
-            continue
-        end
-
-        local enemyName =
-            enemy.Name:gsub("%s*%[.-%]", ""):lower()
-
-        if enemyName ~= targetName
-            and not string.find(enemyName, targetName, 1, true) then
-            continue
-        end
-
-        -- Đang release thì không đụng vào để AI tự thở
-        if ReleaseUntil[enemy]
-            and now < ReleaseUntil[enemy] then
-            continue
-        end
-
-        count += 1
-
-        local offset = offsets[count] or Vector3.zero
-        local desired = targetRoot.Position + offset
-
-        local distance =
-            (root.Position - desired).Magnitude
-
-        local last = BringCooldown[enemy] or 0
-
-        -- 1) Tăng khoảng cách kích hoạt lên >= 12 (thay vì 6)
-        -- 2) Tăng Cooldown lên >= 3.5 giây (thay vì 0.8s) để qua mặt anti-cheat server
-        if distance > 12
-            and now - last >= 3.5 then
-
-            BringCooldown[enemy] = now
-
-            pcall(function()
-                -- Thay thế PivotTo bằng LinearVelocity (hoặc BodyVelocity) để tạo chuyển động có gia tốc mượt mà
-                local att = root:FindFirstChild("BringAttachment")
-                local lv = root:FindFirstChild("BringLinearVelocity")
-
-                if not att then
-                    att = Instance.new("Attachment")
-                    att.Name = "BringAttachment"
-                    att.Parent = root
-                end
-
-                if not lv then
-                    lv = Instance.new("LinearVelocity")
-                    lv.Name = "BringLinearVelocity"
-                    lv.Attachment0 = att
-                    lv.MaxForce = math.huge
-                    lv.VectorVelocity = Vector3.zero
-                    lv.RelativeTo = Enum.ActuatorRelativeTo.World
-                    lv.Parent = root
-                end
-
-                -- Tính hướng kéo tuyến tính với tốc độ giới hạn để server không bắt lỗi instant velocity
-                local direction = (desired - root.Position)
-                local travelTime = 0.25 -- Thời gian trượt tới đích
-                lv.VectorVelocity = direction / travelTime
-
-                task.delay(travelTime, function()
-                    if lv and lv.Parent then
-                        lv.VectorVelocity = Vector3.zero
-                    end
-                end)
-            end)
-
-            -- Release thời gian dài hơn để quái ổn định AI và trạng thái đánh đấm
-            ReleaseUntil[enemy] = now + 3.5
-        end
-    end
-end
 
 -- ==========================================
 -- 2. HÀM FAST ATTACK MULTI-HIT
@@ -1016,26 +857,160 @@ end
 
 local RunService = game:GetService("RunService")
 
-task.spawn(function()
-    local CommF =
-        ReplicatedStorage
-            :WaitForChild("Remotes")
-            :WaitForChild("CommF_")
+-- ==========================================
+-- 1. HÀM LẤY DANH SÁCH HIT TARGETS
+-- ==========================================
+local function GetHitTargets(targetName, centerRoot, maxDistance)
+    local hitTargets = {}
+    if not centerRoot then return hitTargets end
 
-    local Net =
-        ReplicatedStorage
-            :WaitForChild("Modules")
-            :WaitForChild("Net")
+    local EnemiesFolder = workspace:FindFirstChild("Enemies")
+    if not EnemiesFolder then return hitTargets end
+
+    for _, enemy in ipairs(EnemiesFolder:GetChildren()) do
+        local eHum = enemy:FindFirstChildOfClass("Humanoid")
+        local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+
+        if eHum and eRoot and eHum.Health > 0 then
+            local eName = enemy.Name:gsub("%s*%[.-%]", ""):lower()
+            local wantedName = tostring(targetName):gsub("%s*%[.-%]", ""):lower()
+
+            local sameMob = (wantedName == "" or eName == wantedName or string.find(eName, wantedName, 1, true))
+
+            if sameMob then
+                local distance = (eRoot.Position - centerRoot.Position).Magnitude
+                if distance <= maxDistance then
+                    table.insert(hitTargets, eRoot)
+                end
+            end
+        end
+    end
+    return hitTargets
+end
+
+-- ==========================================
+-- 2. HÀM BRING MOBS AN TOÀN (PULL & RELEASE)
+-- ==========================================
+local BringCooldown = {}
+local ReleaseUntil = {}
+
+local function BringMobs(targetMob)
+    if not targetMob or not _G.BringMobEnabled then
+        return
+    end
+
+    local targetRoot = targetMob:FindFirstChild("HumanoidRootPart")
+    local targetHum = targetMob:FindFirstChildOfClass("Humanoid")
+
+    if not targetRoot or not targetHum or targetHum.Health <= 0 then
+        return
+    end
+
+    local Enemies = workspace:FindFirstChild("Enemies")
+    if not Enemies then
+        return
+    end
+
+    local targetName = targetMob.Name:gsub("%s*%[.-%]", ""):lower()
+    local maxMobs = math.clamp(tonumber(_G.MaxBringMobs) or 5, 1, 5)
+
+    local offsets = {
+        Vector3.new(3, 0, 0),
+        Vector3.new(-3, 0, 0),
+        Vector3.new(0, 0, 3),
+        Vector3.new(0, 0, -3)
+    }
+
+    local count = 0
+    local now = os.clock()
+
+    for _, enemy in ipairs(Enemies:GetChildren()) do
+        if count >= maxMobs - 1 then
+            break
+        end
+
+        if enemy == targetMob then
+            continue
+        end
+
+        local hum = enemy:FindFirstChildOfClass("Humanoid")
+        local root = enemy:FindFirstChild("HumanoidRootPart")
+
+        if not hum or not root or hum.Health <= 0 then
+            continue
+        end
+
+        local enemyName = enemy.Name:gsub("%s*%[.-%]", ""):lower()
+
+        if enemyName ~= targetName and not string.find(enemyName, targetName, 1, true) then
+            continue
+        end
+
+        -- Đang trong thời gian release thì bỏ qua để AI tự thở
+        if ReleaseUntil[enemy] and now < ReleaseUntil[enemy] then
+            continue
+        end
+
+        count += 1
+
+        local offset = offsets[count] or Vector3.zero
+        local desired = targetRoot.Position + offset
+        local distance = (root.Position - desired).Magnitude
+        local last = BringCooldown[enemy] or 0
+
+        -- Chỉ kéo khi lệch khoảng cách lớn hơn 12 và đã qua thời gian cooldown
+        if distance > 12 and now - last >= 3.5 then
+            BringCooldown[enemy] = now
+
+            pcall(function()
+                local att = root:FindFirstChild("BringAttachment")
+                local lv = root:FindFirstChild("BringLinearVelocity")
+
+                if not att then
+                    att = Instance.new("Attachment")
+                    att.Name = "BringAttachment"
+                    att.Parent = root
+                end
+
+                if not lv then
+                    lv = Instance.new("LinearVelocity")
+                    lv.Name = "BringLinearVelocity"
+                    lv.Attachment0 = att
+                    lv.MaxForce = math.huge
+                    lv.VectorVelocity = Vector3.zero
+                    lv.RelativeTo = Enum.ActuatorRelativeTo.World
+                    lv.Parent = root
+                end
+
+                local direction = (desired - root.Position)
+                local travelTime = 0.25
+                lv.VectorVelocity = direction / travelTime
+
+                task.delay(travelTime, function()
+                    if lv and lv.Parent then
+                        lv.VectorVelocity = Vector3.zero
+                    end
+                end)
+            end)
+
+            -- Thả lỏng AI trong 3.5 giây tiếp theo
+            ReleaseUntil[enemy] = now + 3.5
+        end
+    end
+end
+
+-- ==========================================
+-- 3. TASK FARM CHÍNH (HEARTBEAT LOOP)
+-- ==========================================
+task.spawn(function()
+    local CommF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
+    local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
 
     local function getPlayerLevel()
-        local data =
-            LocalPlayer
-            and LocalPlayer:FindFirstChild("Data")
-
+        local data = LocalPlayer and LocalPlayer:FindFirstChild("Data")
         if data and data:FindFirstChild("Level") then
             return data.Level.Value
         end
-
         return 1
     end
 
@@ -1044,131 +1019,58 @@ task.spawn(function()
 
     local function checkQuestActive()
         local now = os.clock()
-
         if now - lastQuestCheck > 0.4 then
             lastQuestCheck = now
-
-            local playerGui =
-                LocalPlayer
-                and LocalPlayer:FindFirstChild("PlayerGui")
-
-            local main =
-                playerGui
-                and playerGui:FindFirstChild("Main")
-
-            local questGui =
-                main
-                and main:FindFirstChild("Quest")
-
-            isQuestActiveCache =
-                questGui ~= nil
-                and questGui.Visible == true
+            local playerGui = LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui")
+            local main = playerGui and playerGui:FindFirstChild("Main")
+            local questGui = main and main:FindFirstChild("Quest")
+            isQuestActiveCache = questGui ~= nil and questGui.Visible == true
         end
-
         return isQuestActiveCache
     end
 
-    local function FindPrimaryEnemy(
-        enemiesFolder,
-        targetName
-    )
-        if not enemiesFolder then
-            return nil
-        end
-
-        local wantedName =
-            tostring(targetName)
-                :gsub("%s*%[.-%]", "")
-                :lower()
+    local function FindPrimaryEnemy(enemiesFolder, targetName)
+        if not enemiesFolder then return nil end
+        local wantedName = tostring(targetName):gsub("%s*%[.-%]", ""):lower()
 
         for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-            local hum =
-                enemy:FindFirstChildOfClass("Humanoid")
+            local hum = enemy:FindFirstChildOfClass("Humanoid")
+            local root = enemy:FindFirstChild("HumanoidRootPart")
 
-            local root =
-                enemy:FindFirstChild("HumanoidRootPart")
-
-            if hum
-                and root
-                and hum.Health > 0 then
-
-                local enemyName =
-                    enemy.Name
-                        :gsub("%s*%[.-%]", "")
-                        :lower()
-
+            if hum and root and hum.Health > 0 then
+                local enemyName = enemy.Name:gsub("%s*%[.-%]", ""):lower()
                 if enemyName == wantedName then
                     return enemy
                 end
             end
         end
-
         return nil
     end
 
-    local function IsValidTarget(
-        target,
-        enemiesFolder,
-        targetName
-    )
-        if not target
-            or not target.Parent
-            or not enemiesFolder
-            or target.Parent ~= enemiesFolder then
-
+    local function IsValidTarget(target, enemiesFolder, targetName)
+        if not target or not target.Parent or not enemiesFolder or target.Parent ~= enemiesFolder then
             return false
         end
 
-        local hum =
-            target:FindFirstChildOfClass("Humanoid")
-
-        local root =
-            target:FindFirstChild("HumanoidRootPart")
-
-        if not hum
-            or not root
-            or hum.Health <= 0 then
-
+        local hum = target:FindFirstChildOfClass("Humanoid")
+        local root = target:FindFirstChild("HumanoidRootPart")
+        if not hum or not root or hum.Health <= 0 then
             return false
         end
 
-        local wantedName =
-            tostring(targetName)
-                :gsub("%s*%[.-%]", "")
-                :lower()
-
-        local actualName =
-            target.Name
-                :gsub("%s*%[.-%]", "")
-                :lower()
-
+        local wantedName = tostring(targetName):gsub("%s*%[.-%]", ""):lower()
+        local actualName = target.Name:gsub("%s*%[.-%]", ""):lower()
         return actualName == wantedName
     end
 
-    local function GetStableTarget(
-        enemiesFolder,
-        targetName
-    )
-        local current =
-            _G.CurrentTargetMob
-
-        if IsValidTarget(
-            current,
-            enemiesFolder,
-            targetName
-        ) then
+    local function GetStableTarget(enemiesFolder, targetName)
+        local current = _G.CurrentTargetMob
+        if IsValidTarget(current, enemiesFolder, targetName) then
             return current
         end
 
-        local newTarget =
-            FindPrimaryEnemy(
-                enemiesFolder,
-                targetName
-            )
-
-        _G.CurrentTargetMob =
-            newTarget
-
+        local newTarget = FindPrimaryEnemy(enemiesFolder, targetName)
+        _G.CurrentTargetMob = newTarget
         return newTarget
     end
 
@@ -1184,138 +1086,57 @@ task.spawn(function()
             continue
         end
 
-        local Character =
-            LocalPlayer
-            and LocalPlayer.Character
+        local Character = LocalPlayer and LocalPlayer.Character
+        local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
+        local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
 
-        local RootPart =
-            Character
-            and Character:FindFirstChild(
-                "HumanoidRootPart"
-            )
-
-        local Humanoid =
-            Character
-            and Character:FindFirstChildOfClass(
-                "Humanoid"
-            )
-
-        if not Character
-            or not RootPart
-            or not Humanoid
-            or Humanoid.Health <= 0 then
-
+        if not Character or not RootPart or not Humanoid or Humanoid.Health <= 0 then
             ClearTarget()
             task.wait(0.25)
             continue
         end
 
-        local EnemiesFolder =
-            Workspace:FindFirstChild("Enemies")
+        local EnemiesFolder = Workspace:FindFirstChild("Enemies")
+        local mode = tostring(_G.AutoFarmMode or ""):lower()
+        local isNearMode = mode == "nearest" or mode == "near" or _G.AutoFarmNearestEnabled == true
+        local isLevelMode = mode == "level" or mode == "farm level"
 
-        local mode =
-            tostring(
-                _G.AutoFarmMode or ""
-            ):lower()
-
-        local isNearMode =
-            mode == "nearest"
-            or mode == "near"
-            or _G.AutoFarmNearestEnabled == true
-
-        local isLevelMode =
-            mode == "level"
-            or mode == "farm level"
-
+        -- ================= NEAREST MODE =================
         if isNearMode then
-            local targetEnemy =
-                _G.CurrentTargetMob
+            local targetEnemy = _G.CurrentTargetMob
 
-            if not targetEnemy
-                or not targetEnemy.Parent then
-
-                targetEnemy =
-                    GetNearestEnemy()
-
-                _G.CurrentTargetMob =
-                    targetEnemy
-
+            if not targetEnemy or not targetEnemy.Parent then
+                targetEnemy = GetNearestEnemy()
+                _G.CurrentTargetMob = targetEnemy
             else
-                local hum =
-                    targetEnemy:FindFirstChildOfClass(
-                        "Humanoid"
-                    )
-
-                local root =
-                    targetEnemy:FindFirstChild(
-                        "HumanoidRootPart"
-                    )
-
-                if not hum
-                    or not root
-                    or hum.Health <= 0 then
-
-                    targetEnemy =
-                        GetNearestEnemy()
-
-                    _G.CurrentTargetMob =
-                        targetEnemy
+                local hum = targetEnemy:FindFirstChildOfClass("Humanoid")
+                local root = targetEnemy:FindFirstChild("HumanoidRootPart")
+                if not hum or not root or hum.Health <= 0 then
+                    targetEnemy = GetNearestEnemy()
+                    _G.CurrentTargetMob = targetEnemy
                 end
             end
 
             if targetEnemy then
-                local eRoot =
-                    targetEnemy:FindFirstChild(
-                        "HumanoidRootPart"
-                    )
+                local eRoot = targetEnemy:FindFirstChild("HumanoidRootPart")
+                local eHum = targetEnemy:FindFirstChildOfClass("Humanoid")
 
-                local eHum =
-                    targetEnemy:FindFirstChildOfClass(
-                        "Humanoid"
-                    )
-
-                if eRoot
-                    and eHum
-                    and eHum.Health > 0 then
-
+                if eRoot and eHum and eHum.Health > 0 then
                     if _G.BringMobEnabled then
-                        pcall(function()
-                            BringMobs(targetEnemy)
-                        end)
+                        pcall(function() BringMobs(targetEnemy) end)
                     end
 
                     pcall(function()
                         RootPart.CanCollide = false
-
-                        RootPart.AssemblyLinearVelocity =
-                            Vector3.zero
-
-                        RootPart.CFrame =
-                            eRoot.CFrame
-                            * CFrame.new(
-                                0,
-                                FarmHeight or 10,
-                                0
-                            )
+                        RootPart.AssemblyLinearVelocity = Vector3.zero
+                        RootPart.CFrame = eRoot.CFrame * CFrame.new(0, FarmHeight or 10, 0)
                     end)
 
-                    local hitTargets =
-                        GetHitTargets(
-                            targetEnemy.Name,
-                            RootPart,
-                            50
-                        )
+                    local hitTargets = GetHitTargets(targetEnemy.Name, RootPart, 50)
 
                     pcall(AutoHaki)
                     pcall(AutoEquipWeapon)
-
-                    pcall(function()
-                        DoFastAttack(
-                            Net,
-                            hitTargets
-                        )
-                    end)
-
+                    pcall(function() DoFastAttack(Net, hitTargets) end)
                 else
                     ClearTarget()
                 end
@@ -1323,16 +1144,13 @@ task.spawn(function()
                 ClearTarget()
             end
 
+        -- ================= LEVEL MODE =================
         elseif isLevelMode then
-            local currentLevel =
-                getPlayerLevel()
-
+            local currentLevel = getPlayerLevel()
             local currentData = nil
 
             for _, q in ipairs(QuestDatabase) do
-                if currentLevel >= q.MinLevel
-                    and currentLevel <= q.MaxLevel then
-
+                if currentLevel >= q.MinLevel and currentLevel <= q.MaxLevel then
                     currentData = q
                     break
                 end
@@ -1343,167 +1161,71 @@ task.spawn(function()
                 continue
             end
 
-            local npcPos =
-                NpcPositions[
-                    currentData.Island
-                ]
-
-            local enemySpot =
-                EnemyPositions[
-                    currentData.EnemyName
-                ]
+            local npcPos = NpcPositions[currentData.Island]
+            local enemySpot = EnemyPositions[currentData.EnemyName]
 
             if not checkQuestActive() then
                 ClearTarget()
 
                 if npcPos then
-                    pcall(function()
-                        smoothMoveTo(npcPos)
-                    end)
-
-                    local npcVector =
-                        typeof(npcPos) == "CFrame"
-                        and npcPos.Position
-                        or npcPos
-
-                    local startWait =
-                        os.clock()
+                    pcall(function() smoothMoveTo(npcPos) end)
+                    local npcVector = (typeof(npcPos) == "CFrame" and npcPos.Position or npcPos)
+                    local startWait = os.clock()
 
                     repeat
                         RunService.Heartbeat:Wait()
-
-                        if not _G.AutoFarmLevelEnabled then
-                            break
-                        end
-
-                        local char =
-                            LocalPlayer
-                            and LocalPlayer.Character
-
-                        local root =
-                            char
-                            and char:FindFirstChild(
-                                "HumanoidRootPart"
-                            )
-
-                        if root
-                            and (
-                                root.Position
-                                - npcVector
-                            ).Magnitude < 30 then
-
-                            break
-                        end
-
-                    until
-                        os.clock() - startWait > 8
+                        if not _G.AutoFarmLevelEnabled then break end
+                        local char = LocalPlayer and LocalPlayer.Character
+                        local root = char and char:FindFirstChild("HumanoidRootPart")
+                        if root and (root.Position - npcVector).Magnitude < 30 then break end
+                    until os.clock() - startWait > 8
                 end
 
-                if not _G.AutoFarmLevelEnabled then
-                    continue
-                end
+                if not _G.AutoFarmLevelEnabled then continue end
 
                 pcall(function()
-                    CommF:InvokeServer(
-                        "StartQuest",
-                        currentData.QuestName,
-                        currentData.QuestNumber
-                    )
+                    CommF:InvokeServer("StartQuest", currentData.QuestName, currentData.QuestNumber)
                 end)
-
                 task.wait(0.3)
             end
 
-            if not _G.AutoFarmLevelEnabled then
+            if not _G.AutoFarmLevelEnabled or not checkQuestActive() then
                 continue
             end
 
-            if not checkQuestActive() then
-                continue
-            end
-
-            local targetName =
-                currentData.EnemyName
-
-            local primaryEnemy =
-                GetStableTarget(
-                    EnemiesFolder,
-                    targetName
-                )
+            local targetName = currentData.EnemyName
+            local primaryEnemy = GetStableTarget(EnemiesFolder, targetName)
 
             if primaryEnemy then
-                local pRoot =
-                    primaryEnemy:FindFirstChild(
-                        "HumanoidRootPart"
-                    )
+                local pRoot = primaryEnemy:FindFirstChild("HumanoidRootPart")
+                local pHum = primaryEnemy:FindFirstChildOfClass("Humanoid")
 
-                local pHum =
-                    primaryEnemy:FindFirstChildOfClass(
-                        "Humanoid"
-                    )
-
-                if pRoot
-                    and pHum
-                    and pHum.Health > 0 then
-
+                if pRoot and pHum and pHum.Health > 0 then
                     if _G.BringMobEnabled then
-                        pcall(function()
-                            BringMobs(primaryEnemy)
-                        end)
+                        pcall(function() BringMobs(primaryEnemy) end)
                     end
 
                     pcall(function()
                         RootPart.CanCollide = false
-
-                        RootPart.AssemblyLinearVelocity =
-                            Vector3.zero
-
-                        RootPart.CFrame =
-                            pRoot.CFrame
-                            * CFrame.new(
-                                0,
-                                FarmHeight or 10,
-                                0
-                            )
+                        RootPart.AssemblyLinearVelocity = Vector3.zero
+                        RootPart.CFrame = pRoot.CFrame * CFrame.new(0, FarmHeight or 10, 0)
                     end)
 
-                    local hitTargets =
-                        GetHitTargets(
-                            targetName,
-                            RootPart,
-                            50
-                        )
+                    local hitTargets = GetHitTargets(targetName, RootPart, 50)
 
                     pcall(AutoHaki)
                     pcall(AutoEquipWeapon)
-
-                    pcall(function()
-                        DoFastAttack(
-                            Net,
-                            hitTargets
-                        )
-                    end)
-
+                    pcall(function() DoFastAttack(Net, hitTargets) end)
                 else
                     ClearTarget()
                 end
-
             else
                 ClearTarget()
-
                 if enemySpot then
                     pcall(function()
-                        smoothMoveTo(
-                            enemySpot
-                            * CFrame.new(
-                                0,
-                                FarmHeight or 10,
-                                0
-                            )
-                        )
+                        smoothMoveTo(enemySpot * CFrame.new(0, FarmHeight or 10, 0))
                     end)
                 end
-
                 task.wait(0.15)
             end
         end
