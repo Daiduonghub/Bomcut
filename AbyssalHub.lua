@@ -911,7 +911,8 @@ local function BringMobs(targetMob)
         return
     end
 
-    local targetName = targetMob.Name:gsub("%s*%[.-%]", ""):lower()
+    -- Làm sạch tên gốc để so sánh cực kỳ lỏng (không phân biệt hoa thường, bỏ qua mọi ký tự thừa)
+    local targetNameClean = targetMob.Name:gsub("%W", ""):lower()
     local maxMobs = math.clamp(tonumber(_G.MaxBringMobs) or 5, 1, 5)
 
     local offsets = {
@@ -940,13 +941,15 @@ local function BringMobs(targetMob)
             continue
         end
 
-        local enemyName = enemy.Name:gsub("%s*%[.-%]", ""):lower()
+        local enemyNameClean = enemy.Name:gsub("%W", ""):lower()
 
-        if enemyName ~= targetName and not string.find(enemyName, targetName, 1, true) then
+        -- Nới lỏng điều kiện tên: chỉ cần chứa từ khóa chính của mob là hốt
+        if not string.find(enemyNameClean, targetNameClean, 1, true) 
+            and not string.find(targetNameClean, enemyNameClean, 1, true) then
             continue
         end
 
-        -- Đang trong thời gian release thì bỏ qua cho AI thở
+        -- Đang release thì bỏ qua cho AI thở
         if ReleaseUntil[enemy] and now < ReleaseUntil[enemy] then
             continue
         end
@@ -955,25 +958,22 @@ local function BringMobs(targetMob)
 
         local offset = offsets[count] or Vector3.zero
         local desiredCFrame = targetRoot.CFrame + offset
+        
+        -- Giảm khoảng cách check xuống còn > 3 studs là kéo luôn để quái không bị bỏ sót
         local distance = (root.Position - desiredCFrame.Position).Magnitude
         local last = BringCooldown[enemy] or 0
 
-        -- Nếu quái ở khoảng cách > 8 studs và hết cooldown thì kéo về
-        if distance > 8 and now - last >= 2.0 then
+        if distance > 3 and now - last >= 1.0 then
             BringCooldown[enemy] = now
 
             pcall(function()
-                -- Tắt va chạm tạm thời để không bị đẩy văng
                 root.CanCollide = false
-                
-                -- Dùng PivotTo mượt mà kèm giữ nguyên góc xoay
                 enemy:PivotTo(desiredCFrame * root.CFrame.Rotation)
             end)
 
-            -- Thả lỏng cho quái tự do trong 2 giây tiếp theo
-            ReleaseUntil[enemy] = now + 2.0
+            -- Thả lỏng ngắn hơn (1.5s) để quái nhanh chóng về form đánh
+            ReleaseUntil[enemy] = now + 1.5
         else
-            -- Khi đã về gần, bật lại va chạm nhẹ
             pcall(function()
                 root.CanCollide = true
             end)
@@ -1845,7 +1845,7 @@ SettingTab:CreateBox("Number of mobs to gather", "4 is max", function(value)
     end
 end)
 
-SettingTab:CreateToggle("Bring Mobs(It's currently experiencing an error.)", false, function(state)
+SettingTab:CreateToggle("Bring Mobs(It's currently experiencing an error.)", true, function(state)
     _G.BringMobEnabled = state
 end)
 
