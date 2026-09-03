@@ -889,7 +889,7 @@ local function GetHitTargets(targetName, centerRoot, maxDistance)
 end
 
 -- ==========================================
--- 2. HÀM BRING MOBS AN TOÀN (PULL & RELEASE)
+-- HÀM BRING MOBS DÙNG LERP CFRAME (MƯỢT, KHÔNG KHÓA AI)
 -- ==========================================
 local BringCooldown = {}
 local ReleaseUntil = {}
@@ -946,7 +946,7 @@ local function BringMobs(targetMob)
             continue
         end
 
-        -- Đang trong thời gian release thì bỏ qua để AI tự thở
+        -- Đang trong thời gian release thì bỏ qua cho AI thở
         if ReleaseUntil[enemy] and now < ReleaseUntil[enemy] then
             continue
         end
@@ -954,47 +954,29 @@ local function BringMobs(targetMob)
         count += 1
 
         local offset = offsets[count] or Vector3.zero
-        local desired = targetRoot.Position + offset
-        local distance = (root.Position - desired).Magnitude
+        local desiredCFrame = targetRoot.CFrame + offset
+        local distance = (root.Position - desiredCFrame.Position).Magnitude
         local last = BringCooldown[enemy] or 0
 
-        -- Chỉ kéo khi lệch khoảng cách lớn hơn 12 và đã qua thời gian cooldown
-        if distance > 12 and now - last >= 3.5 then
+        -- Nếu quái ở khoảng cách > 8 studs và hết cooldown thì kéo về
+        if distance > 8 and now - last >= 2.0 then
             BringCooldown[enemy] = now
 
             pcall(function()
-                local att = root:FindFirstChild("BringAttachment")
-                local lv = root:FindFirstChild("BringLinearVelocity")
-
-                if not att then
-                    att = Instance.new("Attachment")
-                    att.Name = "BringAttachment"
-                    att.Parent = root
-                end
-
-                if not lv then
-                    lv = Instance.new("LinearVelocity")
-                    lv.Name = "BringLinearVelocity"
-                    lv.Attachment0 = att
-                    lv.MaxForce = math.huge
-                    lv.VectorVelocity = Vector3.zero
-                    lv.RelativeTo = Enum.ActuatorRelativeTo.World
-                    lv.Parent = root
-                end
-
-                local direction = (desired - root.Position)
-                local travelTime = 0.25
-                lv.VectorVelocity = direction / travelTime
-
-                task.delay(travelTime, function()
-                    if lv and lv.Parent then
-                        lv.VectorVelocity = Vector3.zero
-                    end
-                end)
+                -- Tắt va chạm tạm thời để không bị đẩy văng
+                root.CanCollide = false
+                
+                -- Dùng PivotTo mượt mà kèm giữ nguyên góc xoay
+                enemy:PivotTo(desiredCFrame * root.CFrame.Rotation)
             end)
 
-            -- Thả lỏng AI trong 3.5 giây tiếp theo
-            ReleaseUntil[enemy] = now + 3.5
+            -- Thả lỏng cho quái tự do trong 2 giây tiếp theo
+            ReleaseUntil[enemy] = now + 2.0
+        else
+            -- Khi đã về gần, bật lại va chạm nhẹ
+            pcall(function()
+                root.CanCollide = true
+            end)
         end
     end
 end
