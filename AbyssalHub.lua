@@ -830,6 +830,8 @@ local function GetHitTargets(targetName, centerRoot, maxDistance)
     return hitTargets
 end
 
+local RunService = game:GetService("RunService")
+
 local BringCooldown = {}
 local ReleaseUntil = {}
 
@@ -893,7 +895,7 @@ local function BringMobs(targetMob)
             continue
         end
 
-        -- Đang release thì không đụng vào
+        -- Đang release thì không đụng vào để AI tự thở
         if ReleaseUntil[enemy]
             and now < ReleaseUntil[enemy] then
             continue
@@ -909,20 +911,48 @@ local function BringMobs(targetMob)
 
         local last = BringCooldown[enemy] or 0
 
-        if distance > 6
-            and now - last >= 0.8 then
+        -- 1) Tăng khoảng cách kích hoạt lên >= 12 (thay vì 6)
+        -- 2) Tăng Cooldown lên >= 3.5 giây (thay vì 0.8s) để qua mặt anti-cheat server
+        if distance > 12
+            and now - last >= 3.5 then
 
             BringCooldown[enemy] = now
 
             pcall(function()
-                enemy:PivotTo(
-                    CFrame.new(desired)
-                    * root.CFrame.Rotation
-                )
+                -- Thay thế PivotTo bằng LinearVelocity (hoặc BodyVelocity) để tạo chuyển động có gia tốc mượt mà
+                local att = root:FindFirstChild("BringAttachment")
+                local lv = root:FindFirstChild("BringLinearVelocity")
+
+                if not att then
+                    att = Instance.new("Attachment")
+                    att.Name = "BringAttachment"
+                    att.Parent = root
+                end
+
+                if not lv then
+                    lv = Instance.new("LinearVelocity")
+                    lv.Name = "BringLinearVelocity"
+                    lv.Attachment0 = att
+                    lv.MaxForce = math.huge
+                    lv.VectorVelocity = Vector3.zero
+                    lv.RelativeTo = Enum.ActuatorRelativeTo.World
+                    lv.Parent = root
+                end
+
+                -- Tính hướng kéo tuyến tính với tốc độ giới hạn để server không bắt lỗi instant velocity
+                local direction = (desired - root.Position)
+                local travelTime = 0.25 -- Thời gian trượt tới đích
+                lv.VectorVelocity = direction / travelTime
+
+                task.delay(travelTime, function()
+                    if lv and lv.Parent then
+                        lv.VectorVelocity = Vector3.zero
+                    end
+                end)
             end)
 
-            -- Release 2 giây
-            ReleaseUntil[enemy] = now + 2
+            -- Release thời gian dài hơn để quái ổn định AI và trạng thái đánh đấm
+            ReleaseUntil[enemy] = now + 3.5
         end
     end
 end
