@@ -911,7 +911,6 @@ local function BringMobs(targetMob)
         return
     end
 
-    -- Làm sạch tên gốc để so sánh cực kỳ lỏng (không phân biệt hoa thường, bỏ qua mọi ký tự thừa)
     local targetNameClean = targetMob.Name:gsub("%W", ""):lower()
     local maxMobs = math.clamp(tonumber(_G.MaxBringMobs) or 5, 1, 5)
 
@@ -942,14 +941,11 @@ local function BringMobs(targetMob)
         end
 
         local enemyNameClean = enemy.Name:gsub("%W", ""):lower()
-
-        -- Nới lỏng điều kiện tên: chỉ cần chứa từ khóa chính của mob là hốt
         if not string.find(enemyNameClean, targetNameClean, 1, true) 
             and not string.find(targetNameClean, enemyNameClean, 1, true) then
             continue
         end
 
-        -- Đang release thì bỏ qua cho AI thở
         if ReleaseUntil[enemy] and now < ReleaseUntil[enemy] then
             continue
         end
@@ -958,24 +954,22 @@ local function BringMobs(targetMob)
 
         local offset = offsets[count] or Vector3.zero
         local desiredCFrame = targetRoot.CFrame + offset
-        
-        -- Giảm khoảng cách check xuống còn > 3 studs là kéo luôn để quái không bị bỏ sót
         local distance = (root.Position - desiredCFrame.Position).Magnitude
         local last = BringCooldown[enemy] or 0
 
         if distance > 3 and now - last >= 1.0 then
             BringCooldown[enemy] = now
 
-            pcall(function()
-                root.CanCollide = false
-                enemy:PivotTo(desiredCFrame * root.CFrame.Rotation)
-            end)
+            -- Xóa PivotTo, dùng LinearVelocity thay thế
+            local bv = root:FindFirstChild("BodyVelocity") or Instance.new("BodyVelocity")
+            bv.Parent = root
+            bv.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+            bv.Velocity = (desiredCFrame.Position - root.Position).Unit * 200
 
-            -- Thả lỏng ngắn hơn (1.5s) để quái nhanh chóng về form đánh
             ReleaseUntil[enemy] = now + 1.5
         else
             pcall(function()
-                root.CanCollide = true
+                root:FindFirstChild("BodyVelocity"):Destroy()
             end)
         end
     end
