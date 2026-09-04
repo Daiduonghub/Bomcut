@@ -903,9 +903,6 @@ local function BringMobs(targetMob)
     local Enemies = workspace:FindFirstChild("Enemies")
     if not Enemies then return end
 
-    local playerRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if not playerRoot then return end
-
     local targetNameClean = targetMob.Name:gsub("%W", ""):lower()
     local maxMobs = math.clamp(tonumber(_G.MaxBringMobs) or 5, 1, 5)
     local count = 0
@@ -921,7 +918,6 @@ local function BringMobs(targetMob)
 
         local enemyNameClean = enemy.Name:gsub("%W", ""):lower()
         
-        -- Sửa lại điều kiện khớp tên lỏng và chuẩn hơn
         if not string.find(enemyNameClean, targetNameClean, 1, true) 
             and not string.find(targetNameClean, enemyNameClean, 1, true) then 
             continue 
@@ -931,10 +927,12 @@ local function BringMobs(targetMob)
 
         count += 1
         local last = BringCooldown[enemy] or 0
-        local distance = (root.Position - playerRoot.Position).Magnitude
+        
+        -- FIX QUAN TRỌNG: Đo khoảng cách từ quái phụ đến con quái mục tiêu chính (targetRoot)
+        local distance = (root.Position - targetRoot.Position).Magnitude
 
-        -- Nếu quái đứng cách xa hơn 6 studs thì kích hoạt kéo về gần người chơi
-        if distance > 6 and now - last >= 1.0 then
+        -- Nếu quái phụ đứng cách xa con quái chính hơn 4 studs thì kéo nó dịch về vị trí con quái chính
+        if distance > 4 and now - last >= 1.0 then
             BringCooldown[enemy] = now
 
             local bv = root:FindFirstChild("BodyVelocity")
@@ -944,9 +942,10 @@ local function BringMobs(targetMob)
                 bv.Parent = root
             end
             bv.MaxForce = Vector3.new(1e6, 1e6, 1e6)
-            bv.Velocity = (playerRoot.Position - root.Position).Unit * 150
+            
+            -- Kéo hướng thẳng về phía con quái chính (targetRoot)
+            bv.Velocity = (targetRoot.Position - root.Position).Unit * 150
 
-            -- Tự động xóa BodyVelocity sau 0.25 giây để quái trượt tới nơi là dừng lại mượt mà
             task.delay(0.25, function()
                 if bv and bv.Parent then
                     bv:Destroy()
