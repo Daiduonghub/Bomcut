@@ -891,84 +891,64 @@ end
 -- ==========================================
 -- HÀM BRING MOBS DÙNG LERP CFRAME (MƯỢT, KHÔNG KHÓA AI)
 -- ==========================================
+-- ==========================================
+-- HÀM BRING MOBS DÙNG TWEENSERVICE (MƯỢT, ÊM ÁI)
+-- ==========================================
 local BringCooldown = {}
 local ReleaseUntil = {}
+local TweenService = game:GetService("TweenService")
 
 local function BringMobs(targetMob)
-    if not targetMob or not _G.BringMobEnabled then
-        return
-    end
-
+    if not targetMob or not _G.BringMobEnabled then return end
     local targetRoot = targetMob:FindFirstChild("HumanoidRootPart")
     local targetHum = targetMob:FindFirstChildOfClass("Humanoid")
-
-    if not targetRoot or not targetHum or targetHum.Health <= 0 then
-        return
-    end
+    if not targetRoot or not targetHum or targetHum.Health <= 0 then return end
 
     local Enemies = workspace:FindFirstChild("Enemies")
-    if not Enemies then
-        return
-    end
+    if not Enemies then return end
 
-    local targetNameClean = targetMob.Name:gsub("%W", ""):lower()
-    local maxMobs = math.clamp(
-        tonumber(_G.MaxBringMobs) or 5,
-        1,
-        5
-    )
-
+    local targetCleanName = targetMob.Name:gsub("%s*%[.-%]", ""):match("^%s*(.-)%s*$"):lower()
+    local maxMobs = math.clamp(tonumber(_G.MaxBringMobs) or 5, 1, 5)
     local count = 0
     local now = os.clock()
 
     for _, enemy in ipairs(Enemies:GetChildren()) do
-        if count >= maxMobs - 1 then
-            break
-        end
-
-        if enemy == targetMob then
-            continue
-        end
+        if count >= maxMobs - 1 then break end
+        if enemy == targetMob then continue end
 
         local hum = enemy:FindFirstChildOfClass("Humanoid")
         local root = enemy:FindFirstChild("HumanoidRootPart")
+        if not hum or not root or hum.Health <= 0 then continue end
 
-        if not hum or not root or hum.Health <= 0 then
-            continue
+        local enemyCleanName = enemy.Name:gsub("%s*%[.-%]", ""):match("^%s*(.-)%s*$"):lower()
+        
+        if enemyCleanName ~= targetCleanName and not string.find(enemyCleanName, targetCleanName, 1, true) then 
+            continue 
         end
 
-        local enemyNameClean = enemy.Name:gsub("%W", ""):lower()
+        if ReleaseUntil[enemy] and now < ReleaseUntil[enemy] then continue end
 
-        if not string.find(enemyNameClean, targetNameClean, 1, true)
-            and not string.find(targetNameClean, enemyNameClean, 1, true) then
-            continue
-        end
-
-        if ReleaseUntil[enemy] and now < ReleaseUntil[enemy] then
-            continue
-        end
-
+        count += 1
+        local last = BringCooldown[enemy] or 0
         local distance = (root.Position - targetRoot.Position).Magnitude
 
-        if distance > 4 then
-            local last = BringCooldown[enemy] or 0
+        -- Nếu quái đứng cách xa con chính > 4 studs thì kích hoạt Tween kéo lại
+        if distance > 4 and now - last >= 0.8 then
+            BringCooldown[enemy] = now
 
-            if now - last >= 1 then
-                BringCooldown[enemy] = now
-                count += 1
+            -- Tính vị trí đích xếp quanh con chính
+            local angle = (count / maxMobs) * (2 * math.pi)
+            local offset = Vector3.new(math.cos(angle) * 4, 0, math.sin(angle) * 4)
+            local targetCFrame = targetRoot.CFrame + offset
 
-                pcall(function()
-                    enemy:PivotTo(
-                        CFrame.new(targetRoot.Position + Vector3.new(
-                            count * 3,
-                            0,
-                            0
-                        ))
-                    )
-                end)
+            local tweenInfo = TweenInfo.new(0.35, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+            local tween = TweenService:Create(root, tweenInfo, {CFrame = targetCFrame})
+            
+            pcall(function()
+                tween:Play()
+            end)
 
-                ReleaseUntil[enemy] = now + 2
-            end
+            ReleaseUntil[enemy] = now + 1.5
         end
     end
 end
