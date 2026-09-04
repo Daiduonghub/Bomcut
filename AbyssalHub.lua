@@ -891,7 +891,6 @@ end
 -- ==========================================
 -- HÀM BRING MOBS DÙNG LERP CFRAME (MƯỢT, KHÔNG KHÓA AI)
 -- ==========================================
--- Thay thế toàn bộ hàm BringMobs cũ bằng đoạn này:
 local BringCooldown = {}
 local ReleaseUntil = {}
 
@@ -921,7 +920,12 @@ local function BringMobs(targetMob)
         if not hum or not root or hum.Health <= 0 then continue end
 
         local enemyNameClean = enemy.Name:gsub("%W", ""):lower()
-        if not string.find(enemyNameClean, targetNameClean, 1, true) then continue end
+        
+        -- Sửa lại điều kiện khớp tên lỏng và chuẩn hơn
+        if not string.find(enemyNameClean, targetNameClean, 1, true) 
+            and not string.find(targetNameClean, enemyNameClean, 1, true) then 
+            continue 
+        end
 
         if ReleaseUntil[enemy] and now < ReleaseUntil[enemy] then continue end
 
@@ -929,19 +933,27 @@ local function BringMobs(targetMob)
         local last = BringCooldown[enemy] or 0
         local distance = (root.Position - playerRoot.Position).Magnitude
 
-        if distance > 10 and now - last >= 1.5 then
+        -- Nếu quái đứng cách xa hơn 6 studs thì kích hoạt kéo về gần người chơi
+        if distance > 6 and now - last >= 1.0 then
             BringCooldown[enemy] = now
 
-            -- Dùng BodyVelocity đẩy quái về phía người chơi (không dùng PivotTo)
-            local bv = root:FindFirstChildOfClass("BodyVelocity")
+            local bv = root:FindFirstChild("BodyVelocity")
             if not bv then
                 bv = Instance.new("BodyVelocity")
+                bv.Name = "BodyVelocity"
                 bv.Parent = root
             end
             bv.MaxForce = Vector3.new(1e6, 1e6, 1e6)
             bv.Velocity = (playerRoot.Position - root.Position).Unit * 150
 
-            ReleaseUntil[enemy] = now + 4
+            -- Tự động xóa BodyVelocity sau 0.25 giây để quái trượt tới nơi là dừng lại mượt mà
+            task.delay(0.25, function()
+                if bv and bv.Parent then
+                    bv:Destroy()
+                end
+            end)
+
+            ReleaseUntil[enemy] = now + 2.0
         end
     end
 end
