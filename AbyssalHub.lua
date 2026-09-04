@@ -891,86 +891,57 @@ end
 -- ==========================================
 -- HÀM BRING MOBS DÙNG LERP CFRAME (MƯỢT, KHÔNG KHÓA AI)
 -- ==========================================
+-- Thay thế toàn bộ hàm BringMobs cũ bằng đoạn này:
 local BringCooldown = {}
 local ReleaseUntil = {}
 
 local function BringMobs(targetMob)
-    if not targetMob or not _G.BringMobEnabled then
-        return
-    end
-
+    if not targetMob or not _G.BringMobEnabled then return end
     local targetRoot = targetMob:FindFirstChild("HumanoidRootPart")
     local targetHum = targetMob:FindFirstChildOfClass("Humanoid")
-
-    if not targetRoot or not targetHum or targetHum.Health <= 0 then
-        return
-    end
+    if not targetRoot or not targetHum or targetHum.Health <= 0 then return end
 
     local Enemies = workspace:FindFirstChild("Enemies")
-    if not Enemies then
-        return
-    end
+    if not Enemies then return end
+
+    local playerRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not playerRoot then return end
 
     local targetNameClean = targetMob.Name:gsub("%W", ""):lower()
     local maxMobs = math.clamp(tonumber(_G.MaxBringMobs) or 5, 1, 5)
-
-    local offsets = {
-        Vector3.new(3, 0, 0),
-        Vector3.new(-3, 0, 0),
-        Vector3.new(0, 0, 3),
-        Vector3.new(0, 0, -3)
-    }
-
     local count = 0
     local now = os.clock()
 
     for _, enemy in ipairs(Enemies:GetChildren()) do
-        if count >= maxMobs - 1 then
-            break
-        end
-
-        if enemy == targetMob then
-            continue
-        end
+        if count >= maxMobs - 1 then break end
+        if enemy == targetMob then continue end
 
         local hum = enemy:FindFirstChildOfClass("Humanoid")
         local root = enemy:FindFirstChild("HumanoidRootPart")
-
-        if not hum or not root or hum.Health <= 0 then
-            continue
-        end
+        if not hum or not root or hum.Health <= 0 then continue end
 
         local enemyNameClean = enemy.Name:gsub("%W", ""):lower()
-        if not string.find(enemyNameClean, targetNameClean, 1, true) 
-            and not string.find(targetNameClean, enemyNameClean, 1, true) then
-            continue
-        end
+        if not string.find(enemyNameClean, targetNameClean, 1, true) then continue end
 
-        if ReleaseUntil[enemy] and now < ReleaseUntil[enemy] then
-            continue
-        end
+        if ReleaseUntil[enemy] and now < ReleaseUntil[enemy] then continue end
 
         count += 1
-
-        local offset = offsets[count] or Vector3.zero
-        local desiredCFrame = targetRoot.CFrame + offset
-        local distance = (root.Position - desiredCFrame.Position).Magnitude
         local last = BringCooldown[enemy] or 0
+        local distance = (root.Position - playerRoot.Position).Magnitude
 
-        if distance > 3 and now - last >= 1.0 then
+        if distance > 10 and now - last >= 1.5 then
             BringCooldown[enemy] = now
 
-            -- Xóa PivotTo, dùng LinearVelocity thay thế
-            local bv = root:FindFirstChild("BodyVelocity") or Instance.new("BodyVelocity")
-            bv.Parent = root
+            -- Dùng BodyVelocity đẩy quái về phía người chơi (không dùng PivotTo)
+            local bv = root:FindFirstChildOfClass("BodyVelocity")
+            if not bv then
+                bv = Instance.new("BodyVelocity")
+                bv.Parent = root
+            end
             bv.MaxForce = Vector3.new(1e6, 1e6, 1e6)
-            bv.Velocity = (desiredCFrame.Position - root.Position).Unit * 200
+            bv.Velocity = (playerRoot.Position - root.Position).Unit * 150
 
-            ReleaseUntil[enemy] = now + 1.5
-        else
-            pcall(function()
-                root:FindFirstChild("BodyVelocity"):Destroy()
-            end)
+            ReleaseUntil[enemy] = now + 4
         end
     end
 end
