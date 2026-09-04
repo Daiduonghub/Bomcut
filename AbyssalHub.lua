@@ -895,64 +895,80 @@ local BringCooldown = {}
 local ReleaseUntil = {}
 
 local function BringMobs(targetMob)
-    if not targetMob or not _G.BringMobEnabled then return end
+    if not targetMob or not _G.BringMobEnabled then
+        return
+    end
+
     local targetRoot = targetMob:FindFirstChild("HumanoidRootPart")
     local targetHum = targetMob:FindFirstChildOfClass("Humanoid")
-    if not targetRoot or not targetHum or targetHum.Health <= 0 then return end
+
+    if not targetRoot or not targetHum or targetHum.Health <= 0 then
+        return
+    end
 
     local Enemies = workspace:FindFirstChild("Enemies")
-    if not Enemies then return end
+    if not Enemies then
+        return
+    end
 
     local targetNameClean = targetMob.Name:gsub("%W", ""):lower()
-    local maxMobs = math.clamp(tonumber(_G.MaxBringMobs) or 5, 1, 5)
+    local maxMobs = math.clamp(
+        tonumber(_G.MaxBringMobs) or 5,
+        1,
+        5
+    )
+
     local count = 0
     local now = os.clock()
 
     for _, enemy in ipairs(Enemies:GetChildren()) do
-        if count >= maxMobs - 1 then break end
-        if enemy == targetMob then continue end
+        if count >= maxMobs - 1 then
+            break
+        end
+
+        if enemy == targetMob then
+            continue
+        end
 
         local hum = enemy:FindFirstChildOfClass("Humanoid")
         local root = enemy:FindFirstChild("HumanoidRootPart")
-        if not hum or not root or hum.Health <= 0 then continue end
 
-        local enemyNameClean = enemy.Name:gsub("%W", ""):lower()
-        
-        if not string.find(enemyNameClean, targetNameClean, 1, true) 
-            and not string.find(targetNameClean, enemyNameClean, 1, true) then 
-            continue 
+        if not hum or not root or hum.Health <= 0 then
+            continue
         end
 
-        if ReleaseUntil[enemy] and now < ReleaseUntil[enemy] then continue end
+        local enemyNameClean = enemy.Name:gsub("%W", ""):lower()
 
-        count += 1
-        local last = BringCooldown[enemy] or 0
-        
-        -- FIX QUAN TRỌNG: Đo khoảng cách từ quái phụ đến con quái mục tiêu chính (targetRoot)
+        if not string.find(enemyNameClean, targetNameClean, 1, true)
+            and not string.find(targetNameClean, enemyNameClean, 1, true) then
+            continue
+        end
+
+        if ReleaseUntil[enemy] and now < ReleaseUntil[enemy] then
+            continue
+        end
+
         local distance = (root.Position - targetRoot.Position).Magnitude
 
-        -- Nếu quái phụ đứng cách xa con quái chính hơn 4 studs thì kéo nó dịch về vị trí con quái chính
-        if distance > 4 and now - last >= 1.0 then
-            BringCooldown[enemy] = now
+        if distance > 4 then
+            local last = BringCooldown[enemy] or 0
 
-            local bv = root:FindFirstChild("BodyVelocity")
-            if not bv then
-                bv = Instance.new("BodyVelocity")
-                bv.Name = "BodyVelocity"
-                bv.Parent = root
+            if now - last >= 1 then
+                BringCooldown[enemy] = now
+                count += 1
+
+                pcall(function()
+                    enemy:PivotTo(
+                        CFrame.new(targetRoot.Position + Vector3.new(
+                            count * 3,
+                            0,
+                            0
+                        ))
+                    )
+                end)
+
+                ReleaseUntil[enemy] = now + 2
             end
-            bv.MaxForce = Vector3.new(1e6, 1e6, 1e6)
-            
-            -- Kéo hướng thẳng về phía con quái chính (targetRoot)
-            bv.Velocity = (targetRoot.Position - root.Position).Unit * 150
-
-            task.delay(0.25, function()
-                if bv and bv.Parent then
-                    bv:Destroy()
-                end
-            end)
-
-            ReleaseUntil[enemy] = now + 2.0
         end
     end
 end
