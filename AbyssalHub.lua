@@ -799,30 +799,19 @@ local LocalPlayer = Players.LocalPlayer
 -- ==========================================
 -- 2. HÀM FAST ATTACK MULTI-HIT
 -- ==========================================
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+local Enemies = workspace:FindFirstChild("Enemies")
+
+_G.MasterAutoFarmEnabled = true
+_G.FastAttackSpeed = 15
+
 local lastAttack = 0
 
--- Hàm quét động tìm Remote 3 chữ số bất kể nằm ở thư mục nào (Common, Util, FX,...)
-local function GetAnyDynamicRemote()
-    -- Quét qua các thư mục chính trong ReplicatedStorage nơi tụi nó hay giấu hàng
-    local foldersToCheck = {ReplicatedStorage:FindFirstChild("FX"), ReplicatedStorage:FindFirstChild("Common"), ReplicatedStorage:FindFirstChild("Util")}
-    
-    -- Nếu cẩn thận hơn, có thể quét toàn bộ ReplicatedStorage
-    for _, folder in ipairs(foldersToCheck) do
-        if folder then
-            for _, item in ipairs(folder:GetDescendants()) do
-                if item:IsA("RemoteEvent") then
-                    local num = tonumber(item.Name)
-                    -- Kiểm tra xem tên có phải là số nguyên có đúng 3 chữ số không (100 -> 999)
-                    if num and num >= 100 and num <= 999 then
-                        return item
-                    end
-                end
-            end
-        end
-    end
-    
-    -- Fallback: Quét nhanh toàn bộ ReplicatedStorage nếu không thấy ở các thư mục trên
+-- 1. Hàm quét động tìm Remote 3 chữ số (bất kể nằm ở FX, Common, Util hay ReplicatedStorage)
+local function GetDynamicRemote()
     for _, item in ipairs(ReplicatedStorage:GetDescendants()) do
         if item:IsA("RemoteEvent") then
             local num = tonumber(item.Name)
@@ -831,49 +820,93 @@ local function GetAnyDynamicRemote()
             end
         end
     end
-    
     return nil
 end
 
-local function DoFastAttack(Net, hitTargets)
-    if not _G.FastAttackEnabled then return end
-    
-    local speed = tonumber(_G.FastAttackSpeed) or 15
-    local cooldown = math.max(0.01, 0.1 / speed)
-    
-    if tick() - lastAttack < cooldown then return end
-    lastAttack = tick()
-
-    pcall(function()
-        -- Gửi tín hiệu đánh chuẩn bị (nếu Net có chứa RegisterAttack)
-        if Net then
-            local registerAttack = Net:FindFirstChild("RE/RegisterAttack")
-            if registerAttack then
-                registerAttack:FireServer(0.1)
-            end
-        end
-
-        -- Tự động tìm cái Remote mang tên 3 chữ số (lúc này có thể là 560 nằm ở FX)
-        local targetRemote = GetAnyDynamicRemote()
-
-        -- Nếu tóm được hàng và có mục tiêu, xả skill với cấu trúc args chuẩn
-        if targetRemote and hitTargets and #hitTargets > 0 then
-            for _, target in ipairs(hitTargets) do
-                if target and target:FindFirstChild("HumanoidRootPart") then
-                    local args = {
-                        [1] = target,
-                        [2] = {},
-                        [6] = "16435dc8" -- Token checksum mới của bản update này
+-- 2. Hàm giả lập gói tin Telemetry để đánh lừa anti-cheat (giúp server tưởng mình đang tương tác thật)
+local function SendTelemetry()
+    local netModules = ReplicatedStorage:FindFirstChild("Modules") and ReplicatedStorage.Modules:FindFirstChild("Net")
+    if netModules then
+        local telemetryEvent = netModules:FindFirstChild("RE/InputTelemetry")
+        if telemetryEvent then
+            pcall(function()
+                local args = {
+                    [1] = {
+                        [1] = {
+                            [1] = math.random(1, 3),
+                            [2] = math.random(-10, 10),
+                            [3] = tick() % 100000,
+                            [4] = 3,
+                            [5] = 0
+                        }
                     }
-                    
-                    targetRemote:FireServer(unpack(args))
+                }
+                telemetryEvent:FireServer(unpack(args))
+            end)
+        end
+    end
+end
+
+-- 3. Vòng lặp chính xử lý Fast Attack toàn diện kết hợp Telemetry
+task.spawn(function()
+    while _G.MasterAutoFarmEnabled do
+        task.wait(0.05)
+        
+        local char = LocalPlayer.Character
+        local root = char and char:FindFirstChild("HumanoidRootPart")
+        if not root or not Enemies then continue end
+
+        -- Định kỳ gửi tín hiệu Telemetry ngầm để qua mặt hệ thống check bot
+        SendTelemetry()
+
+        local hitTargets = {}
+        for _, enemy in ipairs(Enemies:GetChildren()) do
+            local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+            local eHum = enemy:FindFirstChildOfClass("Humanoid")
+            if eRoot and eHum and eHum.Health > 0 then
+                if (eRoot.Position - root.Position).Magnitude < 40 then
+                    -- Lấy phần cơ thể của quái để làm mục tiêu tấn công
+                    local targetPart = enemy:FindFirstChild("LeftLowerLeg") or enemy:FindFirstChild("RightLowerLeg") or eRoot
+                    table.insert(hitTargets, targetPart)
                 end
             end
         end
-    end)
-end
 
-print("🚀 Đã nâng cấp Global Dynamic Scanner: Dù đổi sang FX hay Common thì cũng chết với anh em mình!")
+        -- Thực hiện tấn công nếu tìm thấy mục tiêu và Remote động 3 chữ số
+        if #hitTargets > 0 then
+            local speed = tonumber(_G.FastAttackSpeed) or 15
+            local cooldown = math.max(0.01, 0.1 / speed)
+            
+            if tick() - lastAttack >= cooldown then
+                lastAttack = tick()
+
+                pcall(function()
+                    -- Tìm đường dẫn Net tiêu chuẩn
+                    local netFolder = ReplicatedStorage:FindFirstChild("Modules") and ReplicatedStorage.Modules:FindFirstChild("Net")
+                    if netFolder then
+                        local regAttack = netFolder:FindFirstChild("RE/RegisterAttack")
+                        if regAttack then
+                            regAttack:FireServer(0.1)
+                        end
+                    end
+
+                    -- Bắt trọn con số 3 chữ số hiện tại (ví dụ 560 hoặc bất kỳ số nào game đang dùng)
+                    local targetRemote = GetDynamicRemote()
+                    if targetRemote then
+                        for _, target in ipairs(hitTargets) do
+                            local args = {
+                                [1] = target,
+                                [2] = {},
+                                [6] = "16435dc8" -- Token chống cheat mới nhất
+                            }
+                            targetRemote:FireServer(unpack(args))
+                        end
+                    end
+                end)
+            end
+        end
+    end
+end)
 
 local function GetNearestEnemy()
     local nearest = nil
