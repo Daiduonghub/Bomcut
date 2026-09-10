@@ -807,26 +807,15 @@ local Enemies = workspace:FindFirstChild("Enemies")
 _G.MasterAutoFarmEnabled = true
 _G.FastAttackSpeed = 15
 
--- Biến lưu con số chuẩn theo đúng ý server hiện tại
-_G.RealServerRemoteName = nil
 local lastAttack = 0
 
--- 1. Hàm tự động săn và khóa chặt Remote 3 chữ số thực tế đang chạy trong game
-local function GetActiveServerRemote()
-    -- Nếu đã lưu sẵn tên thì trỏ thẳng vào cho nhanh
-    if _G.RealServerRemoteName then
-        local found = ReplicatedStorage:FindFirstChild(_G.RealServerRemoteName, true)
-        if found and found:IsA("RemoteEvent") then
-            return found
-        end
-    end
-
-    -- Nếu chưa có, quét toàn bộ ReplicatedStorage tìm con số 3 chữ số hợp lệ
+-- Hàm tìm kiếm chính xác Remote 3 chữ số đang hoạt động trong server
+local function FindActive3DigitRemote()
+    -- Quét toàn bộ ReplicatedStorage để tóm con số 3 chữ số (từ 100 đến 999)
     for _, item in ipairs(ReplicatedStorage:GetDescendants()) do
         if item:IsA("RemoteEvent") then
             local num = tonumber(item.Name)
             if num and num >= 100 and num <= 999 then
-                _G.RealServerRemoteName = item.Name
                 return item
             end
         end
@@ -834,18 +823,6 @@ local function GetActiveServerRemote()
     return nil
 end
 
--- Lắng nghe nếu server tự động sinh ra Remote mới trong quá trình chơi
-ReplicatedStorage.DescendantAdded:Connect(function(item)
-    if item:IsA("RemoteEvent") then
-        local num = tonumber(item.Name)
-        if num and num >= 100 and num <= 999 then
-            _G.RealServerRemoteName = item.Name
-            print("🎯 [SERVER ĐỔI SỐ MỚI]: Đã cập nhật Remote chuẩn: " .. item.Name)
-        end
-    end
-end)
-
--- 2. Vòng lặp Fast Attack hoàn toàn tự nhiên, không gửi rác, không fake packet
 task.spawn(function()
     while _G.MasterAutoFarmEnabled do
         task.wait(0.05)
@@ -877,14 +854,16 @@ task.spawn(function()
                     local netFolder = ReplicatedStorage:FindFirstChild("Modules") and ReplicatedStorage.Modules:FindFirstChild("Net")
                     if not netFolder then return end
 
-                    -- Bước 1: Gửi RegisterAttack mở màn theo chuẩn game
+                    -- 1. Gọi RegisterAttack mở màn
                     local regAttack = netFolder:FindFirstChild("RE/RegisterAttack")
                     if regAttack then
                         regAttack:FireServer(0.1)
                     end
 
-                    -- Bước 2: Gọi đúng con số 3 chữ số thực tế mà server đang phát hành
-                    local targetRemote = GetActiveServerRemote()
+                    -- 2. TÌM CHO BẰNG ĐƯỢC Remote 3 chữ số (xxx) của server
+                    local targetRemote = FindActive3DigitRemote()
+                    
+                    -- 3. Nếu tìm thấy cả mục tiêu lẫn con số xxx chuẩn, bắn đủ bộ lên server!
                     if targetRemote and #hitTargets > 0 then
                         for _, target in ipairs(hitTargets) do
                             if target and target:FindFirstChild("HumanoidRootPart") then
@@ -896,6 +875,9 @@ task.spawn(function()
                                 targetRemote:FireServer(unpack(args))
                             end
                         end
+                    else
+                        -- In ra cảnh báo nếu chưa dò ra số xxx để anh em mình biết đường kiểm tra
+                        warn("⚠️ Chưa tìm thấy Remote 3 chữ số (xxx) của server!")
                     end
                 end)
             end
@@ -903,7 +885,7 @@ task.spawn(function()
     end
 end)
 
-print("clean ⚡ Clean Fast Attack [Server-Matched Mode] đã kích hoạt thành công!")
+print("🎯 [Full-Pair Attack Mode] Đã kích hoạt: Bắt buộc gửi đủ cặp RegisterAttack + Remote xxx!")
 
 local function GetNearestEnemy()
     local nearest = nil
