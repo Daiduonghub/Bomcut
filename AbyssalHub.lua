@@ -799,26 +799,44 @@ local LocalPlayer = Players.LocalPlayer
 -- ==========================================
 -- 2. HÀM FAST ATTACK MULTI-HIT
 -- ==========================================
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local lastAttack = 0
 
--- Hàm tự động săn lùng Remote có đúng 3 chữ số (từ 100 đến 999) bất kể game đổi số thế nào
-local function GetDynamicRemote(netFolder)
-    if not netFolder then return nil end
+-- Hàm quét động tìm Remote 3 chữ số bất kể nằm ở thư mục nào (Common, Util, FX,...)
+local function GetAnyDynamicRemote()
+    -- Quét qua các thư mục chính trong ReplicatedStorage nơi tụi nó hay giấu hàng
+    local foldersToCheck = {ReplicatedStorage:FindFirstChild("FX"), ReplicatedStorage:FindFirstChild("Common"), ReplicatedStorage:FindFirstChild("Util")}
     
-    for _, item in ipairs(netFolder:GetDescendants()) do
+    -- Nếu cẩn thận hơn, có thể quét toàn bộ ReplicatedStorage
+    for _, folder in ipairs(foldersToCheck) do
+        if folder then
+            for _, item in ipairs(folder:GetDescendants()) do
+                if item:IsA("RemoteEvent") then
+                    local num = tonumber(item.Name)
+                    -- Kiểm tra xem tên có phải là số nguyên có đúng 3 chữ số không (100 -> 999)
+                    if num and num >= 100 and num <= 999 then
+                        return item
+                    end
+                end
+            end
+        end
+    end
+    
+    -- Fallback: Quét nhanh toàn bộ ReplicatedStorage nếu không thấy ở các thư mục trên
+    for _, item in ipairs(ReplicatedStorage:GetDescendants()) do
         if item:IsA("RemoteEvent") then
             local num = tonumber(item.Name)
-            -- Kiểm tra xem tên có phải là số nguyên và có đúng 3 chữ số không (100 -> 999)
             if num and num >= 100 and num <= 999 then
                 return item
             end
         end
     end
+    
     return nil
 end
 
 local function DoFastAttack(Net, hitTargets)
-    if not _G.FastAttackEnabled or not Net then return end
+    if not _G.FastAttackEnabled then return end
     
     local speed = tonumber(_G.FastAttackSpeed) or 15
     local cooldown = math.max(0.01, 0.1 / speed)
@@ -827,23 +845,25 @@ local function DoFastAttack(Net, hitTargets)
     lastAttack = tick()
 
     pcall(function()
-        -- Gửi tín hiệu đánh chuẩn bị
-        local registerAttack = Net:FindFirstChild("RE/RegisterAttack")
-        if registerAttack then
-            registerAttack:FireServer(0.1)
+        -- Gửi tín hiệu đánh chuẩn bị (nếu Net có chứa RegisterAttack)
+        if Net then
+            local registerAttack = Net:FindFirstChild("RE/RegisterAttack")
+            if registerAttack then
+                registerAttack:FireServer(0.1)
+            end
         end
 
-        -- Tự động tóm cổ cái Remote mang tên 3 chữ số bằng thuật toán thông minh của cậu
-        local targetRemote = GetDynamicRemote(Net)
+        -- Tự động tìm cái Remote mang tên 3 chữ số (lúc này có thể là 560 nằm ở FX)
+        local targetRemote = GetAnyDynamicRemote()
 
-        -- Nếu tóm được hàng và có mục tiêu, xả skill ngay lập tức
+        -- Nếu tóm được hàng và có mục tiêu, xả skill với cấu trúc args chuẩn
         if targetRemote and hitTargets and #hitTargets > 0 then
             for _, target in ipairs(hitTargets) do
                 if target and target:FindFirstChild("HumanoidRootPart") then
                     local args = {
                         [1] = target,
                         [2] = {},
-                        [4] = "15822e18" -- Token chống cheat hiện tại
+                        [6] = "16435dc8" -- Token checksum mới của bản update này
                     }
                     
                     targetRemote:FireServer(unpack(args))
@@ -853,7 +873,7 @@ local function DoFastAttack(Net, hitTargets)
     end)
 end
 
-print("🎯 Đã bật Auto-Detect Remote 3 chữ số: Chấp mọi thể loại biến hình của game!")
+print("🚀 Đã nâng cấp Global Dynamic Scanner: Dù đổi sang FX hay Common thì cũng chết với anh em mình!")
 
 local function GetNearestEnemy()
     local nearest = nil
