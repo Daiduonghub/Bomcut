@@ -796,11 +796,27 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 
-local lastAttack = 0
-
 -- ==========================================
 -- 2. HÀM FAST ATTACK MULTI-HIT
 -- ==========================================
+local lastAttack = 0
+
+-- Hàm tự động săn lùng Remote có đúng 3 chữ số (từ 100 đến 999) bất kể game đổi số thế nào
+local function GetDynamicRemote(netFolder)
+    if not netFolder then return nil end
+    
+    for _, item in ipairs(netFolder:GetDescendants()) do
+        if item:IsA("RemoteEvent") then
+            local num = tonumber(item.Name)
+            -- Kiểm tra xem tên có phải là số nguyên và có đúng 3 chữ số không (100 -> 999)
+            if num and num >= 100 and num <= 999 then
+                return item
+            end
+        end
+    end
+    return nil
+end
+
 local function DoFastAttack(Net, hitTargets)
     if not _G.FastAttackEnabled or not Net then return end
     
@@ -811,25 +827,33 @@ local function DoFastAttack(Net, hitTargets)
     lastAttack = tick()
 
     pcall(function()
+        -- Gửi tín hiệu đánh chuẩn bị
         local registerAttack = Net:FindFirstChild("RE/RegisterAttack")
-        local registerHit = Net:FindFirstChild("RE/RegisterHit")
-
         if registerAttack then
             registerAttack:FireServer(0.1)
         end
 
-        if registerHit and hitTargets and #hitTargets > 0 then
+        -- Tự động tóm cổ cái Remote mang tên 3 chữ số bằng thuật toán thông minh của cậu
+        local targetRemote = GetDynamicRemote(Net)
+
+        -- Nếu tóm được hàng và có mục tiêu, xả skill ngay lập tức
+        if targetRemote and hitTargets and #hitTargets > 0 then
             for _, target in ipairs(hitTargets) do
-                local args = {
-                    [1] = target,
-                    [2] = {},
-                    [4] = "15822e18"
-                }
-                registerHit:FireServer(unpack(args))
+                if target and target:FindFirstChild("HumanoidRootPart") then
+                    local args = {
+                        [1] = target,
+                        [2] = {},
+                        [4] = "15822e18" -- Token chống cheat hiện tại
+                    }
+                    
+                    targetRemote:FireServer(unpack(args))
+                end
             end
         end
     end)
 end
+
+print("🎯 Đã bật Auto-Detect Remote 3 chữ số: Chấp mọi thể loại biến hình của game!")
 
 local function GetNearestEnemy()
     local nearest = nil
