@@ -801,7 +801,6 @@ local LocalPlayer = Players.LocalPlayer
 -- ==========================================
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 local Enemies = workspace:FindFirstChild("Enemies")
 
@@ -809,8 +808,9 @@ _G.MasterAutoFarmEnabled = true
 _G.FastAttackSpeed = 15
 
 local lastAttack = 0
+local lastTelemetry = 0 -- Biến đếm thời gian để giãn cách lúc gửi Telemetry
 
--- 1. Hàm quét động tìm Remote 3 chữ số (bất kể nằm ở FX, Common, Util hay ReplicatedStorage)
+-- 1. Hàm quét động tìm Remote 3 chữ số
 local function GetDynamicRemote()
     for _, item in ipairs(ReplicatedStorage:GetDescendants()) do
         if item:IsA("RemoteEvent") then
@@ -823,8 +823,11 @@ local function GetDynamicRemote()
     return nil
 end
 
--- 2. Hàm giả lập gói tin Telemetry để đánh lừa anti-cheat (giúp server tưởng mình đang tương tác thật)
-local function SendTelemetry()
+-- 2. Hàm gửi Telemetry ĐÃ ĐƯỢC GIÃN CÁCH (1 giây gửi 1 lần thay vì spam liên tục)
+local function SendTelemetryThrottled()
+    if tick() - lastTelemetry < 1.0 then return end -- Đợi đủ 1 giây mới gửi tiếp
+    lastTelemetry = tick()
+
     local netModules = ReplicatedStorage:FindFirstChild("Modules") and ReplicatedStorage.Modules:FindFirstChild("Net")
     if netModules then
         local telemetryEvent = netModules:FindFirstChild("RE/InputTelemetry")
@@ -833,8 +836,8 @@ local function SendTelemetry()
                 local args = {
                     [1] = {
                         [1] = {
-                            [1] = math.random(1, 3),
-                            [2] = math.random(-10, 10),
+                            [1] = 1,
+                            [2] = math.random(-5, 5),
                             [3] = tick() % 100000,
                             [4] = 3,
                             [5] = 0
@@ -847,7 +850,7 @@ local function SendTelemetry()
     end
 end
 
--- 3. Vòng lặp chính xử lý Fast Attack toàn diện kết hợp Telemetry
+-- 3. Vòng lặp chính xử lý gọn gàng
 task.spawn(function()
     while _G.MasterAutoFarmEnabled do
         task.wait(0.05)
@@ -856,8 +859,8 @@ task.spawn(function()
         local root = char and char:FindFirstChild("HumanoidRootPart")
         if not root or not Enemies then continue end
 
-        -- Định kỳ gửi tín hiệu Telemetry ngầm để qua mặt hệ thống check bot
-        SendTelemetry()
+        -- Gọi Telemetry có kiểm soát (không bị tràn màn hình console nữa)
+        SendTelemetryThrottled()
 
         local hitTargets = {}
         for _, enemy in ipairs(Enemies:GetChildren()) do
@@ -865,14 +868,12 @@ task.spawn(function()
             local eHum = enemy:FindFirstChildOfClass("Humanoid")
             if eRoot and eHum and eHum.Health > 0 then
                 if (eRoot.Position - root.Position).Magnitude < 40 then
-                    -- Lấy phần cơ thể của quái để làm mục tiêu tấn công
                     local targetPart = enemy:FindFirstChild("LeftLowerLeg") or enemy:FindFirstChild("RightLowerLeg") or eRoot
                     table.insert(hitTargets, targetPart)
                 end
             end
         end
 
-        -- Thực hiện tấn công nếu tìm thấy mục tiêu và Remote động 3 chữ số
         if #hitTargets > 0 then
             local speed = tonumber(_G.FastAttackSpeed) or 15
             local cooldown = math.max(0.01, 0.1 / speed)
@@ -881,7 +882,6 @@ task.spawn(function()
                 lastAttack = tick()
 
                 pcall(function()
-                    -- Tìm đường dẫn Net tiêu chuẩn
                     local netFolder = ReplicatedStorage:FindFirstChild("Modules") and ReplicatedStorage.Modules:FindFirstChild("Net")
                     if netFolder then
                         local regAttack = netFolder:FindFirstChild("RE/RegisterAttack")
@@ -890,14 +890,13 @@ task.spawn(function()
                         end
                     end
 
-                    -- Bắt trọn con số 3 chữ số hiện tại (ví dụ 560 hoặc bất kỳ số nào game đang dùng)
                     local targetRemote = GetDynamicRemote()
                     if targetRemote then
                         for _, target in ipairs(hitTargets) do
                             local args = {
                                 [1] = target,
                                 [2] = {},
-                                [6] = "16435dc8" -- Token chống cheat mới nhất
+                                [6] = "16435dc8"
                             }
                             targetRemote:FireServer(unpack(args))
                         end
@@ -907,6 +906,8 @@ task.spawn(function()
         end
     end
 end)
+
+print("✅ Đã sửa lỗi spam Telemetry: Giao diện console sạch sẽ, chạy êm ru!")
 
 local function GetNearestEnemy()
     local nearest = nil
