@@ -1,3 +1,62 @@
+local rawKey = _G.Key or ""
+local userKey = string.gsub(rawKey, "%s+", "")
+local userHWID = game:GetService("RbxAnalyticsService"):GetClientId()
+
+local ngrokUrl = "https://nonsuppositively-unmasticatory-drew.ngrok-free.dev"
+
+if userKey == "" then
+    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\nKey not entered! Please set _G.Key before running.")
+    return
+end
+
+local function trim(s)
+    return (s:gsub("^%s*(.-)%s*$", "%1"))
+end
+
+local antiCache = tostring(os.time())
+local checkUrl = ngrokUrl .. "/check?key=" .. tostring(userKey) .. "&hwid=" .. tostring(userHWID) .. "&t=" .. antiCache
+
+local response = nil
+local reqFunc = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
+
+if reqFunc then
+    local success, res = pcall(function()
+        return reqFunc({
+            Url = checkUrl,
+            Method = "GET",
+            Headers = {
+                ["ngrok-skip-browser-warning"] = "true",
+                ["User-Agent"] = "RobloxApp"
+            }
+        })
+    end)
+    if success and res and res.Body then response = res.Body end
+else
+    local success, body = pcall(function() return game:HttpGet(checkUrl) end)
+    if success then response = body end
+end
+
+if not response then
+    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\nCannot connect to Server because it is down!")
+    return
+end
+
+local cleanResponse = string.upper(trim(response))
+
+if cleanResponse == "SUCCESS" then
+    print("-> Abyssal Key Verified Successfully!")
+elseif cleanResponse == "BLACKLISTED" then
+    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\nYour Key or HWID has been Blacklisted!")
+elseif cleanResponse == "HWID_MISMATCH" then
+    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\nThis Key is being used on another device!")
+elseif cleanResponse == "EXPIRED" then
+    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\nYour Key has expired!")
+elseif cleanResponse == "INVALID_KEY" then
+    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\nKey does not exist!")
+else
+    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\nUnknown response: " .. cleanResponse)
+end
+
 local Library = {}
 local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
@@ -15,21 +74,21 @@ function Library:CreateWindow(hubName)
     MainFrame.Name = "MainFrame"
     MainFrame.Parent = ScreenGui
     MainFrame.Position = UDim2.new(0.3, 0, 0.25, 0)
-    MainFrame.Size = UDim2.new(0, 500, 0, 320)
-    MainFrame.BackgroundColor3 = Color3.fromRGB(13, 17, 23)
+    MainFrame.Size = UDim2.new(0, 520, 0, 340)
+    MainFrame.BackgroundColor3 = Color3.fromRGB(11, 15, 20)
     MainFrame.BorderSizePixel = 0
     MainFrame.ClipsDescendants = true
 
     local MainCorner = Instance.new("UICorner")
-    MainCorner.CornerRadius = UDim.new(0, 8)
+    MainCorner.CornerRadius = UDim.new(0, 10)
     MainCorner.Parent = MainFrame
 
     local MainStroke = Instance.new("UIStroke")
-    MainStroke.Color = Color3.fromRGB(30, 41, 59)
-    MainStroke.Thickness = 1
+    MainStroke.Color = Color3.fromRGB(35, 48, 68)
+    MainStroke.Thickness = 1.2
     MainStroke.Parent = MainFrame
 
-    -- Kéo thả UI
+    -- Kéo thả UI chính mượt mà
     local dragging, dragInput, dragStart, startPos
     MainFrame.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -59,30 +118,109 @@ function Library:CreateWindow(hubName)
     local Topbar = Instance.new("Frame")
     Topbar.Name = "Topbar"
     Topbar.Parent = MainFrame
-    Topbar.Size = UDim2.new(1, 0, 0, 38)
-    Topbar.BackgroundColor3 = Color3.fromRGB(21, 27, 36)
+    Topbar.Size = UDim2.new(1, 0, 0, 42)
+    Topbar.BackgroundColor3 = Color3.fromRGB(16, 22, 30)
     Topbar.BorderSizePixel = 0
 
+    -- Tiêu đề chính + Subtitle "by Ocean Ray"
     local Title = Instance.new("TextLabel")
     Title.Name = "Title"
     Title.Parent = Topbar
-    Title.Position = UDim2.new(0, 15, 0, 0)
-    Title.Size = UDim2.new(1, -30, 1, 0)
-    Title.Text = hubName or "ABYSSAL HUB"
-    Title.TextColor3 = Color3.fromRGB(0, 210, 255)
+    Title.Position = UDim2.new(0, 16, 0, 0)
+    Title.Size = UDim2.new(0, 300, 1, 0)
+    Title.Text = (hubName or "ABYSSAL HUB") .. "  <font size='11' color='rgb(100, 116, 139)'>by Ocean Ray</font>"
+    Title.RichText = true
+    Title.TextColor3 = Color3.fromRGB(0, 220, 255)
     Title.Font = Enum.Font.GothamBold
-    Title.TextSize = 14
+    Title.TextSize = 13
     Title.TextXAlignment = Enum.TextXAlignment.Left
     Title.BackgroundTransparency = 1
-    Title.Active = false
+
+    -- Container chứa nút phóng to / thu nhỏ góc phải
+    local ActionContainer = Instance.new("Frame")
+    ActionContainer.Parent = Topbar
+    ActionContainer.AnchorPoint = Vector2.new(1, 0.5)
+    ActionContainer.Position = UDim2.new(1, -12, 0.5, 0)
+    ActionContainer.Size = UDim2.new(0, 60, 0, 26)
+    ActionContainer.BackgroundTransparency = 1
+
+    local ActionLayout = Instance.new("UIListLayout")
+    ActionLayout.Parent = ActionContainer
+    ActionLayout.FillDirection = Enum.FillDirection.Horizontal
+    ActionLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+    ActionLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+    ActionLayout.Padding = UDim.new(0, 6)
+
+    -- Trạng thái lưu kích thước cũ để phóng to/thu nhỏ
+    local isMaximized = false
+    local normalSize = MainFrame.Size
+    local normalPos = MainFrame.Position
+
+    -- Nút Thu Nhỏ (Dấu trừ "-")
+    local MinimizeBtn = Instance.new("TextButton")
+    MinimizeBtn.Name = "MinimizeBtn"
+    MinimizeBtn.Parent = ActionContainer
+    MinimizeBtn.Size = UDim2.new(0, 26, 0, 26)
+    MinimizeBtn.BackgroundColor3 = Color3.fromRGB(24, 32, 44)
+    MinimizeBtn.Text = "-"
+    MinimizeBtn.TextColor3 = Color3.fromRGB(180, 190, 205)
+    MinimizeBtn.Font = Enum.Font.GothamBold
+    MinimizeBtn.TextSize = 14
+    MinimizeBtn.AutoButtonColor = false
+
+    local MinCorner = Instance.new("UICorner")
+    MinCorner.CornerRadius = UDim.new(0, 6)
+    MinCorner.Parent = MinimizeBtn
+
+    -- Nút Phóng To (Hình ô vuông)
+    local MaximizeBtn = Instance.new("TextButton")
+    MaximizeBtn.Name = "MaximizeBtn"
+    MaximizeBtn.Parent = ActionContainer
+    MaximizeBtn.Size = UDim2.new(0, 26, 0, 26)
+    MaximizeBtn.BackgroundColor3 = Color3.fromRGB(24, 32, 44)
+    MaximizeBtn.Text = "▢"
+    MaximizeBtn.TextColor3 = Color3.fromRGB(180, 190, 205)
+    MaximizeBtn.Font = Enum.Font.GothamBold
+    MaximizeBtn.TextSize = 11
+    MaximizeBtn.AutoButtonColor = false
+
+    local MaxCorner = Instance.new("UICorner")
+    MaxCorner.CornerRadius = UDim.new(0, 6)
+    MaxCorner.Parent = MaximizeBtn
+
+    -- Hiệu ứng click và tính năng phóng to/thu nhỏ
+    MaximizeBtn.MouseButton1Click:Connect(function()
+        isMaximized = not isMaximized
+        local tweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+        
+        if isMaximized then
+            normalSize = MainFrame.Size
+            normalPos = MainFrame.Position
+            MaximizeBtn.Text = "❐"
+            TweenService:Create(MainFrame, tweenInfo, {
+                Size = UDim2.new(0, 680, 0, 460),
+                Position = UDim2.new(0.5, -340, 0.5, -230)
+            }):Play()
+        else
+            MaximizeBtn.Text = "▢"
+            TweenService:Create(MainFrame, tweenInfo, {
+                Size = normalSize,
+                Position = normalPos
+            }):Play()
+        end
+    end)
+
+    MinimizeBtn.MouseButton1Click:Connect(function()
+        ScreenGui.Enabled = false
+    end)
 
     -- Side Tab Container
     local TabContainer = Instance.new("ScrollingFrame")
     TabContainer.Name = "TabContainer"
     TabContainer.Parent = MainFrame
-    TabContainer.Position = UDim2.new(0, 0, 0, 38)
-    TabContainer.Size = UDim2.new(0, 125, 1, -38)
-    TabContainer.BackgroundColor3 = Color3.fromRGB(17, 22, 30)
+    TabContainer.Position = UDim2.new(0, 0, 0, 42)
+    TabContainer.Size = UDim2.new(0, 135, 1, -42)
+    TabContainer.BackgroundColor3 = Color3.fromRGB(13, 18, 25)
     TabContainer.BorderSizePixel = 0
     TabContainer.ScrollBarThickness = 0
 
@@ -90,15 +228,16 @@ function Library:CreateWindow(hubName)
     TabList.Parent = TabContainer
     TabList.SortOrder = Enum.SortOrder.LayoutOrder
     TabList.Padding = UDim.new(0, 4)
+    TabList.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
     local ContentContainer = Instance.new("Frame")
     ContentContainer.Name = "ContentContainer"
     ContentContainer.Parent = MainFrame
-    ContentContainer.Position = UDim2.new(0, 130, 0, 42)
-    ContentContainer.Size = UDim2.new(1, -135, 1, -46)
+    ContentContainer.Position = UDim2.new(0, 145, 0, 50)
+    ContentContainer.Size = UDim2.new(1, -155, 1, -60)
     ContentContainer.BackgroundTransparency = 1
 
-    -- 2. ScreenGui Chứa Nút Toggle (Tách riêng để không bị ẩn theo menu)
+    -- 2. ScreenGui Chứa Nút Toggle (Hỗ trợ kéo thả thông minh không bị nhầm click)
     local ToggleGui = Instance.new("ScreenGui")
     ToggleGui.Name = "AbyssalHub_ToggleGui"
     ToggleGui.Parent = CoreGui
@@ -107,26 +246,62 @@ function Library:CreateWindow(hubName)
     local ToggleButton = Instance.new("ImageButton")
     ToggleButton.Name = "ToggleButton"
     ToggleButton.Parent = ToggleGui
-    ToggleButton.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    ToggleButton.BackgroundColor3 = Color3.fromRGB(16, 22, 30)
     ToggleButton.Position = UDim2.new(0.05, 0, 0.15, 0)
-    ToggleButton.Size = UDim2.new(0, 50, 0, 50)
+    ToggleButton.Size = UDim2.new(0, 48, 0, 48)
     ToggleButton.Image = "rbxassetid://122987919647953"
     ToggleButton.Active = true
-    ToggleButton.Draggable = true
 
     local UICorner = Instance.new("UICorner")
     UICorner.CornerRadius = UDim.new(0, 12)
     UICorner.Parent = ToggleButton
 
     local UIStroke = Instance.new("UIStroke")
-    UIStroke.Color = Color3.fromRGB(0, 170, 255)
-    UIStroke.Thickness = 2
+    UIStroke.Color = Color3.fromRGB(0, 180, 255)
+    UIStroke.Thickness = 1.5
     UIStroke.Parent = ToggleButton
 
-    -- Logic Bật/Tắt Toàn Bộ ScreenGui (Khắc phục hoàn toàn lỗi rác UI)
-    ToggleButton.MouseButton1Click:Connect(function()
-        ScreenGui.Enabled = not ScreenGui.Enabled
+    -- Logic Kéo thả và Xử lý click cho ToggleButton
+    local tDragging, tDragInput, tDragStart, tStartPos
+    local hasMoved = false
+
+    ToggleButton.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            tDragging = true
+            hasMoved = false
+            tDragStart = input.Position
+            tStartPos = ToggleButton.Position
+        end
     end)
+
+    ToggleButton.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            tDragInput = input
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if input == tDragInput and tDragging then
+            local delta = input.Position - tDragStart
+            if delta.Magnitude > 5 then
+                hasMoved = true
+            end
+            ToggleButton.Position = UDim2.new(tStartPos.X.Scale, tStartPos.X.Offset + delta.X, tStartPos.Y.Scale, tStartPos.Y.Offset + delta.Y)
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            tDragging = false
+        end
+    end)
+
+    ToggleButton.MouseButton1Click:Connect(function()
+        if not hasMoved then
+            ScreenGui.Enabled = not ScreenGui.Enabled
+        end
+    end)
+end
 
     local Window = {}
     local firstTab = true
@@ -799,93 +974,35 @@ local LocalPlayer = Players.LocalPlayer
 -- ==========================================
 -- 2. HÀM FAST ATTACK MULTI-HIT
 -- ==========================================
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local LocalPlayer = Players.LocalPlayer
-local Enemies = workspace:FindFirstChild("Enemies")
+local function DoFastAttack(Net, hitTargets)
+    if not _G.FastAttackEnabled or not Net then return end
+    
+    local speed = tonumber(_G.FastAttackSpeed) or 15
+    local cooldown = math.max(0.01, 0.1 / speed)
+    
+    if tick() - lastAttack < cooldown then return end
+    lastAttack = tick()
 
-_G.MasterAutoFarmEnabled = true
-_G.FastAttackSpeed = 15
+    pcall(function()
+        local registerAttack = Net:FindFirstChild("RE/RegisterAttack")
+        local registerHit = Net:FindFirstChild("RE/RegisterHit")
 
-local lastAttack = 0
+        if registerAttack then
+            registerAttack:FireServer(0.1)
+        end
 
--- Hàm tìm kiếm chính xác Remote 3 chữ số đang hoạt động trong server
-local function FindActive3DigitRemote()
-    -- Quét toàn bộ ReplicatedStorage để tóm con số 3 chữ số (từ 100 đến 999)
-    for _, item in ipairs(ReplicatedStorage:GetDescendants()) do
-        if item:IsA("RemoteEvent") then
-            local num = tonumber(item.Name)
-            if num and num >= 100 and num <= 999 then
-                return item
+        if registerHit and hitTargets and #hitTargets > 0 then
+            for _, target in ipairs(hitTargets) do
+                local args = {
+                    [1] = target,
+                    [2] = {},
+                    [4] = "15822e18"
+                }
+                registerHit:FireServer(unpack(args))
             end
         end
-    end
-    return nil
+    end)
 end
-
-task.spawn(function()
-    while _G.MasterAutoFarmEnabled do
-        task.wait(0.05)
-        
-        local char = LocalPlayer.Character
-        local root = char and char:FindFirstChild("HumanoidRootPart")
-        if not root or not Enemies then continue end
-
-        local hitTargets = {}
-        for _, enemy in ipairs(Enemies:GetChildren()) do
-            local eRoot = enemy:FindFirstChild("HumanoidRootPart")
-            local eHum = enemy:FindFirstChildOfClass("Humanoid")
-            if eRoot and eHum and eHum.Health > 0 then
-                if (eRoot.Position - root.Position).Magnitude < 40 then
-                    local targetPart = enemy:FindFirstChild("LeftLowerLeg") or enemy:FindFirstChild("RightLowerLeg") or eRoot
-                    table.insert(hitTargets, targetPart)
-                end
-            end
-        end
-
-        if #hitTargets > 0 then
-            local speed = tonumber(_G.FastAttackSpeed) or 15
-            local cooldown = math.max(0.01, 0.1 / speed)
-            
-            if tick() - lastAttack >= cooldown then
-                lastAttack = tick()
-
-                pcall(function()
-                    local netFolder = ReplicatedStorage:FindFirstChild("Modules") and ReplicatedStorage.Modules:FindFirstChild("Net")
-                    if not netFolder then return end
-
-                    -- 1. Gọi RegisterAttack mở màn
-                    local regAttack = netFolder:FindFirstChild("RE/RegisterAttack")
-                    if regAttack then
-                        regAttack:FireServer(0.1)
-                    end
-
-                    -- 2. TÌM CHO BẰNG ĐƯỢC Remote 3 chữ số (xxx) của server
-                    local targetRemote = FindActive3DigitRemote()
-                    
-                    -- 3. Nếu tìm thấy cả mục tiêu lẫn con số xxx chuẩn, bắn đủ bộ lên server!
-                    if targetRemote and #hitTargets > 0 then
-                        for _, target in ipairs(hitTargets) do
-                            if target and target:FindFirstChild("HumanoidRootPart") then
-                                local args = {
-                                    [1] = target,
-                                    [2] = {},
-                                    [6] = "16435dc8" -- Token chống cheat đi kèm
-                                }
-                                targetRemote:FireServer(unpack(args))
-                            end
-                        end
-                    else
-                        -- In ra cảnh báo nếu chưa dò ra số xxx để anh em mình biết đường kiểm tra
-                        warn("⚠️ Chưa tìm thấy Remote 3 chữ số (xxx) của server!")
-                    end
-                end)
-            end
-        end
-    end
-end)
-
-print("🎯 [Full-Pair Attack Mode] Đã kích hoạt: Bắt buộc gửi đủ cặp RegisterAttack + Remote xxx!")
 
 local function GetNearestEnemy()
     local nearest = nil
