@@ -5,7 +5,7 @@ local userHWID = game:GetService("RbxAnalyticsService"):GetClientId()
 local ngrokUrl = "https://nonsuppositively-unmasticatory-drew.ngrok-free.dev"
 
 if userKey == "" then
-    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\nKey not entered! Please set _G.Key before running.")
+    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\n❌ Chưa nhập Key! Hãy gán _G.Key trước khi chạy.")
     return
 end
 
@@ -37,7 +37,7 @@ else
 end
 
 if not response then
-    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\nCannot connect to Server because it is down!")
+    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\n⚠️ Không thể kết nối Server Vì đang bị đóng !")
     return
 end
 
@@ -46,15 +46,15 @@ local cleanResponse = string.upper(trim(response))
 if cleanResponse == "SUCCESS" then
     print("-> Abyssal Key Verified Successfully!")
 elseif cleanResponse == "BLACKLISTED" then
-    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\nYour Key or HWID has been Blacklisted!")
+    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\n🚫 Key/HWID của bạn đã bị BLACKLIST!")
 elseif cleanResponse == "HWID_MISMATCH" then
-    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\nThis Key is being used on another device!")
+    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\n⚠️ Key này đang được dùng ở thiết bị khác!")
 elseif cleanResponse == "EXPIRED" then
-    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\nYour Key has expired!")
+    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\n⏳ Key của bạn đã hết hạn!")
 elseif cleanResponse == "INVALID_KEY" then
-    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\nKey does not exist!")
+    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\n❌ Key không tồn tại!")
 else
-    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\nUnknown response: " .. cleanResponse)
+    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\n⚠️ Phản hồi không xác định: " .. cleanResponse)
 end
 
 local Library = {}
