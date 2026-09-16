@@ -26,7 +26,7 @@ if reqFunc then
             Method = "GET",
             Headers = {
                 ["ngrok-skip-browser-warning"] = "true",
-                ["User-Agent"] = "Mozilla/5.0"
+                ["User-Agent"] = "RobloxApp"
             }
         })
     end)
