@@ -6,7 +6,7 @@ local ngrokUrl = "https://nonsuppositively-unmasticatory-drew.ngrok-free.dev"
 
 if userKey == "" then
     game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\nKey not entered! Please set _G.Key before running.")
-    return
+    return -- Dừng hẳn, không chạy tiếp!
 end
 
 local function trim(s)
@@ -38,23 +38,29 @@ end
 
 if not response then
     game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\nCannot connect to Server because it is down!")
-    return
+    return -- Dừng hẳn, không chạy tiếp!
 end
 
 local cleanResponse = string.upper(trim(response))
 
 if cleanResponse == "SUCCESS" then
     print("-> Abyssal Key Verified Successfully!")
+    -- Ở đây code UI và logic chính của cậu sẽ được phép chạy tiếp bên dưới này
 elseif cleanResponse == "BLACKLISTED" then
     game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\nYour Key or HWID has been Blacklisted!")
+    return
 elseif cleanResponse == "HWID_MISMATCH" then
     game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\nThis Key is being used on another device!")
+    return
 elseif cleanResponse == "EXPIRED" then
     game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\nYour Key has expired!")
+    return
 elseif cleanResponse == "INVALID_KEY" then
     game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\nKey does not exist!")
+    return
 else
     game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\nUnknown response: " .. cleanResponse)
+    return
 end
 
 -- ====================================================================
