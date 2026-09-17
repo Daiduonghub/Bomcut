@@ -729,6 +729,7 @@ end
 -- ====================================================================
 local Window = Library:CreateWindow("ABYSSAL HUB")
 local StatsTab = Window:CreateTab("Stats and sever")
+local TestTab = Window:CreateTab("Demo UI")
 -- ====================================================================
 -- 3. KHỞI TẠO LABELS & VÒNG LẶP STATS & SERVER
 -- ====================================================================
@@ -787,4 +788,30 @@ local MirageLabel = StatsTab:CreateLabel("🏝️ Đảo Bí Ẩn (Mirage): Khô
         end
     end)
     return found and "🏝️ Đảo Bí Ẩn (Mirage): 🟢 XUẤT HIỆN RỒI!" or "🏝️ Đảo Bí Ẩn (Mirage): 🔴 Không có trong Server"
+end)
+
+TestTab:CreateToggle("Tên Chức Năng", false, function(state)
+    if state then
+        print("Đã BẬT!")
+    else
+        print("Đã TẮT!")
+    end
+end)
+
+TestTab:CreateButton("NAME BUTTON", function()
+    print("Nút đã được bấm!")
+    -- Viết code dịch chuyển hoặc tính năng của cậu ở đây
+end)
+
+TestTab:CreateSlider("NAME SLIDER", 16, 200, 16, function(value)
+    print("Giá trị hiện tại:", value)
+    -- value chính là số mà người dùng kéo chọn
+end)
+
+TestTab:CreateBox("TEXTBOX", "Điền text vào đây...", function(text)
+    print("Người dùng vừa nhập:", text)
+end)
+
+TestTab:CreateDropdown("Select", {"Select 1", "Select 2", "Select 3"}, "Select 1", function(selected)
+    print("Đã chọn:", selected)
 end)
