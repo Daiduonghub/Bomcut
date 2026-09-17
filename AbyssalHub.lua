@@ -355,7 +355,7 @@ function Library:CreateWindow(hubName)
 
         local TabElements = {}
 
-        function TabElements:CreateButton(btnName, callback)
+                function TabElements:CreateButton(btnName, callback)
             local Button = Instance.new("TextButton")
             Button.Parent = TabPage
             Button.Size = UDim2.new(1, -8, 0, 40)
@@ -364,10 +364,28 @@ function Library:CreateWindow(hubName)
             Button.TextColor3 = Color3.fromRGB(240, 240, 240)
             Button.Font = Enum.Font.GothamMedium
             Button.TextSize = 13
+            Button.AutoButtonColor = false -- Tắt màu xám mặc định của Roblox đi để tự tween cho đẹp
 
             local Corner = Instance.new("UICorner")
             Corner.CornerRadius = UDim.new(0, 8)
             Corner.Parent = Button
+
+            -- Hiệu ứng nảy khi bấm vào nút
+            Button.MouseButton1Down:Connect(function()
+                TweenService:Create(Button, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                    BackgroundColor3 = Color3.fromRGB(0, 210, 255),
+                    TextColor3 = Color3.fromRGB(13, 17, 23),
+                    Size = UDim2.new(1, -14, 0, 36) -- Thu nhỏ lại một chút tạo cảm giác lún xuống
+                }):Play()
+            end)
+
+            Button.MouseButton1Up:Connect(function()
+                TweenService:Create(Button, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                    BackgroundColor3 = Color3.fromRGB(21, 27, 36),
+                    TextColor3 = Color3.fromRGB(240, 240, 240),
+                    Size = UDim2.new(1, -8, 0, 40) -- Phồng to lại như cũ
+                }):Play()
+            end)
 
             Button.MouseButton1Click:Connect(function()
                 pcall(callback)
@@ -537,7 +555,7 @@ function Library:CreateWindow(hubName)
             end)
         end
 
-                        function TabElements:CreateDropdown(text, options, defaultOption, callback)
+                                function TabElements:CreateDropdown(text, options, defaultOption, callback)
             local dropdownFrame = Instance.new("Frame")
             local dropdownTitle = Instance.new("TextLabel")
             local dropdownBtn = Instance.new("TextButton")
@@ -565,12 +583,12 @@ function Library:CreateWindow(hubName)
             dropdownTitle.TextSize = 13
             dropdownTitle.Parent = dropdownFrame
 
-            dropdownBtn.Size = UDim2.new(0.42, 0, 0, 26)
-            dropdownBtn.Position = UDim2.new(0.56, 0, 0.5, -13)
+            dropdownBtn.Size = UDim2.new(0.42, 0, 0, 28)
+            dropdownBtn.Position = UDim2.new(0.56, 0, 0.5, -14)
             dropdownBtn.BackgroundColor3 = Color3.fromRGB(13, 17, 23)
             dropdownBtn.Text = tostring(selected) .. " ▼"
             dropdownBtn.TextColor3 = Color3.fromRGB(0, 210, 255)
-            dropdownBtn.Font = Enum.Font.Gotham
+            dropdownBtn.Font = Enum.Font.GothamMedium
             dropdownBtn.TextSize = 12
             dropdownBtn.Parent = dropdownFrame
 
@@ -578,23 +596,30 @@ function Library:CreateWindow(hubName)
             BtnCorner.CornerRadius = UDim.new(0, 6)
             BtnCorner.Parent = dropdownBtn
 
+            -- Khung chứa danh sách option (có thể vuốt)
             optionsHolder.Size = UDim2.new(1, 0, 0, 0)
             optionsHolder.Position = UDim2.new(0, 0, 1, 6)
-            optionsHolder.BackgroundColor3 = Color3.fromRGB(17, 22, 30)
+            optionsHolder.BackgroundColor3 = Color3.fromRGB(16, 21, 28)
             optionsHolder.Visible = false
             optionsHolder.AutomaticCanvasSize = Enum.AutomaticSize.Y
             optionsHolder.CanvasSize = UDim2.new(0, 0, 0, 0)
-            optionsHolder.ScrollBarThickness = 3
-            optionsHolder.ZIndex = 10
+            optionsHolder.ScrollBarThickness = 4 -- Làm dày thanh cuộn cho dễ kéo trên mobile
+            optionsHolder.ScrollBarImageColor3 = Color3.fromRGB(0, 210, 255)
+            optionsHolder.ZIndex = 15
             optionsHolder.Parent = dropdownFrame
 
             local HolderCorner = Instance.new("UICorner")
             HolderCorner.CornerRadius = UDim.new(0, 6)
             HolderCorner.Parent = optionsHolder
 
+            local HolderStroke = Instance.new("UIStroke")
+            HolderStroke.Color = Color3.fromRGB(35, 48, 68)
+            HolderStroke.Thickness = 1
+            HolderStroke.Parent = optionsHolder
+
             UIListLayout.Parent = optionsHolder
             UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-            UIListLayout.Padding = UDim.new(0, 3)
+            UIListLayout.Padding = UDim.new(0, 4)
 
             local function toggleDropdown()
                 isOpened = not isOpened
@@ -603,7 +628,8 @@ function Library:CreateWindow(hubName)
                     dropdownBtn.Text = tostring(selected) .. " ▲"
                     task.wait()
                     local contentHeight = UIListLayout.AbsoluteContentSize.Y
-                    local targetHeight = math.min(contentHeight + 6, 130)
+                    -- Chỉnh chiều cao tối đa là 150px, nếu dài hơn sẽ hiện thanh cuộn để vuốt
+                    local targetHeight = math.min(contentHeight + 8, 150)
                     optionsHolder.Size = UDim2.new(1, 0, 0, targetHeight)
                     dropdownFrame.Size = UDim2.new(1, -8, 0, 40 + targetHeight + 12)
                 else
@@ -617,15 +643,15 @@ function Library:CreateWindow(hubName)
 
             for _, opt in ipairs(options) do
                 local optBtn = Instance.new("TextButton")
-                optBtn.Size = UDim2.new(1, 0, 0, 28)
+                optBtn.Size = UDim2.new(1, -4, 0, 32) -- Làm mỗi ô to rộng dễ bấm hơn
                 optBtn.BackgroundColor3 = Color3.fromRGB(21, 27, 36)
-                optBtn.BackgroundTransparency = 0.5
-                optBtn.Text = "  " .. tostring(opt)
+                optBtn.BackgroundTransparency = 0.6
+                optBtn.Text = "   " .. tostring(opt)
                 optBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
                 optBtn.Font = Enum.Font.Gotham
                 optBtn.TextSize = 12
                 optBtn.TextXAlignment = Enum.TextXAlignment.Left
-                optBtn.ZIndex = 11
+                optBtn.ZIndex = 16
                 optBtn.Parent = optionsHolder
 
                 local optCorner = Instance.new("UICorner")
@@ -648,15 +674,15 @@ function Library:CreateWindow(hubName)
                 end
                 for _, opt in ipairs(options) do
                     local optBtn = Instance.new("TextButton")
-                    optBtn.Size = UDim2.new(1, 0, 0, 28)
+                    optBtn.Size = UDim2.new(1, -4, 0, 32)
                     optBtn.BackgroundColor3 = Color3.fromRGB(21, 27, 36)
-                    optBtn.BackgroundTransparency = 0.5
-                    optBtn.Text = "  " .. tostring(opt)
+                    optBtn.BackgroundTransparency = 0.6
+                    optBtn.Text = "   " .. tostring(opt)
                     optBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
                     optBtn.Font = Enum.Font.Gotham
                     optBtn.TextSize = 12
                     optBtn.TextXAlignment = Enum.TextXAlignment.Left
-                    optBtn.ZIndex = 11
+                    optBtn.ZIndex = 16
                     optBtn.Parent = optionsHolder
 
                     local optCorner = Instance.new("UICorner")
