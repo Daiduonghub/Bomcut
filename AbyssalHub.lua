@@ -1846,7 +1846,10 @@ local AutoTab = Window:CreateTab("Auto stats")
 local PvpTab = Window:CreateTab("Player & PVP")
 
 -- KHỞI TẠO CÁC LABEL CHO STATS TAB (ĐÃ ĐƯA LÊN TRƯỚC ĐỂ KHÔNG BỊ LỖI NIL)
-local PingLabel   = StatsTab:CreateLabel("📡 Ping: Đang tải...", false, function(state) end)
+local PingLabel   = StatsTab:CreateLabel("📡 Ping: Đang tải...", function()
+    -- Trả về giá trị ping ở đây hoặc xử lý logic cập nhật
+    return "📡 Ping: " .. ping .. " ms"
+end)
 local FpsLabel    = StatsTab:CreateLabel("⚡ FPS: Đang tải...", false, function(state) end)
 local MoonLabel   = StatsTab:CreateLabel("🌕 Trăng (Moon): Đang quét...", false, function(state) end)
 local MirageLabel = StatsTab:CreateLabel("🏝️ Đảo Bí Ẩn (Mirage): Không thấy", false, function(state) end)
