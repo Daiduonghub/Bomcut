@@ -727,7 +727,7 @@ local FirstSeaQuests = {
 }
 
 -- ====================================================================
--- HÀM HỖ TRỢ CHUNG (ĐÃ FIX ĐỘ CAO KHI TWEEN)
+-- HÀM HỖ TRỢ CHUNG
 -- ====================================================================
 local function TweenTo(targetCFrame)
     local character = LocalPlayer.Character
@@ -743,7 +743,6 @@ local function TweenTo(targetCFrame)
     end
 
     local tweenInfo = TweenInfo.new(distance / speed, Enum.EasingStyle.Linear)
-    -- Giữ nguyên đích đến, không cộng bừa độ cao để tránh bị nhồi lệnh giật lên xuống
     local tween = TweenService:Create(hrp, tweenInfo, {CFrame = targetCFrame})
     
     _G.Tweening = tween
@@ -785,7 +784,7 @@ local function GetCurrentQuest()
 end
 
 -- ====================================================================
--- LUỒNG 1: CHECK TRẠNG THÁI QUEST QUA PLAYERGUI
+-- LUỒNG 1: CHECK TRẠNG THÁI QUEST QUA TRACKEDQUESTFRAME
 -- ====================================================================
 task.spawn(function()
     while task.wait(0.5) do
@@ -794,8 +793,11 @@ task.spawn(function()
         local hasQuestOnGui = false
         pcall(function()
             local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-            if playerGui and playerGui:FindFirstChild("TrackedQuestFrame") then
-                hasQuestOnGui = true
+            if playerGui then
+                local questFrame = playerGui:FindFirstChild("TrackedQuestFrame", true)
+                if questFrame and questFrame.Visible then
+                    hasQuestOnGui = true
+                end
             end
         end)
         
@@ -853,7 +855,6 @@ local function AttackTarget(mobName)
             local hrp = LocalPlayer.Character.HumanoidRootPart
             local enemyHrp = targetMob.HumanoidRootPart
             
-            -- Khóa góc nhìn thẳng vào quái và đứng lơ lửng ở độ cao cố định +12 stud
             hrp.CFrame = CFrame.new(enemyHrp.Position + Vector3.new(0, 12, 0), enemyHrp.Position)
             
             local limb = targetMob:FindFirstChild("LeftLowerLeg") or targetMob:FindFirstChild("HumanoidRootPart")
@@ -900,21 +901,19 @@ task.spawn(function()
                 hrp.CFrame = questInfo.NpcPosition
                 task.wait(0.2)
                 
-                -- Dùng pcall bọc an toàn tuyệt đối để tránh bị treo dòng lệnh
                 pcall(function()
                     local args = {
                         [1] = "StartQuest",
                         [2] = questInfo.QuestName,
                         [3] = questInfo.QuestId
                     }
-                    -- Gọi lệnh nhận quest với thời gian chờ ngắn, tránh bị kẹt vĩnh viễn
                     ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))
                 end)
                 
-                task.wait(1) -- Chờ một nhịp ngắn cho game load UI quest
+                task.wait(0.8)
             end
 
-        -- ĐÃ CÓ QUEST -> TẬP TRUNG TỚI CỐ ĐỊNH TRÊN ĐẦU QUÁI VÀ ĐÁNH
+        -- ĐÃ CÓ QUEST -> PHI THẲNG TỚI QUÁI VÀ ĐÁNH
         else
             local humanoid = character:FindFirstChild("Humanoid")
             if humanoid and humanoid.Health <= 0 then
@@ -922,22 +921,17 @@ task.spawn(function()
                 continue
             end
 
-            -- Tìm con quái sống gần nhất ở thời điểm hiện tại
             local targetMob = GetClosestMob(questInfo.MobName)
             if targetMob and targetMob:FindFirstChild("HumanoidRootPart") then
                 local mobHrp = targetMob.HumanoidRootPart
-                
-                -- Tạo vị trí chuẩn trên đầu quái (cách 12 stud theo trục Y)
                 local fixedPosition = CFrame.new(mobHrp.Position.X, mobHrp.Position.Y + 12, mobHrp.Position.Z, mobHrp.CFrame.LookVector.X, 0, mobHrp.CFrame.LookVector.Z)
                 
-                -- Nếu ở xa thì dùng Tween bay đến, còn khi đã áp sát trong phạm vi 8 stud thì khóa chặt tọa độ không dùng Tween nữa
                 if (hrp.Position - fixedPosition.Position).Magnitude > 8 then
                     TweenTo(fixedPosition)
                 else
                     AttackTarget(questInfo.MobName)
                 end
             else
-                -- Không thấy quái quanh đấy thì bay về khu vực spawn chờ quái hồi sinh
                 if (hrp.Position - questInfo.MobSpawn.Position).Magnitude > 15 then
                     TweenTo(questInfo.MobSpawn)
                 end
