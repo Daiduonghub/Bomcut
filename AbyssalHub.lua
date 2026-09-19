@@ -786,6 +786,9 @@ end
 -- ====================================================================
 -- LUỒNG 1: CHECK TRẠNG THÁI QUEST QUA PLAYERGUI
 -- ====================================================================
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
 task.spawn(function()
     while task.wait(0.5) do
         if not _G.AutoFarm then continue end
