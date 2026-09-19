@@ -803,12 +803,8 @@ task.spawn(function()
 end)
 
 -- ====================================================================
--- HÀM ĐÁNH QUÁI
+-- HÀM TÌM QUÁI SỐNG GẦN NHẤT
 -- ====================================================================
-local NetModules = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
-local RegisterAttack = NetModules:FindFirstChild("RE/RegisterAttack")
-local RegisterHit = NetModules:FindFirstChild("RE/RegisterHit")
-
 local function GetClosestMob(mobName)
     local character = LocalPlayer.Character
     if not character or not character:FindFirstChild("HumanoidRootPart") then return nil end
@@ -819,10 +815,14 @@ local function GetClosestMob(mobName)
 
     local enemiesFolder = workspace:FindFirstChild("Enemies")
     if enemiesFolder then
-        for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-            if enemy.Name == mobName and enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") then
-                if enemy.Humanoid.Health > 0 then
-                    local distance = (hrp.Position - enemy.HumanoidRootPart.Position).Magnitude
+        local parts = enemiesFolder:GetChildren()
+        for i = 1, #parts do
+            local enemy = parts[i]
+            if enemy.Name == mobName then
+                local enemyHrp = enemy:FindFirstChild("HumanoidRootPart")
+                local humanoid = enemy:FindFirstChild("Humanoid")
+                if enemyHrp and humanoid and humanoid.Health > 0 then
+                    local distance = (hrp.Position - enemyHrp.Position).Magnitude
                     if distance < shortestDistance then
                         shortestDistance = distance
                         closestMob = enemy
@@ -834,21 +834,34 @@ local function GetClosestMob(mobName)
     return closestMob
 end
 
+-- ====================================================================
+-- HÀM ĐÁNH QUÁI (ĐÃ FIX ĐỨNG CAO LÊN, KHÔNG GIẬT LẮC)
+-- ====================================================================
+local NetModules = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
+local RegisterAttack = NetModules:FindFirstChild("RE/RegisterAttack")
+local RegisterHit = NetModules:FindFirstChild("RE/RegisterHit")
+
 local function AttackTarget(mobName)
     pcall(function()
         if RegisterAttack then RegisterAttack:FireServer(0.5, 1) end
 
         local targetMob = GetClosestMob(mobName)
-        if targetMob and targetMob:FindFirstChild("LeftLowerLeg") and RegisterHit then
+        if targetMob and targetMob:FindFirstChild("HumanoidRootPart") and RegisterHit then
             local hrp = LocalPlayer.Character.HumanoidRootPart
-            hrp.CFrame = CFrame.new(targetMob.HumanoidRootPart.Position + Vector3.new(0, 8, 0), targetMob.HumanoidRootPart.Position)
+            local enemyHrp = targetMob.HumanoidRootPart
             
-            local args = {
-                [1] = targetMob.LeftLowerLeg,
-                [2] = {},
-                [4] = "1689a737"
-            }
-            RegisterHit:FireServer(unpack(args))
+            -- Ép nhân vật lơ lửng ở trên đầu quái (cao hơn 10 stud) để tránh giật va chạm
+            hrp.CFrame = CFrame.new(enemyHrp.Position + Vector3.new(0, 10, 0), enemyHrp.Position)
+            
+            local limb = targetMob:FindFirstChild("LeftLowerLeg") or targetMob:FindFirstChild("HumanoidRootPart")
+            if limb then
+                local args = {
+                    [1] = limb,
+                    [2] = {},
+                    [4] = "1689a737"
+                }
+                RegisterHit:FireServer(unpack(args))
+            end
         end
     end)
 end
