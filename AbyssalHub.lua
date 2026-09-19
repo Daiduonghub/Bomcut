@@ -683,6 +683,14 @@ local StatsTab = Window:CreateTab("Stats and sever")
 local FarmTab = Window:CreateTab("Tab Farming")
 
 -- ====================================================================
+-- 0. KHỞI TẠO BIẾN CƠ SỞ (ĐẶT LÊN ĐẦU TIÊN ĐỂ TRÁNH LỖI NIL)
+-- ====================================================================
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local LocalPlayer = Players.LocalPlayer
+
+-- ====================================================================
 -- 1. DATABASE NHIỆM VỤ FIRST SEA (SEA 1)
 -- ====================================================================
 local FirstSeaQuests = {
@@ -718,8 +726,6 @@ local FirstSeaQuests = {
 -- ====================================================================
 -- HÀM TWEEN (BAY MƯỢT MÀ) ĐẾN VỊ TRÍ
 -- ====================================================================
-local TweenService = game:GetService("TweenService")
-
 local function TweenTo(targetCFrame)
     local character = LocalPlayer.Character
     if not character or not character:FindFirstChild("HumanoidRootPart") then return end
@@ -759,10 +765,6 @@ end
 -- ====================================================================
 -- 2. CÁC HÀM XỬ LÝ NHIỆM VỤ (AUTO QUEST LOGIC)
 -- ====================================================================
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local LocalPlayer = Players.LocalPlayer
-
 local function GetLevel()
     local success, level = pcall(function()
         return LocalPlayer.Data.Level.Value
@@ -783,23 +785,6 @@ local function GetCurrentQuest()
     return seaQuests[1]
 end
 
--- ====================================================================
--- SỬA LỖI TELE VỀ NPC LIÊN TỤC
--- ====================================================================
-
--- Thêm biến lưu tên nhiệm vụ đang làm để kiểm soát
-_G.CurrentQuestName = nil
-
--- Hàm kiểm tra xem đã nhận đúng nhiệm vụ của mốc đó chưa
-local function HasActiveQuest()
-    local success, active = pcall(function()
-        local questUI = LocalPlayer.PlayerGui.Main.Quest
-        -- Kiểm tra xem UI Quest có hiện không và có chứa tên nhiệm vụ cần làm không
-        return questUI.Visible
-    end)
-    return success and active
-end
-
 -- Biến cờ đánh dấu trạng thái nhiệm vụ
 _G.HasQuest = false
 
@@ -808,20 +793,17 @@ local function AutoTakeQuest()
         local questInfo = GetCurrentQuest()
         if not questInfo then return end
 
-        -- 1. Kiểm tra an toàn xem trên người đã có nhiệm vụ nào chưa bằng cách quét xem khung Quest có Visible không
         local success, isVisible = pcall(function()
             return LocalPlayer.PlayerGui.Main.Quest.Visible
         end)
         
         if success and isVisible then
-            -- Nếu khung quest đang mở, tức là đang có nhiệm vụ rồi -> KHÔNG nhận nữa, thoát hàm luôn
             _G.HasQuest = true
             return
         else
             _G.HasQuest = false
         end
 
-        -- 2. Nếu chưa có thì bay tới NPC nhận
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
             local hrp = LocalPlayer.Character.HumanoidRootPart
             if (hrp.Position - questInfo.NpcPosition.Position).Magnitude > 15 then
@@ -830,7 +812,6 @@ local function AutoTakeQuest()
             end
         end
 
-        -- 3. Gửi lệnh nhận nhiệm vụ
         ReplicatedStorage.Remotes.CommF_:InvokeServer("StartQuest", questInfo.QuestName, questInfo.QuestId)
         task.wait(1)
     end)
@@ -843,7 +824,6 @@ local NetModules = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
 local RegisterAttack = NetModules:FindFirstChild("RE/RegisterAttack")
 local RegisterHit = NetModules:FindFirstChild("RE/RegisterHit")
 
--- Hàm tìm con quái gần nhất thuộc loại nhiệm vụ đang làm
 local function GetClosestMob(mobName)
     local character = LocalPlayer.Character
     if not character or not character:FindFirstChild("HumanoidRootPart") then return nil end
@@ -852,7 +832,6 @@ local function GetClosestMob(mobName)
     local closestMob = nil
     local shortestDistance = math.huge
 
-    -- Quét trong workspace.Enemies xem con nào đúng tên quái cần đánh
     local enemiesFolder = workspace:FindFirstChild("Enemies")
     if enemiesFolder then
         for _, enemy in ipairs(enemiesFolder:GetChildren()) do
@@ -870,21 +849,18 @@ local function GetClosestMob(mobName)
     return closestMob
 end
 
--- Hàm thực hiện đánh quái liên tục
 local function AttackTarget(mobName)
     pcall(function()
-        -- Kích hoạt RegisterAttack trước (gọi chém/đấm)
         if RegisterAttack then
             RegisterAttack:FireServer(0.5, 1)
         end
 
-        -- Tìm con quái gần nhất để gửi hit vào các bộ phận của nó
         local targetMob = GetClosestMob(mobName)
         if targetMob and targetMob:FindFirstChild("LeftLowerLeg") and RegisterHit then
             local args = {
                 [1] = targetMob.LeftLowerLeg,
                 [2] = {},
-                [4] = "1689a737" -- Mã hash chuẩn của game
+                [4] = "1689a737"
             }
             RegisterHit:FireServer(unpack(args))
         end
@@ -896,7 +872,6 @@ task.spawn(function()
         if _G.AutoFarm then
             local questInfo = GetCurrentQuest()
             if questInfo then
-                -- Kiểm tra xem đã có đúng nhiệm vụ của con quái đó chưa
                 local hasQuest = false
                 pcall(function()
                     local titleText = LocalPlayer.PlayerGui.Main.Quest.Container.QuestTitle.Text
@@ -906,10 +881,8 @@ task.spawn(function()
                 end)
 
                 if not hasQuest then
-                    -- 1. Chưa có nhiệm vụ chuẩn -> Đi nhận quest
                     AutoTakeQuest()
                 else
-                    -- 2. Đã có nhiệm vụ chuẩn -> Ra bãi quái đánh
                     local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
                     if hrp and (hrp.Position - questInfo.MobSpawn.Position).Magnitude > 25 then
                         TweenTo(questInfo.MobSpawn)
