@@ -683,16 +683,15 @@ local StatsTab = Window:CreateTab("Stats and sever")
 local FarmTab = Window:CreateTab("Tab Farming")
 
 -- ====================================================================
--- 0. KHỞI TẠO BIẾN & CẤU HÌNH STATE MACHINE (CHUẨN THỰC TẾ)
+-- 0. KHỞI TẠO BIẾN & CẤU HÌNH TÁCH BIỆT 2 LUỒNG
 -- ====================================================================
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
-_G.AutoFarm = false -- Bật sẵn hoặc chỉnh thành false tùy cậu
-_G.FarmState = "CHECK_QUEST"
-_G.HasActiveQuest = false -- Cờ nội bộ quản lý trạng thái nhiệm vụ
+_G.AutoFarm = false
+_G.HasActiveQuest = false
 
 -- ====================================================================
 -- 1. DATABASE NHIỆM VỤ FIRST SEA (Đã chuẩn hóa BanditQuest)
@@ -728,7 +727,7 @@ local FirstSeaQuests = {
 }
 
 -- ====================================================================
--- HÀM TWEEN AN TOÀN
+-- HÀM HỖ TRỢ CHUNG
 -- ====================================================================
 local function TweenTo(targetCFrame)
     local character = LocalPlayer.Character
@@ -765,9 +764,6 @@ local function TweenTo(targetCFrame)
     end
 end
 
--- ====================================================================
--- HÀM LẤY THÔNG TIN LEVEL & QUEST
--- ====================================================================
 local function GetLevel()
     local success, level = pcall(function() return LocalPlayer.Data.Level.Value end)
     return success and level or 1
@@ -776,7 +772,6 @@ end
 local function GetCurrentQuest()
     local currentLevel = GetLevel()
     if currentLevel > 700 then return nil end
-
     local seaQuests = FirstSeaQuests[1]
     if not seaQuests then return nil end
 
@@ -787,6 +782,28 @@ local function GetCurrentQuest()
     end
     return nil
 end
+
+-- ====================================================================
+-- LUỒNG 1: CHUYÊN ĐỘC LẬP CHECK TRẠNG THÁI QUEST TRÊN GUI
+-- ====================================================================
+task.spawn(function()
+    while task.wait(0.5) do
+        if not _G.AutoFarm then continue end
+        
+        local hasQuestOnGui = false
+        pcall(function()
+            local questGui = LocalPlayer.PlayerGui:FindFirstChild("Main") and LocalPlayer.PlayerGui.Main:FindFirstChild("Quest")
+            if questGui and questGui.Visible then
+                local container = questGui:FindFirstChild("Container")
+                if container and container:FindFirstChild("Quest") then
+                    hasQuestOnGui = true
+                end
+            end
+        end)
+        
+        _G.HasActiveQuest = hasQuestOnGui
+    end
+end)
 
 -- ====================================================================
 -- HÀM ĐÁNH QUÁI
@@ -840,16 +857,12 @@ local function AttackTarget(mobName)
 end
 
 -- ====================================================================
--- VÒNG LẶP CHÍNH FIX TRIỆT ĐỂ LỖI ĐỨNG LÌ Ở NPC KHÔNG GỬI REQUEST
+-- LUỒNG 2: CHUYÊN ĐỘC LẬP THỰC THI HÀNH ĐỘNG (GET QUEST HOẶC FARM)
 -- ====================================================================
 task.spawn(function()
-    local lastQuestTime = 0
-
     while task.wait(0.5) do
         if not _G.AutoFarm then
-            if _G.Tweening then
-                _G.Tweening:Cancel()
-            end
+            if _G.Tweening then _G.Tweening:Cancel() end
             continue
         end
 
@@ -866,58 +879,35 @@ task.spawn(function()
         local hrp = character and character:FindFirstChild("HumanoidRootPart")
         if not hrp then continue end
 
-        setclipboard(string.format("State: %s | HasQuest: %s | Level: %d", tostring(_G.FarmState), tostring(_G.HasActiveQuest), currentLevel))
+        -- Debug trực quan trạng thái
+        setclipboard(string.format("HasQuest: %s | Level: %d", tostring(_G.HasActiveQuest), currentLevel))
 
-        -- STATE MACHINE XỬ LÝ GỌN GÀNG
-        if _G.FarmState == "CHECK_QUEST" then
-            if not _G.HasActiveQuest then
-                _G.FarmState = "GET_QUEST"
-            else
-                _G.FarmState = "FARM"
-            end
-
-        elseif _G.FarmState == "GET_QUEST" then
-            -- Nếu còn ở xa NPC thì bay tới
-            if (hrp.Position - questInfo.NpcPosition.Position).Magnitude > 10 then
+        -- NẾU CHƯA CÓ QUEST -> TẬP TRUNG TỚI NPC VÀ BẮN REQUEST NHẬN
+        if not _G.HasActiveQuest then
+            if (hrp.Position - questInfo.NpcPosition.Position).Magnitude > 8 then
                 TweenTo(questInfo.NpcPosition)
             else
-                -- Đã đến sát cạnh NPC: Ép vị trí đứng thẳng vào NPC luôn cho chắc ăn
                 hrp.CFrame = questInfo.NpcPosition
                 task.wait(0.2)
-
-                -- Gửi request nhận quest liên tục đến khi nào server nhận thì thôi
-                local success = false
-                for i = 1, 3 do
-                    success = pcall(function()
-                        ReplicatedStorage.Remotes.CommF_:InvokeServer(
-                            "StartQuest",
-                            questInfo.QuestName,
-                            questInfo.QuestId
-                        )
-                    end)
-                    if success then break end
-                    task.wait(0.3)
-                end
                 
-                -- Đợi 1 nhịp rồi bật cờ sang trạng thái farm
-                task.wait(0.8)
-                _G.HasActiveQuest = true
-                _G.FarmState = "FARM"
-                lastQuestTime = tick()
+                pcall(function()
+                    ReplicatedStorage.Remotes.CommF_:InvokeServer(
+                        "StartQuest",
+                        questInfo.QuestName,
+                        questInfo.QuestId
+                    )
+                end)
+                task.wait(1.0) -- Đợi server phản hồi cập nhật UI
             end
 
-        elseif _G.FarmState == "FARM" then
+        -- NẾU ĐÃ CÓ QUEST -> TẬP TRUNG ĐI RA BÃI QUÁI VÀ ĐÁNH
+        else
             local humanoid = character:FindFirstChild("Humanoid")
-            
-            -- Nếu chết hoặc kẹt quá lâu thì reset về nhận quest mới
-            if (humanoid and humanoid.Health <= 0) or (tick() - lastQuestTime > 240) then
-                _G.HasActiveQuest = false
-                _G.FarmState = "CHECK_QUEST"
-                if humanoid and humanoid.Health <= 0 then task.wait(3) end
+            if humanoid and humanoid.Health <= 0 then
+                task.wait(3)
                 continue
             end
 
-            -- Bay tới bãi quái và đánh
             if (hrp.Position - questInfo.MobSpawn.Position).Magnitude > 25 then
                 TweenTo(questInfo.MobSpawn)
             else
