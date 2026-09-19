@@ -759,33 +759,37 @@ local function HasActiveQuest()
     return success and active
 end
 
--- Cập nhật lại hàm AutoTakeQuest thông minh hơn
+-- Biến cờ đánh dấu trạng thái nhiệm vụ
+_G.HasQuest = false
+
 local function AutoTakeQuest()
     pcall(function()
         local questInfo = GetCurrentQuest()
         if not questInfo then return end
 
-        -- Kiểm tra trên UI game xem hiện tại có đang làm đúng cái Quest này không
-        local questTitle = ""
-        pcall(function()
-            questTitle = LocalPlayer.PlayerGui.Main.Quest.Container.QuestTitle.Text
+        -- 1. Kiểm tra an toàn xem trên người đã có nhiệm vụ nào chưa bằng cách quét xem khung Quest có Visible không
+        local success, isVisible = pcall(function()
+            return LocalPlayer.PlayerGui.Main.Quest.Visible
         end)
-
-        -- Nếu trên màn hình đã hiện tên quest trùng với quest cần làm thì DỪNG LẠI, không tele về NPC nữa
-        if HasActiveQuest() and string.find(questTitle, questInfo.MobName) then
-            return 
+        
+        if success and isVisible then
+            -- Nếu khung quest đang mở, tức là đang có nhiệm vụ rồi -> KHÔNG nhận nữa, thoát hàm luôn
+            _G.HasQuest = true
+            return
+        else
+            _G.HasQuest = false
         end
 
-        -- Nếu chưa nhận hoặc đang làm quest khác thì mới tiến hành bay tới NPC nhận
+        -- 2. Nếu chưa có thì bay tới NPC nhận
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
             local hrp = LocalPlayer.Character.HumanoidRootPart
             if (hrp.Position - questInfo.NpcPosition.Position).Magnitude > 15 then
-                TweenTo(questInfo.NpcPosition) -- Dùng Tween bay tới NPC cho mượt thay vì giật cục
+                TweenTo(questInfo.NpcPosition)
                 task.wait(0.5)
             end
         end
 
-        -- Gửi lệnh nhận nhiệm vụ
+        -- 3. Gửi lệnh nhận nhiệm vụ
         ReplicatedStorage.Remotes.CommF_:InvokeServer("StartQuest", questInfo.QuestName, questInfo.QuestId)
         task.wait(1)
     end)
