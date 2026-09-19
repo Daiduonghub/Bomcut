@@ -683,18 +683,18 @@ local StatsTab = Window:CreateTab("Stats and sever")
 local FarmTab = Window:CreateTab("Tab Farming")
 
 -- ====================================================================
--- 0. KHỞI TẠO BIẾN & CẤU HÌNH STATE MACHINE + SETCLIPBOARD DEBUG
+-- 0. KHỞI TẠO BIẾN & CẤU HÌNH STATE MACHINE (CHECK DATA PLAYER)
 -- ====================================================================
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
-_G.AutoFarm = true
+_G.AutoFarm = false
 _G.FarmState = "CHECK_QUEST"
 
 -- ====================================================================
--- 1. DATABASE NHIỆM VỤ FIRST SEA
+-- 1. DATABASE NHIỆM VỤ FIRST SEA (Đã chuẩn hóa BanditQuest)
 -- ====================================================================
 local FirstSeaQuests = {
     [1] = {
@@ -722,7 +722,7 @@ local FirstSeaQuests = {
         { MinLevel = 30, MaxLevel = 39, QuestName = "BuggyQuest", QuestId = 1, NpcName = "Rich Man", NpcPosition = CFrame.new(-1140, 5, 3828), MobName = "Pirate", MobSpawn = CFrame.new(-1201, 14, 3938) },
         { MinLevel = 15, MaxLevel = 29, QuestName = "JungleQuest", QuestId = 2, NpcName = "Adventurer", NpcPosition = CFrame.new(-1601, 37, 153), MobName = "Gorilla", MobSpawn = CFrame.new(-1237, 6, -510) },
         { MinLevel = 10, MaxLevel = 14, QuestName = "JungleQuest", QuestId = 1, NpcName = "Adventurer", NpcPosition = CFrame.new(-1601, 37, 153), MobName = "Monkey", MobSpawn = CFrame.new(-1498, 51, 60) },
-        { MinLevel = 1, MaxLevel = 9, QuestName = "BanditQuest1", QuestId = 1, NpcName = "Bandit Hero", NpcPosition = CFrame.new(1059, 16, 1549), MobName = "Bandit", MobSpawn = CFrame.new(1141, 17, 1690) }
+        { MinLevel = 1, MaxLevel = 9, QuestName = "BanditQuest", QuestId = 1, NpcName = "Bandit Hero", NpcPosition = CFrame.new(1059, 16, 1549), MobName = "Bandit", MobSpawn = CFrame.new(1141, 17, 1690) }
     }
 }
 
@@ -765,7 +765,7 @@ local function TweenTo(targetCFrame)
 end
 
 -- ====================================================================
--- HÀM LẤY THÔNG TIN & CHỐNG LỖI FALLBACK LEVEL
+-- HÀM LẤY THÔNG TIN & CHECK DATA PLAYER CHUẨN XÁC
 -- ====================================================================
 local function GetLevel()
     local success, level = pcall(function() return LocalPlayer.Data.Level.Value end)
@@ -774,10 +774,7 @@ end
 
 local function GetCurrentQuest()
     local currentLevel = GetLevel()
-    
-    if currentLevel > 700 then
-        return nil
-    end
+    if currentLevel > 700 then return nil end
 
     local seaQuests = FirstSeaQuests[1]
     if not seaQuests then return nil end
@@ -790,15 +787,20 @@ local function GetCurrentQuest()
     return nil
 end
 
-local function IsQuestUIVisible()
-    local visible = false
+-- Kiểm tra trực tiếp dữ liệu/trạng thái quest đang nằm trên người Player
+local function HasQuestData()
+    local hasQuest = false
     pcall(function()
-        local questGui = LocalPlayer.PlayerGui.Main.Quest
-        if questGui then
-            visible = questGui.Visible
+        -- Kiểm tra thông qua giá trị Quest trong PlayerGui hoặc data ngầm của game
+        local questContainer = LocalPlayer.PlayerGui.Main.Quest
+        if questContainer and questContainer.Visible then
+            local titleLabel = questContainer:FindFirstChild("Container") and questContainer.Container:FindFirstChild("Quest") and questContainer.Container.Quest:FindFirstChild("Title")
+            if titleLabel and titleLabel.Text ~= "" then
+                hasQuest = true
+            end
         end
     end)
-    return visible
+    return hasQuest
 end
 
 -- ====================================================================
@@ -853,7 +855,7 @@ local function AttackTarget(mobName)
 end
 
 -- ====================================================================
--- VÒNG LẶP CHÍNH KHÔNG DỰA VÀO UI NỮA (DÙNG FLAG NỘI BỘ SIÊU MƯỢT)
+-- VÒNG LẶP CHÍNH DÙNG STATE MACHINE KẾT HỢP CHECK DATA PLAYER
 -- ====================================================================
 task.spawn(function()
     while task.wait(0.3) do
@@ -871,38 +873,27 @@ task.spawn(function()
         end
 
         local questInfo = GetCurrentQuest()
-        if not questInfo then
-            setclipboard("Lỗi: Không tìm thấy quest phù hợp với level hiện tại: " .. tostring(currentLevel))
-            continue
-        end
+        if not questInfo then continue end
 
         local character = LocalPlayer.Character
         local hrp = character and character:FindFirstChild("HumanoidRootPart")
         if not hrp then continue end
 
-        -- Khởi tạo biến trạng thái nếu chưa có
-        if not _G.HasActiveQuest then
-            _G.HasActiveQuest = false
-        end
+        -- Cập nhật clipboard để debug nếu cần
+        setclipboard(string.format("State: %s | HasData: %s | Level: %d", tostring(_G.FarmState), tostring(HasQuestData()), currentLevel))
 
-        setclipboard(string.format("State: %s | HasQuest: %s | Level: %d", tostring(_G.FarmState), tostring(_G.HasActiveQuest), currentLevel))
-
-        -- STATE MACHINE THỰC DỤNG (Không phụ thuộc UI game)
+        -- STATE MACHINE DỰA TRÊN DỮ LIỆU THỰC TẾ TRÊN NGƯỜI PLAYER
         if _G.FarmState == "CHECK_QUEST" then
-            -- Nếu chưa có cờ đang làm quest -> Đi nhận quest
-            if not _G.HasActiveQuest then
+            if not HasQuestData() then
                 _G.FarmState = "GET_QUEST"
             else
                 _G.FarmState = "FARM"
             end
 
         elseif _G.FarmState == "GET_QUEST" then
-            setclipboard(string.format("GET_QUEST -> Name: %s | ID: %d | NPC: %s", tostring(questInfo.QuestName), questInfo.QuestId, tostring(questInfo.NpcName)))
-
             if (hrp.Position - questInfo.NpcPosition.Position).Magnitude > 15 then
                 TweenTo(questInfo.NpcPosition)
             else
-                -- Gọi lệnh nhận quest
                 pcall(function()
                     ReplicatedStorage.Remotes.CommF_:InvokeServer(
                         "StartQuest",
@@ -911,16 +902,19 @@ task.spawn(function()
                     )
                 end)
                 
-                task.wait(0.5)
+                task.wait(0.6) -- Chờ server cấp quest vào data
                 
-                -- Đánh dấu đã nhận quest xong và ép chuyển thẳng sang FARM luôn, mặc kệ UI game hiển thị thế nào
-                _G.HasActiveQuest = true
-                _G.FarmState = "FARM"
+                if HasQuestData() then
+                    _G.FarmState = "FARM"
+                end
             end
 
         elseif _G.FarmState == "FARM" then
-            -- (Tùy chọn) Nếu muốn kiểm tra xem có chết hay không thì có thể check nhân vật, 
-            -- còn hiện tại cứ có cờ _G.HasActiveQuest = true là phi ra bãi quái đập thôi.
+            -- Nếu mất quest (hoàn thành hoặc chết), tự động trả về CHECK_QUEST để đi nhận lại
+            if not HasQuestData() then
+                _G.FarmState = "CHECK_QUEST"
+                continue
+            end
 
             if (hrp.Position - questInfo.MobSpawn.Position).Magnitude > 25 then
                 TweenTo(questInfo.MobSpawn)
