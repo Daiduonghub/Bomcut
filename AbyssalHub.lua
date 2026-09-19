@@ -690,11 +690,11 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
-_G.AutoFarm = true
+_G.AutoFarm = false
 _G.HasActiveQuest = false
 
 -- ====================================================================
--- 1. DATABASE NHIỆM VỤ FIRST SEA (Đã fix chuẩn xác tên QuestName)
+-- 1. DATABASE NHIỆM VỤ FIRST SEA
 -- ====================================================================
 local FirstSeaQuests = {
     [1] = {
@@ -721,13 +721,13 @@ local FirstSeaQuests = {
         { MinLevel = 40, MaxLevel = 59, QuestName = "BuggyQuest1", QuestId = 2, NpcName = "Rich Man", NpcPosition = CFrame.new(-1140, 5, 3828), MobName = "Brute", MobSpawn = CFrame.new(-1390, 16, 4101) },
         { MinLevel = 30, MaxLevel = 39, QuestName = "BuggyQuest1", QuestId = 1, NpcName = "Rich Man", NpcPosition = CFrame.new(-1140, 5, 3828), MobName = "Pirate", MobSpawn = CFrame.new(-1201, 14, 3938) },
         { MinLevel = 15, MaxLevel = 29, QuestName = "JungleQuest", QuestId = 2, NpcName = "Adventurer", NpcPosition = CFrame.new(-1601, 37, 153), MobName = "Gorilla", MobSpawn = CFrame.new(-1237, 6, -510) },
-        { MinLevel = 10, MaxLevel = 14, QuestName = "JungleQuest", QuestId = 1, NpcName = "Adventurer", NpcPosition =CFrame.new(-1683.78, 50.35, 171.07), MobName = "Monkey", MobSpawn = CFrame.new(-1498, 51, 60) },
+        { MinLevel = 10, MaxLevel = 14, QuestName = "JungleQuest", QuestId = 1, NpcName = "Adventurer", NpcPosition = CFrame.new(-1683.78, 50.35, 171.07), MobName = "Monkey", MobSpawn = CFrame.new(-1498, 51, 60) },
         { MinLevel = 1, MaxLevel = 9, QuestName = "BanditQuest1", QuestId = 1, NpcName = "Bandit Hero", NpcPosition = CFrame.new(1059, 16, 1549), MobName = "Bandit", MobSpawn = CFrame.new(1141, 17, 1690) }
     }
 }
 
 -- ====================================================================
--- HÀM HỖ TRỢ CHUNG
+-- HÀM HỖ TRỢ CHUNG (ĐÃ FIX ĐỘ CAO KHI TWEEN)
 -- ====================================================================
 local function TweenTo(targetCFrame)
     local character = LocalPlayer.Character
@@ -743,7 +743,8 @@ local function TweenTo(targetCFrame)
     end
 
     local tweenInfo = TweenInfo.new(distance / speed, Enum.EasingStyle.Linear)
-    local tween = TweenService:Create(hrp, tweenInfo, {CFrame = targetCFrame + Vector3.new(0, 10, 0)})
+    -- Giữ nguyên đích đến, không cộng bừa độ cao để tránh bị nhồi lệnh giật lên xuống
+    local tween = TweenService:Create(hrp, tweenInfo, {CFrame = targetCFrame})
     
     _G.Tweening = tween
     tween:Play()
@@ -786,9 +787,6 @@ end
 -- ====================================================================
 -- LUỒNG 1: CHECK TRẠNG THÁI QUEST QUA PLAYERGUI
 -- ====================================================================
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-
 task.spawn(function()
     while task.wait(0.5) do
         if not _G.AutoFarm then continue end
@@ -838,7 +836,7 @@ local function GetClosestMob(mobName)
 end
 
 -- ====================================================================
--- HÀM ĐÁNH QUÁI (ĐÃ FIX ỔN ĐỊNH TỌA ĐỘ VÀ GỬI HIT CHUẨN XÁC)
+-- HÀM ĐÁNH QUÁI (KHÓA CỐ ĐỊNH TRÊN ĐẦU, CHỐNG RUNG LẮC)
 -- ====================================================================
 local NetModules = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
 local RegisterAttack = NetModules:FindFirstChild("RE/RegisterAttack")
@@ -855,8 +853,8 @@ local function AttackTarget(mobName)
             local hrp = LocalPlayer.Character.HumanoidRootPart
             local enemyHrp = targetMob.HumanoidRootPart
             
-            -- Khóa cứng vị trí lơ lửng trên đầu quái (cao hơn 10 stud) để không bị rung lắc
-            hrp.CFrame = CFrame.new(enemyHrp.Position + Vector3.new(0, 10, 0), enemyHrp.Position)
+            -- Khóa góc nhìn thẳng vào quái và đứng lơ lửng ở độ cao cố định +12 stud
+            hrp.CFrame = CFrame.new(enemyHrp.Position + Vector3.new(0, 12, 0), enemyHrp.Position)
             
             local limb = targetMob:FindFirstChild("LeftLowerLeg") or targetMob:FindFirstChild("HumanoidRootPart")
             if limb then
@@ -930,14 +928,13 @@ task.spawn(function()
             if targetMob and targetMob:FindFirstChild("HumanoidRootPart") then
                 local mobHrp = targetMob.HumanoidRootPart
                 
-                -- Tạo vị trí đứng tĩnh: Giữ nguyên X, Z của quái, cố định trục Y cao hơn 10 stud
-                local fixedPosition = Vector3.new(mobHrp.Position.X, mobHrp.Position.Y + 10, mobHrp.Position.Z)
+                -- Tạo vị trí chuẩn trên đầu quái (cách 12 stud theo trục Y)
+                local fixedPosition = CFrame.new(mobHrp.Position.X, mobHrp.Position.Y + 12, mobHrp.Position.Z, mobHrp.CFrame.LookVector.X, 0, mobHrp.CFrame.LookVector.Z)
                 
-                -- Nếu khoảng cách lớn hơn 4 stud thì tween nhẹ tới, còn lại khóa cứng và xả đòn
-                if (hrp.Position - fixedPosition).Magnitude > 4 then
-                    TweenTo(CFrame.new(fixedPosition, mobHrp.Position))
+                -- Nếu ở xa thì dùng Tween bay đến, còn khi đã áp sát trong phạm vi 8 stud thì khóa chặt tọa độ lập tức không dùng Tween nữa để tránh bị giật
+                if (hrp.Position - fixedPosition.Position).Magnitude > 8 then
+                    TweenTo(fixedPosition)
                 else
-                    hrp.CFrame = CFrame.new(fixedPosition, mobHrp.Position)
                     AttackTarget(questInfo.MobName)
                 end
             else
