@@ -683,15 +683,17 @@ local StatsTab = Window:CreateTab("Stats and sever")
 local FarmTab = Window:CreateTab("Tab Farming")
 
 -- ====================================================================
--- 0. KHỞI TẠO BIẾN CƠ SỞ (ĐẶT LÊN ĐẦU TIÊN ĐỂ TRÁNH LỖI NIL)
+-- 0. KHỞI TẠO BIẾN & CẤU HÌNH
 -- ====================================================================
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
+_G.AutoFarm = true
+
 -- ====================================================================
--- 1. DATABASE NHIỆM VỤ FIRST SEA (SEA 1)
+-- 1. DATABASE NHIỆM VỤ FIRST SEA
 -- ====================================================================
 local FirstSeaQuests = {
     [1] = {
@@ -724,7 +726,7 @@ local FirstSeaQuests = {
 }
 
 -- ====================================================================
--- HÀM TWEEN (BAY MƯỢT MÀ VÀ CHỐNG RƠI)
+-- HÀM TWEEN AN TOÀN
 -- ====================================================================
 local function TweenTo(targetCFrame)
     local character = LocalPlayer.Character
@@ -732,28 +734,15 @@ local function TweenTo(targetCFrame)
     
     local hrp = character.HumanoidRootPart
     local distance = (hrp.Position - targetCFrame.Position).Magnitude
-    local speed = 300 
+    local speed = 300
     
-    -- Nếu quá gần thì tele thẳng luôn
     if distance < 20 then
         hrp.CFrame = targetCFrame
         return
     end
 
-    -- Thêm BodyVelocity để nhân vật không bị rớt xuống đất hoặc kẹt khi bay
-    local bv = hrp:FindFirstChild("TweenBV")
-    if not bv then
-        bv = Instance.new("BodyVelocity")
-        bv.Name = "TweenBV"
-        bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-        bv.Velocity = Vector3.zero
-        bv.Parent = hrp
-    end
-
-    -- Bay cao lên 15 stud so với mặt đất để tránh kẹt cây/đá
-    local finalCFrame = targetCFrame * CFrame.new(0, 15, 0)
     local tweenInfo = TweenInfo.new(distance / speed, Enum.EasingStyle.Linear)
-    local tween = TweenService:Create(hrp, tweenInfo, {CFrame = finalCFrame})
+    local tween = TweenService:Create(hrp, tweenInfo, {CFrame = targetCFrame + Vector3.new(0, 10, 0)})
     
     _G.Tweening = tween
     tween:Play()
@@ -772,18 +761,13 @@ local function TweenTo(targetCFrame)
             break
         end
     end
-    
-    -- Xóa BodyVelocity khi bay tới nơi
-    if bv then bv:Destroy() end
 end
 
 -- ====================================================================
--- 2. CÁC HÀM XỬ LÝ NHIỆM VỤ (AUTO QUEST LOGIC)
+-- CÁC HÀM XỬ LÝ
 -- ====================================================================
 local function GetLevel()
-    local success, level = pcall(function()
-        return LocalPlayer.Data.Level.Value
-    end)
+    local success, level = pcall(function() return LocalPlayer.Data.Level.Value end)
     return success and level or 1
 end
 
@@ -800,7 +784,6 @@ local function GetCurrentQuest()
     return seaQuests[1]
 end
 
--- Hàm check UI siêu chuẩn (đảm bảo không bao giờ nhận nhầm)
 local function HasActiveQuest()
     local hasQuest = false
     pcall(function()
@@ -811,28 +794,8 @@ local function HasActiveQuest()
     return hasQuest
 end
 
-local function AutoTakeQuest()
-    pcall(function()
-        local questInfo = GetCurrentQuest()
-        if not questInfo then return end
-
-        if HasActiveQuest() then return end
-
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            local hrp = LocalPlayer.Character.HumanoidRootPart
-            if (hrp.Position - questInfo.NpcPosition.Position).Magnitude > 15 then
-                TweenTo(questInfo.NpcPosition)
-                task.wait(0.5)
-            end
-        end
-
-        ReplicatedStorage.Remotes.CommF_:InvokeServer("StartQuest", questInfo.QuestName, questInfo.QuestId)
-        task.wait(1)
-    end)
-end
-
 -- ====================================================================
--- 6. HÀM TỰ ĐỘNG TẤN CÔNG QUÁI (AUTO ATTACK)
+-- HÀM ĐÁNH QUÁI
 -- ====================================================================
 local NetModules = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
 local RegisterAttack = NetModules:FindFirstChild("RE/RegisterAttack")
@@ -869,10 +832,9 @@ local function AttackTarget(mobName)
 
         local targetMob = GetClosestMob(mobName)
         if targetMob and targetMob:FindFirstChild("LeftLowerLeg") and RegisterHit then
-            -- Tự động xoay mặt về phía quái khi đánh
             local hrp = LocalPlayer.Character.HumanoidRootPart
-            hrp.CFrame = CFrame.new(hrp.Position, Vector3.new(targetMob.HumanoidRootPart.Position.X, hrp.Position.Y, targetMob.HumanoidRootPart.Position.Z))
-
+            hrp.CFrame = CFrame.new(targetMob.HumanoidRootPart.Position + Vector3.new(0, 8, 0), targetMob.HumanoidRootPart.Position)
+            
             local args = {
                 [1] = targetMob.LeftLowerLeg,
                 [2] = {},
@@ -883,21 +845,28 @@ local function AttackTarget(mobName)
     end)
 end
 
-_G.Autofarm = false
-
 -- ====================================================================
--- VÒNG LẶP AUTO FARM CHÍNH
+-- VÒNG LẶP CHÍNH (ĐÃ FIX CHỐNG KẸT QUEST)
 -- ====================================================================
 task.spawn(function()
-    while task.wait(0.2) do
+    while task.wait(0.3) do
         if _G.AutoFarm then
             local questInfo = GetCurrentQuest()
             if questInfo then
                 if not HasActiveQuest() then
-                    -- Chưa có nhiệm vụ -> Đi nhận
-                    AutoTakeQuest()
+                    -- 1. Chưa có nhiệm vụ -> Bay tới NPC
+                    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if hrp and (hrp.Position - questInfo.NpcPosition.Position).Magnitude > 15 then
+                        TweenTo(questInfo.NpcPosition)
+                    else
+                        -- Tới sát NPC thì gọi lệnh nhận quest 1 lần duy nhất rồi ngưng 1.5s để tránh spam lỗi server
+                        pcall(function()
+                            ReplicatedStorage.Remotes.CommF_:InvokeServer("StartQuest", questInfo.QuestName, questInfo.QuestId)
+                        end)
+                        task.wait(1.5) 
+                    end
                 else
-                    -- Có nhiệm vụ rồi -> Tween bay ra bãi quái
+                    -- 2. Đã có nhiệm vụ -> Bay thẳng ra bãi quái cày
                     local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
                     if hrp and questInfo.MobSpawn then
                         if (hrp.Position - questInfo.MobSpawn.Position).Magnitude > 25 then
@@ -909,13 +878,8 @@ task.spawn(function()
                 end
             end
         else
-            -- Nếu tắt AutoFarm thì dừng rớt/hủy tween
             if _G.Tweening then
                 _G.Tweening:Cancel()
-            end
-            local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            if hrp and hrp:FindFirstChild("TweenBV") then
-                hrp.TweenBV:Destroy()
             end
         end
     end
