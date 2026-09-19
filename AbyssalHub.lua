@@ -690,11 +690,11 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
-_G.AutoFarm = false
+_G.AutoFarm = true
 _G.HasActiveQuest = false
 
 -- ====================================================================
--- 1. DATABASE NHIỆM VỤ FIRST SEA (Đã chuẩn hóa BanditQuest)
+-- 1. DATABASE NHIỆM VỤ FIRST SEA (Đã fix chuẩn xác tên QuestName)
 -- ====================================================================
 local FirstSeaQuests = {
     [1] = {
@@ -713,16 +713,16 @@ local FirstSeaQuests = {
         { MinLevel = 190, MaxLevel = 209, QuestName = "PrisonerQuest", QuestId = 1, NpcName = "Military Detective", NpcPosition = CFrame.new(487, 5, 327), MobName = "Prisoner", MobSpawn = CFrame.new(524, 5, 484) },
         { MinLevel = 175, MaxLevel = 189, QuestName = "SkyQuest", QuestId = 2, NpcName = "Mad Scientist", NpcPosition = CFrame.new(-4842, 718, -2622), MobName = "Dark Master", MobSpawn = CFrame.new(-5244, 431, -2279) },
         { MinLevel = 150, MaxLevel = 174, QuestName = "SkyQuest", QuestId = 1, NpcName = "Mad Scientist", NpcPosition = CFrame.new(-4842, 718, -2622), MobName = "Sky Bandit", MobSpawn = CFrame.new(-4962, 281, -2880) },
-        { MinLevel = 120, MaxLevel = 149, QuestName = "MarineQuest", QuestId = 1, NpcName = "Navy Lieutenant", NpcPosition = CFrame.new(-2440, 13, 3216), MobName = "Chief Petty Officer", MobSpawn = CFrame.new(-2566, 6, 3314) },
+        { MinLevel = 120, MaxLevel = 149, QuestName = "MarineQuest2", QuestId = 1, NpcName = "Navy Lieutenant", NpcPosition = CFrame.new(-2440, 13, 3216), MobName = "Chief Petty Officer", MobSpawn = CFrame.new(-2566, 6, 3314) },
         { MinLevel = 100, MaxLevel = 119, QuestName = "SnowQuest", QuestId = 2, NpcName = "Snow Adventurer", NpcPosition = CFrame.new(1386, 87, -1298), MobName = "Snowman", MobSpawn = CFrame.new(1361, 87, -1544) },
         { MinLevel = 90, MaxLevel = 99, QuestName = "SnowQuest", QuestId = 1, NpcName = "Snow Adventurer", NpcPosition = CFrame.new(1386, 87, -1298), MobName = "Snow Bandit", MobSpawn = CFrame.new(1279, 104, -1433) },
         { MinLevel = 75, MaxLevel = 89, QuestName = "DesertQuest", QuestId = 2, NpcName = "Desert Adventurer", NpcPosition = CFrame.new(897, 7, 4388), MobName = "Desert Officer", MobSpawn = CFrame.new(1134, 10, 4424) },
         { MinLevel = 60, MaxLevel = 74, QuestName = "DesertQuest", QuestId = 1, NpcName = "Desert Adventurer", NpcPosition = CFrame.new(897, 7, 4388), MobName = "Desert Bandit", MobSpawn = CFrame.new(944, 7, 4277) },
-        { MinLevel = 40, MaxLevel = 59, QuestName = "BuggyQuest", QuestId = 2, NpcName = "Rich Man", NpcPosition = CFrame.new(-1140, 5, 3828), MobName = "Brute", MobSpawn = CFrame.new(-1390, 16, 4101) },
-        { MinLevel = 30, MaxLevel = 39, QuestName = "BuggyQuest", QuestId = 1, NpcName = "Rich Man", NpcPosition = CFrame.new(-1140, 5, 3828), MobName = "Pirate", MobSpawn = CFrame.new(-1201, 14, 3938) },
+        { MinLevel = 40, MaxLevel = 59, QuestName = "BuggyQuest1", QuestId = 2, NpcName = "Rich Man", NpcPosition = CFrame.new(-1140, 5, 3828), MobName = "Brute", MobSpawn = CFrame.new(-1390, 16, 4101) },
+        { MinLevel = 30, MaxLevel = 39, QuestName = "BuggyQuest1", QuestId = 1, NpcName = "Rich Man", NpcPosition = CFrame.new(-1140, 5, 3828), MobName = "Pirate", MobSpawn = CFrame.new(-1201, 14, 3938) },
         { MinLevel = 15, MaxLevel = 29, QuestName = "JungleQuest", QuestId = 2, NpcName = "Adventurer", NpcPosition = CFrame.new(-1601, 37, 153), MobName = "Gorilla", MobSpawn = CFrame.new(-1237, 6, -510) },
         { MinLevel = 10, MaxLevel = 14, QuestName = "JungleQuest", QuestId = 1, NpcName = "Adventurer", NpcPosition = CFrame.new(-1601, 37, 153), MobName = "Monkey", MobSpawn = CFrame.new(-1498, 51, 60) },
-        { MinLevel = 1, MaxLevel = 9, QuestName = "BanditQuest", QuestId = 1, NpcName = "Bandit Hero", NpcPosition = CFrame.new(1059, 16, 1549), MobName = "Bandit", MobSpawn = CFrame.new(1141, 17, 1690) }
+        { MinLevel = 1, MaxLevel = 9, QuestName = "BanditQuest1", QuestId = 1, NpcName = "Bandit Hero", NpcPosition = CFrame.new(1059, 16, 1549), MobName = "Bandit", MobSpawn = CFrame.new(1141, 17, 1690) }
     }
 }
 
@@ -784,7 +784,7 @@ local function GetCurrentQuest()
 end
 
 -- ====================================================================
--- LUỒNG 1: CHUYÊN ĐỘC LẬP CHECK TRẠNG THÁI QUEST TRÊN GUI
+-- LUỒNG 1: CHECK TRẠNG THÁI QUEST TRÊN GUI
 -- ====================================================================
 task.spawn(function()
     while task.wait(0.5) do
@@ -857,7 +857,7 @@ local function AttackTarget(mobName)
 end
 
 -- ====================================================================
--- LUỒNG 2: CHUYÊN ĐỘC LẬP THỰC THI HÀNH ĐỘNG (GET QUEST HOẶC FARM)
+-- LUỒNG 2: THỰC THI (GET QUEST HOẶC FARM)
 -- ====================================================================
 task.spawn(function()
     while task.wait(0.5) do
@@ -879,28 +879,32 @@ task.spawn(function()
         local hrp = character and character:FindFirstChild("HumanoidRootPart")
         if not hrp then continue end
 
-        -- Debug trực quan trạng thái
-        setclipboard(string.format("HasQuest: %s | Level: %d", tostring(_G.HasActiveQuest), currentLevel))
+        setclipboard(string.format("HasQuest: %s | Level: %d | Quest: %s", tostring(_G.HasActiveQuest), currentLevel, questInfo.QuestName))
 
-        -- NẾU CHƯA CÓ QUEST -> TẬP TRUNG TỚI NPC VÀ BẮN REQUEST NHẬN
+        -- CHƯA CÓ QUEST -> TỚI NPC VÀ GỬI REQUEST
         if not _G.HasActiveQuest then
-            if (hrp.Position - questInfo.NpcPosition.Position).Magnitude > 8 then
+            if (hrp.Position - questInfo.NpcPosition.Position).Magnitude > 6 then
                 TweenTo(questInfo.NpcPosition)
             else
                 hrp.CFrame = questInfo.NpcPosition
                 task.wait(0.2)
                 
-                pcall(function()
+                local success, err = pcall(function()
                     ReplicatedStorage.Remotes.CommF_:InvokeServer(
                         "StartQuest",
                         questInfo.QuestName,
                         questInfo.QuestId
                     )
                 end)
-                task.wait(1.0) -- Đợi server phản hồi cập nhật UI
+                
+                if not success then
+                    warn("Lỗi nhận quest: " .. tostring(err))
+                end
+                
+                task.wait(1.5) -- Chờ server phản hồi UI
             end
 
-        -- NẾU ĐÃ CÓ QUEST -> TẬP TRUNG ĐI RA BÃI QUÁI VÀ ĐÁNH
+        -- ĐÃ CÓ QUEST -> ĐI FARM
         else
             local humanoid = character:FindFirstChild("Humanoid")
             if humanoid and humanoid.Health <= 0 then
