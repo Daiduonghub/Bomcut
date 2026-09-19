@@ -905,8 +905,11 @@ task.spawn(function()
                     )
                 end)
                 
-                task.wait(1.0)
-                _G.FarmState = "FARM"
+                -- Đợi một chút và check xem UI đã lên chưa, thay vì ép đổi state mù quáng
+                task.wait(0.5)
+                if IsQuestUIVisible() then
+                    _G.FarmState = "FARM"
+                end
             end
 
         elseif _G.FarmState == "FARM" then
