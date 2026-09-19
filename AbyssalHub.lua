@@ -855,10 +855,10 @@ local function AttackTarget(mobName)
 end
 
 -- ====================================================================
--- VÒNG LẶP CHÍNH DÙNG STATE MACHINE KẾT HỢP CHECK DATA PLAYER
+-- VÒNG LẶP CHÍNH CHỐNG SPAM & ĐIỀU HƯỚNG STATE MƯỢT MÀ
 -- ====================================================================
 task.spawn(function()
-    while task.wait(0.3) do
+    while task.wait(0.5) do -- Tăng nhẹ thời gian chờ vòng lặp lên 0.5s để chống nghẽn mạng/spam server
         if not _G.AutoFarm then
             if _G.Tweening then
                 _G.Tweening:Cancel()
@@ -879,12 +879,16 @@ task.spawn(function()
         local hrp = character and character:FindFirstChild("HumanoidRootPart")
         if not hrp then continue end
 
-        -- Cập nhật clipboard để debug nếu cần
-        setclipboard(string.format("State: %s | HasData: %s | Level: %d", tostring(_G.FarmState), tostring(HasQuestData()), currentLevel))
+        -- Khởi tạo cờ trạng thái nhiệm vụ nội bộ nếu chưa có
+        if _G.HasQuestFlag == nil then
+            _G.HasQuestFlag = false
+        end
 
-        -- STATE MACHINE DỰA TRÊN DỮ LIỆU THỰC TẾ TRÊN NGƯỜI PLAYER
+        setclipboard(string.format("State: %s | Flag: %s | Level: %d", tostring(_G.FarmState), tostring(_G.HasQuestFlag), currentLevel))
+
+        -- STATE MACHINE THỰC DỤNG KHÔNG LỆ THUỘC UI LỎM
         if _G.FarmState == "CHECK_QUEST" then
-            if not HasQuestData() then
+            if not _G.HasQuestFlag then
                 _G.FarmState = "GET_QUEST"
             else
                 _G.FarmState = "FARM"
@@ -894,6 +898,7 @@ task.spawn(function()
             if (hrp.Position - questInfo.NpcPosition.Position).Magnitude > 15 then
                 TweenTo(questInfo.NpcPosition)
             else
+                -- Tới nơi: Gọi lệnh nhận quest đúng 1 lần
                 pcall(function()
                     ReplicatedStorage.Remotes.CommF_:InvokeServer(
                         "StartQuest",
@@ -902,20 +907,23 @@ task.spawn(function()
                     )
                 end)
                 
-                task.wait(0.6) -- Chờ server cấp quest vào data
-                
-                if HasQuestData() then
-                    _G.FarmState = "FARM"
-                end
+                -- Đợi server phản hồi gói tin và bật cờ sang trạng thái farm ngay lập tức
+                task.wait(1.0)
+                _G.HasQuestFlag = true
+                _G.FarmState = "FARM"
             end
 
         elseif _G.FarmState == "FARM" then
-            -- Nếu mất quest (hoàn thành hoặc chết), tự động trả về CHECK_QUEST để đi nhận lại
-            if not HasQuestData() then
+            -- Kiểm tra cơ chế an toàn: nếu lượng máu player = 0 (vừa chết) thì reset cờ để đi nhận lại quest
+            local humanoid = character:FindFirstChild("Humanoid")
+            if humanoid and humanoid.Health <= 0 then
+                _G.HasQuestFlag = false
                 _G.FarmState = "CHECK_QUEST"
+                task.wait(3) -- Đợi hồi sinh rồi tính tiếp
                 continue
             end
 
+            -- Tiến hành bay ra bãi quái spawn và đánh
             if (hrp.Position - questInfo.MobSpawn.Position).Magnitude > 25 then
                 TweenTo(questInfo.MobSpawn)
             else
