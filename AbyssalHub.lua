@@ -783,9 +783,9 @@ local function GetCurrentQuest()
     return nil
 end
 
--- ====================================================================
--- LUỒNG 1: CHECK TRẠNG THÁI QUEST QUA TRACKEDQUESTFRAME
--- ====================================================================
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
 task.spawn(function()
     while task.wait(0.5) do
         if not _G.AutoFarm then continue end
@@ -793,11 +793,8 @@ task.spawn(function()
         local hasQuestOnGui = false
         pcall(function()
             local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-            if playerGui then
-                local questFrame = playerGui:FindFirstChild("TrackedQuestFrame", true)
-                if questFrame and questFrame.Visible then
-                    hasQuestOnGui = true
-                end
+            if playerGui and playerGui:FindFirstChild("TrackedQuestFrame") then
+                hasQuestOnGui = true
             end
         end)
         
