@@ -792,11 +792,22 @@ task.spawn(function()
         
         local hasQuestOnGui = false
         pcall(function()
-            local questGui = LocalPlayer.PlayerGui:FindFirstChild("Main") and LocalPlayer.PlayerGui.Main:FindFirstChild("Quest")
-            if questGui and questGui.Visible then
-                local container = questGui:FindFirstChild("Container")
-                if container and container:FindFirstChild("Quest") then
-                    hasQuestOnGui = true
+            local mainGui = LocalPlayer.PlayerGui:FindFirstChild("Main")
+            if mainGui then
+                local questContainer = mainGui:FindFirstChild("Quest")
+                if questContainer and questContainer.Visible then
+                    local containerChild = questContainer:FindFirstChild("Container")
+                    if containerChild then
+                        for _, child in ipairs(containerChild:GetChildren()) do
+                            if child.Name == "Quest" or child:IsA("Frame") then
+                                local titleLabel = child:FindFirstChild("Title") or child:FindFirstChild("Name")
+                                if titleLabel or child.Visible then
+                                    hasQuestOnGui = true
+                                    break
+                                end
+                            end
+                        end
+                    end
                 end
             end
         end)
