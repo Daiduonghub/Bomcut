@@ -840,7 +840,7 @@ local function AttackTarget(mobName)
 end
 
 -- ====================================================================
--- VÒNG LẶP CHÍNH DÙNG FLAG VÀ THỜI GIAN (TUYỆT ĐỐI KHÔNG BỊ LỖI SERVER)
+-- VÒNG LẶP CHÍNH FIX TRIỆT ĐỂ LỖI ĐỨNG LÌ Ở NPC KHÔNG GỬI REQUEST
 -- ====================================================================
 task.spawn(function()
     local lastQuestTime = 0
@@ -868,7 +868,7 @@ task.spawn(function()
 
         setclipboard(string.format("State: %s | HasQuest: %s | Level: %d", tostring(_G.FarmState), tostring(_G.HasActiveQuest), currentLevel))
 
-        -- STATE MACHINE CHUẨN XÁC
+        -- STATE MACHINE XỬ LÝ GỌN GÀNG
         if _G.FarmState == "CHECK_QUEST" then
             if not _G.HasActiveQuest then
                 _G.FarmState = "GET_QUEST"
@@ -877,46 +877,47 @@ task.spawn(function()
             end
 
         elseif _G.FarmState == "GET_QUEST" then
-            if (hrp.Position - questInfo.NpcPosition.Position).Magnitude > 15 then
+            -- Nếu còn ở xa NPC thì bay tới
+            if (hrp.Position - questInfo.NpcPosition.Position).Magnitude > 10 then
                 TweenTo(questInfo.NpcPosition)
             else
-                -- Tới sát NPC, bắn request nhận quest dứt khoát
-                pcall(function()
-                    ReplicatedStorage.Remotes.CommF_:InvokeServer(
-                        "StartQuest",
-                        questInfo.QuestName,
-                        questInfo.QuestId
-                    )
-                end)
+                -- Đã đến sát cạnh NPC: Ép vị trí đứng thẳng vào NPC luôn cho chắc ăn
+                hrp.CFrame = questInfo.NpcPosition
+                task.wait(0.2)
+
+                -- Gửi request nhận quest liên tục đến khi nào server nhận thì thôi
+                local success = false
+                for i = 1, 3 do
+                    success = pcall(function()
+                        ReplicatedStorage.Remotes.CommF_:InvokeServer(
+                            "StartQuest",
+                            questInfo.QuestName,
+                            questInfo.QuestId
+                        )
+                    end)
+                    if success then break end
+                    task.wait(0.3)
+                end
                 
-                -- Dừng lại 1 nhịp để server kịp cộng quest vào
-                task.wait(1.0)
-                
-                -- Bật cờ đã nhận quest và chuyển sang trạng thái FARM
+                -- Đợi 1 nhịp rồi bật cờ sang trạng thái farm
+                task.wait(0.8)
                 _G.HasActiveQuest = true
                 _G.FarmState = "FARM"
-                lastQuestTime = tick() -- Đánh dấu thời điểm nhận quest
+                lastQuestTime = tick()
             end
 
         elseif _G.FarmState == "FARM" then
             local humanoid = character:FindFirstChild("Humanoid")
             
-            -- Cơ chế an toàn 1: Nếu nhân vật chết, tự động bật cờ reset về CHECK_QUEST để đi nhận lại
-            if humanoid and humanoid.Health <= 0 then
+            -- Nếu chết hoặc kẹt quá lâu thì reset về nhận quest mới
+            if (humanoid and humanoid.Health <= 0) or (tick() - lastQuestTime > 240) then
                 _G.HasActiveQuest = false
                 _G.FarmState = "CHECK_QUEST"
-                task.wait(3) -- Đợi hồi sinh
+                if humanoid and humanoid.Health <= 0 then task.wait(3) end
                 continue
             end
 
-            -- Cơ chế an toàn 2: Nếu farm quá 4 phút mà chưa xong (phòng hờ kẹt quái), tự động reset quest mới
-            if tick() - lastQuestTime > 240 then
-                _G.HasActiveQuest = false
-                _G.FarmState = "CHECK_QUEST"
-                continue
-            end
-
-            -- Tiến hành bay đến bãi quái và đập
+            -- Bay tới bãi quái và đánh
             if (hrp.Position - questInfo.MobSpawn.Position).Magnitude > 25 then
                 TweenTo(questInfo.MobSpawn)
             else
