@@ -853,7 +853,7 @@ local function AttackTarget(mobName)
 end
 
 -- ====================================================================
--- VÒNG LẶP CHÍNH DÙNG SETCLIPBOARD ĐỂ COPY DEBUG
+-- VÒNG LẶP CHÍNH KHÔNG DỰA VÀO UI NỮA (DÙNG FLAG NỘI BỘ SIÊU MƯỢT)
 -- ====================================================================
 task.spawn(function()
     while task.wait(0.3) do
@@ -880,12 +880,17 @@ task.spawn(function()
         local hrp = character and character:FindFirstChild("HumanoidRootPart")
         if not hrp then continue end
 
-        -- Chép thông tin trạng thái thẳng vào Clipboard khi chạy vòng lặp
-        setclipboard(string.format("State: %s | QuestUI: %s | Level: %d", tostring(_G.FarmState), tostring(IsQuestUIVisible()), currentLevel))
+        -- Khởi tạo biến trạng thái nếu chưa có
+        if not _G.HasActiveQuest then
+            _G.HasActiveQuest = false
+        end
 
-        -- QUẢN LÝ TRẠNG THÁI (STATE MACHINE)
+        setclipboard(string.format("State: %s | HasQuest: %s | Level: %d", tostring(_G.FarmState), tostring(_G.HasActiveQuest), currentLevel))
+
+        -- STATE MACHINE THỰC DỤNG (Không phụ thuộc UI game)
         if _G.FarmState == "CHECK_QUEST" then
-            if not IsQuestUIVisible() then
+            -- Nếu chưa có cờ đang làm quest -> Đi nhận quest
+            if not _G.HasActiveQuest then
                 _G.FarmState = "GET_QUEST"
             else
                 _G.FarmState = "FARM"
@@ -897,6 +902,7 @@ task.spawn(function()
             if (hrp.Position - questInfo.NpcPosition.Position).Magnitude > 15 then
                 TweenTo(questInfo.NpcPosition)
             else
+                -- Gọi lệnh nhận quest
                 pcall(function()
                     ReplicatedStorage.Remotes.CommF_:InvokeServer(
                         "StartQuest",
@@ -905,18 +911,16 @@ task.spawn(function()
                     )
                 end)
                 
-                -- Đợi một chút và check xem UI đã lên chưa, thay vì ép đổi state mù quáng
                 task.wait(0.5)
-                if IsQuestUIVisible() then
-                    _G.FarmState = "FARM"
-                end
+                
+                -- Đánh dấu đã nhận quest xong và ép chuyển thẳng sang FARM luôn, mặc kệ UI game hiển thị thế nào
+                _G.HasActiveQuest = true
+                _G.FarmState = "FARM"
             end
 
         elseif _G.FarmState == "FARM" then
-            if not IsQuestUIVisible() then
-                _G.FarmState = "CHECK_QUEST"
-                continue
-            end
+            -- (Tùy chọn) Nếu muốn kiểm tra xem có chết hay không thì có thể check nhân vật, 
+            -- còn hiện tại cứ có cờ _G.HasActiveQuest = true là phi ra bãi quái đập thôi.
 
             if (hrp.Position - questInfo.MobSpawn.Position).Magnitude > 25 then
                 TweenTo(questInfo.MobSpawn)
