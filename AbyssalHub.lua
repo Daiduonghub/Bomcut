@@ -683,7 +683,7 @@ local StatsTab = Window:CreateTab("Stats and sever")
 local FarmTab = Window:CreateTab("Tab Farming")
 
 -- ====================================================================
--- 0. KHỞI TẠO BIẾN & CẤU HÌNH
+-- 0. KHỞI TẠO BIẾN & CẤU HÌNH CHỐNG KẸT
 -- ====================================================================
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -691,6 +691,7 @@ local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
 _G.AutoFarm = true
+_G.RequestingQuest = false -- Khóa chống spam lệnh nhận quest
 
 -- ====================================================================
 -- 1. DATABASE NHIỆM VỤ FIRST SEA
@@ -764,7 +765,7 @@ local function TweenTo(targetCFrame)
 end
 
 -- ====================================================================
--- CÁC HÀM XỬ LÝ
+-- CÁC HÀM KIỂM TRA TRẠNG THÁI
 -- ====================================================================
 local function GetLevel()
     local success, level = pcall(function() return LocalPlayer.Data.Level.Value end)
@@ -787,7 +788,9 @@ end
 local function HasActiveQuest()
     local hasQuest = false
     pcall(function()
-        if LocalPlayer.PlayerGui.Main.Quest.Visible then
+        local questGui = LocalPlayer.PlayerGui.Main.Quest
+        if questGui and questGui.Visible then
+            -- Kiểm tra thêm nếu khung nhiệm vụ có chứa chữ tiêu đề hợp lệ
             hasQuest = true
         end
     end)
@@ -846,27 +849,34 @@ local function AttackTarget(mobName)
 end
 
 -- ====================================================================
--- VÒNG LẶP CHÍNH (ĐÃ FIX CHỐNG KẸT QUEST)
+-- VÒNG LẶP CHÍNH (ĐÃ THÊM BIẾN KHÓA CHỐNG LẶP QUEST)
 -- ====================================================================
 task.spawn(function()
     while task.wait(0.3) do
         if _G.AutoFarm then
             local questInfo = GetCurrentQuest()
             if questInfo then
-                if not HasActiveQuest() then
-                    -- 1. Chưa có nhiệm vụ -> Bay tới NPC
+                -- Nếu trên giao diện CHƯA CÓ QUEST và KHÔNG BỊ KHÓA GỬI LỆNH
+                if not HasActiveQuest() and not _G.RequestingQuest then
                     local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
                     if hrp and (hrp.Position - questInfo.NpcPosition.Position).Magnitude > 15 then
                         TweenTo(questInfo.NpcPosition)
                     else
-                        -- Tới sát NPC thì gọi lệnh nhận quest 1 lần duy nhất rồi ngưng 1.5s để tránh spam lỗi server
+                        -- Đã tới NPC -> Kích hoạt khóa chống spam ngay lập tức
+                        _G.RequestingQuest = true
+                        
                         pcall(function()
                             ReplicatedStorage.Remotes.CommF_:InvokeServer("StartQuest", questInfo.QuestName, questInfo.QuestId)
                         end)
-                        task.wait(1.5) 
+                        
+                        -- Chờ một nhịp ngắn để server cập nhật giao diện Quest lên
+                        task.wait(1.5)
+                        
+                        -- Mở lại khóa để vòng lặp check lại
+                        _G.RequestingQuest = false
                     end
                 else
-                    -- 2. Đã có nhiệm vụ -> Bay thẳng ra bãi quái cày
+                    -- ĐÃ CÓ NHIỆM VỤ -> Bay thẳng ra bãi quái cày lẹ
                     local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
                     if hrp and questInfo.MobSpawn then
                         if (hrp.Position - questInfo.MobSpawn.Position).Magnitude > 25 then
