@@ -784,16 +784,27 @@ local function GetCurrentQuest()
     end
     return seaQuests[1]
 end
--- Biến cờ khóa trạng thái
-_G.HasQuest = false
+
+-- ====================================================================
+-- HÀM KIỂM TRA XEM ĐÃ CÓ QUEST CHƯA (DÙNG DATA NGẦM CỦA GAME)
+-- ====================================================================
+local function HasActiveQuest()
+    local success, questValue = pcall(function()
+        return LocalPlayer.Data.Quest.Value
+    end)
+    -- Nếu giá trị Quest khác rỗng ("") tức là đang có nhiệm vụ hoạt động
+    return success and questValue ~= "" and questValue ~= nil
+end
 
 local function AutoTakeQuest()
     pcall(function()
         local questInfo = GetCurrentQuest()
         if not questInfo then return end
 
-        if _G.HasQuest then return end
+        -- Nếu dữ liệu game báo đang có quest rồi thì thôi không nhận nữa
+        if HasActiveQuest() then return end
 
+        -- Bay tới NPC nhận nhiệm vụ
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
             local hrp = LocalPlayer.Character.HumanoidRootPart
             if (hrp.Position - questInfo.NpcPosition.Position).Magnitude > 15 then
@@ -802,9 +813,9 @@ local function AutoTakeQuest()
             end
         end
 
+        -- Gửi remote nhận quest
         ReplicatedStorage.Remotes.CommF_:InvokeServer("StartQuest", questInfo.QuestName, questInfo.QuestId)
-        _G.HasQuest = true
-        task.wait(1)
+        task.wait(1.5) -- Đợi chút để server cập nhật dữ liệu quest
     end)
 end
 
@@ -858,37 +869,26 @@ local function AttackTarget(mobName)
     end)
 end
 
--- Vòng lặp chính xử lý Auto Farm cực kỳ an toàn
+-- ====================================================================
+-- VÒNG LẶP CHÍNH AUTO FARM (DÙNG DATA SERVER, KHÔNG SỢ LỖI UI)
+-- ====================================================================
 task.spawn(function()
     while task.wait(0.3) do
         if _G.AutoFarm then
             local questInfo = GetCurrentQuest()
             if questInfo then
-                -- Dùng pcall bọc kín phần kiểm tra UI để tránh chết ngầm script
-                local hasActiveQuest = false
-                pcall(function()
-                    local questGui = LocalPlayer.PlayerGui:FindFirstChild("Main") and LocalPlayer.PlayerGui.Main:FindFirstChild("Quest")
-                    if questGui and questGui.Visible then
-                        hasActiveQuest = true
-                    end
-                end)
-
-                -- Nếu UI không hiển thị hoặc bị tắt -> coi như chưa có hoặc đã xong nhiệm vụ -> Mở khóa để nhận lại
-                if not hasActiveQuest then
-                    _G.HasQuest = false
-                end
-
-                if not _G.HasQuest then
-                    -- Chưa có nhiệm vụ -> Đi nhận
+                -- Kiểm tra trực tiếp xem người chơi đã có nhiệm vụ trong Data chưa
+                if not HasActiveQuest() then
+                    -- Chưa có -> Tiến hành bay đi nhận quest
                     AutoTakeQuest()
                 else
-                    -- Đã có nhiệm vụ -> Ra bãi quái cày bét nhè, không lo bị kéo về NPC nữa
+                    -- ĐÃ CÓ QUEST -> Lập tức bay ra bãi quái (`MobSpawn`) để cày bét nhè!
                     local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
                     if hrp and questInfo.MobSpawn then
                         if (hrp.Position - questInfo.MobSpawn.Position).Magnitude > 25 then
-                            TweenTo(questInfo.MobSpawn)
+                            TweenTo(questInfo.MobSpawn) -- Bay mượt ra bãi quái
                         else
-                            AttackTarget(questInfo.MobName)
+                            AttackTarget(questInfo.MobName) -- Đến nơi thì tẩn quái
                         end
                     end
                 end
