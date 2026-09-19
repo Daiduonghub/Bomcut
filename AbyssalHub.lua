@@ -784,7 +784,7 @@ local function GetCurrentQuest()
 end
 
 -- ====================================================================
--- LUỒNG 1: CHECK TRẠNG THÁI QUEST TRÊN GUI
+-- LUỒNG 1: CHECK TRẠNG THÁI QUEST QUA TRACKED QUEST FRAME
 -- ====================================================================
 task.spawn(function()
     while task.wait(0.5) do
@@ -792,21 +792,14 @@ task.spawn(function()
         
         local hasQuestOnGui = false
         pcall(function()
-            local mainGui = LocalPlayer.PlayerGui:FindFirstChild("Main")
-            if mainGui then
-                local questContainer = mainGui:FindFirstChild("Quest")
-                if questContainer and questContainer.Visible then
-                    local containerChild = questContainer:FindFirstChild("Container")
-                    if containerChild then
-                        for _, child in ipairs(containerChild:GetChildren()) do
-                            if child.Name == "Quest" or child:IsA("Frame") then
-                                local titleLabel = child:FindFirstChild("Title") or child:FindFirstChild("Name")
-                                if titleLabel or child.Visible then
-                                    hasQuestOnGui = true
-                                    break
-                                end
-                            end
-                        end
+            local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+            if playerGui then
+                local trackedQuest = playerGui:FindFirstChild("TrackedQuestFrame")
+                if trackedQuest and trackedQuest.Visible then
+                    -- Kiểm tra xem khung hiển thị quest có thực sự chứa nội dung nhiệm vụ không
+                    local frame = trackedQuest:FindFirstChild("Frame")
+                    if frame and frame.Visible then
+                        hasQuestOnGui = true
                     end
                 end
             end
