@@ -721,7 +721,7 @@ local FirstSeaQuests = {
         { MinLevel = 40, MaxLevel = 59, QuestName = "BuggyQuest1", QuestId = 2, NpcName = "Rich Man", NpcPosition = CFrame.new(-1140, 5, 3828), MobName = "Brute", MobSpawn = CFrame.new(-1390, 16, 4101) },
         { MinLevel = 30, MaxLevel = 39, QuestName = "BuggyQuest1", QuestId = 1, NpcName = "Rich Man", NpcPosition = CFrame.new(-1140, 5, 3828), MobName = "Pirate", MobSpawn = CFrame.new(-1201, 14, 3938) },
         { MinLevel = 15, MaxLevel = 29, QuestName = "JungleQuest", QuestId = 2, NpcName = "Adventurer", NpcPosition = CFrame.new(-1601, 37, 153), MobName = "Gorilla", MobSpawn = CFrame.new(-1237, 6, -510) },
-        { MinLevel = 10, MaxLevel = 14, QuestName = "JungleQuest", QuestId = 1, NpcName = "Adventurer", NpcPosition = CFrame.new(-1601, 37, 153), MobName = "Monkey", MobSpawn = CFrame.new(-1498, 51, 60) },
+        { MinLevel = 10, MaxLevel = 14, QuestName = "JungleQuest", QuestId = 1, NpcName = "Adventurer", NpcPosition =CFrame.new(-1683.78, 50.35, 171.07), MobName = "Monkey", MobSpawn = CFrame.new(-1498, 51, 60) },
         { MinLevel = 1, MaxLevel = 9, QuestName = "BanditQuest1", QuestId = 1, NpcName = "Bandit Hero", NpcPosition = CFrame.new(1059, 16, 1549), MobName = "Bandit", MobSpawn = CFrame.new(1141, 17, 1690) }
     }
 }
