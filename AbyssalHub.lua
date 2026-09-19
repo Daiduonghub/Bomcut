@@ -912,8 +912,7 @@ task.spawn(function()
                 task.wait(1.5) -- Chờ server phản hồi UI
             end
 
-        -- ĐÃ CÓ QUEST -> ĐI FARM
-                -- ĐÃ CÓ QUEST -> TẬP TRUNG TỚI GẦN QUÁI THẬT ĐỂ ĐÁNH
+        -- ĐÃ CÓ QUEST -> TẬP TRUNG TỚI GẦN QUÁI THẬT ĐỂ ĐÁNH
         else
             local humanoid = character:FindFirstChild("Humanoid")
             if humanoid and humanoid.Health <= 0 then
@@ -940,7 +939,8 @@ task.spawn(function()
                 end
             end
         end
-     end)
+    end
+end)
 
 -- ====================================================================
 -- 3. KHỞI TẠO LABELS & VÒNG LẶP STATS & SERVER
