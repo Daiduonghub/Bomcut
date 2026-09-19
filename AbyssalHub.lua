@@ -855,10 +855,30 @@ local function AttackTarget(mobName)
 end
 
 -- ====================================================================
--- VÒNG LẶP CHÍNH CHỐNG SPAM & ĐIỀU HƯỚNG STATE MƯỢT MÀ
+-- HÀM CHECK QUEST CHUẨN XÁC TỪ SERVER (XỬ LÝ CẢ NIL VÀ TABLE)
+-- ====================================================================
+local function GetCurrentActiveQuest()
+    local success, questData = pcall(function()
+        return ReplicatedStorage.Remotes.CommF_:InvokeServer("DressrosaQuestProgress")
+    end)
+    
+    -- Nếu gọi thành công và có dữ liệu trả về (không phải nil hoặc false)
+    if success and questData then
+        -- Nếu là table và có nội dung, hoặc là string/giá trị khác nil thì tính là đang có quest
+        if type(questData) == "table" then
+            if next(questData) ~= nil then return questData end
+        elseif questData ~= "" then
+            return questData
+        end
+    end
+    return nil -- Hoàn toàn rảnh rỗi, chưa có quest
+end
+
+-- ====================================================================
+-- VÒNG LẶP CHÍNH FIX LỖI GỬI REQUEST NHẬN QUEST
 -- ====================================================================
 task.spawn(function()
-    while task.wait(0.5) do -- Tăng nhẹ thời gian chờ vòng lặp lên 0.5s để chống nghẽn mạng/spam server
+    while task.wait(0.5) do
         if not _G.AutoFarm then
             if _G.Tweening then
                 _G.Tweening:Cancel()
@@ -879,16 +899,13 @@ task.spawn(function()
         local hrp = character and character:FindFirstChild("HumanoidRootPart")
         if not hrp then continue end
 
-        -- Khởi tạo cờ trạng thái nhiệm vụ nội bộ nếu chưa có
-        if _G.HasQuestFlag == nil then
-            _G.HasQuestFlag = false
-        end
+        local activeQuest = GetCurrentActiveQuest()
 
-        setclipboard(string.format("State: %s | Flag: %s | Level: %d", tostring(_G.FarmState), tostring(_G.HasQuestFlag), currentLevel))
+        setclipboard(string.format("State: %s | Active: %s | Level: %d", tostring(_G.FarmState), tostring(activeQuest ~= nil), currentLevel))
 
-        -- STATE MACHINE THỰC DỤNG KHÔNG LỆ THUỘC UI LỎM
+        -- ĐIỀU HƯỚNG TRẠNG THÁI DỰA TRÊN SERVER
         if _G.FarmState == "CHECK_QUEST" then
-            if not _G.HasQuestFlag then
+            if not activeQuest then
                 _G.FarmState = "GET_QUEST"
             else
                 _G.FarmState = "FARM"
@@ -898,7 +915,7 @@ task.spawn(function()
             if (hrp.Position - questInfo.NpcPosition.Position).Magnitude > 15 then
                 TweenTo(questInfo.NpcPosition)
             else
-                -- Tới nơi: Gọi lệnh nhận quest đúng 1 lần
+                -- Gửi request nhận quest dứt khoát
                 pcall(function()
                     ReplicatedStorage.Remotes.CommF_:InvokeServer(
                         "StartQuest",
@@ -907,23 +924,21 @@ task.spawn(function()
                     )
                 end)
                 
-                -- Đợi server phản hồi gói tin và bật cờ sang trạng thái farm ngay lập tức
                 task.wait(1.0)
-                _G.HasQuestFlag = true
-                _G.FarmState = "FARM"
+                
+                -- Check lại lần nữa, nếu server đã cấp quest thì nhảy sang FARM ngay lập tức
+                if GetCurrentActiveQuest() then
+                    _G.FarmState = "FARM"
+                end
             end
 
         elseif _G.FarmState == "FARM" then
-            -- Kiểm tra cơ chế an toàn: nếu lượng máu player = 0 (vừa chết) thì reset cờ để đi nhận lại quest
-            local humanoid = character:FindFirstChild("Humanoid")
-            if humanoid and humanoid.Health <= 0 then
-                _G.HasQuestFlag = false
+            -- Nếu hoàn thành quest hoặc chết, server trả về nil -> Tự động quay về CHECK_QUEST để nhận quest mới
+            if not activeQuest then
                 _G.FarmState = "CHECK_QUEST"
-                task.wait(3) -- Đợi hồi sinh rồi tính tiếp
                 continue
             end
 
-            -- Tiến hành bay ra bãi quái spawn và đánh
             if (hrp.Position - questInfo.MobSpawn.Position).Magnitude > 25 then
                 TweenTo(questInfo.MobSpawn)
             else
