@@ -889,8 +889,6 @@ task.spawn(function()
         local hrp = character and character:FindFirstChild("HumanoidRootPart")
         if not hrp then continue end
 
-        setclipboard(string.format("HasQuest: %s | Level: %d | Quest: %s", tostring(_G.HasActiveQuest), currentLevel, questInfo.QuestName))
-
         -- CHƯA CÓ QUEST -> TỚI NPC VÀ GỬI REQUEST
         if not _G.HasActiveQuest then
             if (hrp.Position - questInfo.NpcPosition.Position).Magnitude > 6 then
@@ -915,6 +913,7 @@ task.spawn(function()
             end
 
         -- ĐÃ CÓ QUEST -> ĐI FARM
+                -- ĐÃ CÓ QUEST -> TẬP TRUNG TỚI GẦN QUÁI THẬT ĐỂ ĐÁNH
         else
             local humanoid = character:FindFirstChild("Humanoid")
             if humanoid and humanoid.Health <= 0 then
@@ -922,14 +921,26 @@ task.spawn(function()
                 continue
             end
 
-            if (hrp.Position - questInfo.MobSpawn.Position).Magnitude > 25 then
-                TweenTo(questInfo.MobSpawn)
+            -- Tìm con quái sống gần nhất ở thời điểm hiện tại
+            local targetMob = GetClosestMob(questInfo.MobName)
+            if targetMob and targetMob:FindFirstChild("HumanoidRootPart") then
+                local mobHrp = targetMob.HumanoidRootPart
+                
+                -- Nếu khoảng cách từ nhân vật tới con quái lớn hơn 10 stud thì bay thẳng đến đầu nó
+                if (hrp.Position - mobHrp.Position).Magnitude > 10 then
+                    TweenTo(mobHrp.CFrame + Vector3.new(0, 10, 0))
+                else
+                    -- Đã tới gần thì xả skill/đánh
+                    AttackTarget(questInfo.MobName)
+                end
             else
-                AttackTarget(questInfo.MobName)
+                -- Nếu không thấy con nào quanh đấy thì bay về khu vực spawn chờ quái hồi sinh
+                if (hrp.Position - questInfo.MobSpawn.Position).Magnitude > 15 then
+                    TweenTo(questInfo.MobSpawn)
+                end
             end
         end
-    end
-end)
+     end)
 
 -- ====================================================================
 -- 3. KHỞI TẠO LABELS & VÒNG LẶP STATS & SERVER
