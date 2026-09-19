@@ -690,39 +690,39 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
-_G.AutoFarm = false
+_G.AutoFarm = true
 _G.RequestingQuest = false
 
 -- ====================================================================
--- 1. DATABASE NHIỆM VỤ FIRST SEA (Đã sắp xếp mức level cao lên trước để tránh đè)
+-- 1. DATABASE NHIỆM VỤ FIRST SEA (Đã chuẩn hóa các mốc level không bị chồng chéo)
 -- ====================================================================
 local FirstSeaQuests = {
     [1] = {
         { MinLevel = 650, MaxLevel = 700, QuestName = "FountainQuest", QuestId = 2, NpcName = "Hero", NpcPosition = CFrame.new(5257, 39, 4051), MobName = "Galley Captain", MobSpawn = CFrame.new(5790, 60, 4975) },
-        { MinLevel = 625, MaxLevel = 700, QuestName = "FountainQuest", QuestId = 1, NpcName = "Hero", NpcPosition = CFrame.new(5257, 39, 4051), MobName = "Galley Pirate", MobSpawn = CFrame.new(5554, 82, 3971) },
-        { MinLevel = 550, MaxLevel = 625, QuestName = "SkyExp2Quest", QuestId = 2, NpcName = "Conylee", NpcPosition = CFrame.new(-7903, 5635, -1411), MobName = "Nomadic Pirate", MobSpawn = CFrame.new(-7819, 5545, -1727) },
-        { MinLevel = 525, MaxLevel = 550, QuestName = "SkyExp2Quest", QuestId = 1, NpcName = "Conylee", NpcPosition = CFrame.new(-7903, 5635, -1411), MobName = "Royal Squad", MobSpawn = CFrame.new(-7667, 5747, -1964) },
-        { MinLevel = 475, MaxLevel = 525, QuestName = "SkyExp1Quest", QuestId = 2, NpcName = "Instance", NpcPosition = CFrame.new(-7903, 5635, -1411), MobName = "Shanda", MobSpawn = CFrame.new(-7657, 5607, -1412) },
-        { MinLevel = 450, MaxLevel = 475, QuestName = "SkyExp1Quest", QuestId = 1, NpcName = "Instance", NpcPosition = CFrame.new(-7903, 5635, -1411), MobName = "God's Guard", MobSpawn = CFrame.new(-4718, 850, -1945) },
-        { MinLevel = 400, MaxLevel = 450, QuestName = "FishmanQuest", QuestId = 2, NpcName = "Villager", NpcPosition = CFrame.new(6112, 19, 1567), MobName = "Fishman Commando", MobSpawn = CFrame.new(6337, -1, 1145) },
-        { MinLevel = 375, MaxLevel = 400, QuestName = "FishmanQuest", QuestId = 1, NpcName = "Villager", NpcPosition = CFrame.new(6112, 19, 1567), MobName = "Fishman Warrior", MobSpawn = CFrame.new(6090, -1, 1494) },
-        { MinLevel = 325, MaxLevel = 375, QuestName = "MagmaQuest", QuestId = 2, NpcName = "Military Spy", NpcPosition = CFrame.new(-5315, 12, 8515), MobName = "Military Spy", MobSpawn = CFrame.new(-5808, 51, 8829) },
-        { MinLevel = 300, MaxLevel = 325, QuestName = "MagmaQuest", QuestId = 1, NpcName = "Military Spy", NpcPosition = CFrame.new(-5315, 12, 8515), MobName = "Military Soldier", MobSpawn = CFrame.new(-5401, 18, 8450) },
-        { MinLevel = 250, MaxLevel = 300, QuestName = "ColosseumQuest", QuestId = 1, NpcName = "Noble", NpcPosition = CFrame.new(-1580, 7, -2992), MobName = "Toga Warrior", MobSpawn = CFrame.new(-1840, 7, -2735) },
-        { MinLevel = 210, MaxLevel = 250, QuestName = "PrisonerQuest", QuestId = 2, NpcName = "Military Detective", NpcPosition = CFrame.new(487, 5, 327), MobName = "Dangerous Prisoner", MobSpawn = CFrame.new(1099, 5, 130) },
-        { MinLevel = 190, MaxLevel = 210, QuestName = "PrisonerQuest", QuestId = 1, NpcName = "Military Detective", NpcPosition = CFrame.new(487, 5, 327), MobName = "Prisoner", MobSpawn = CFrame.new(524, 5, 484) },
-        { MinLevel = 175, MaxLevel = 190, QuestName = "SkyQuest", QuestId = 2, NpcName = "Mad Scientist", NpcPosition = CFrame.new(-4842, 718, -2622), MobName = "Dark Master", MobSpawn = CFrame.new(-5244, 431, -2279) },
-        { MinLevel = 150, MaxLevel = 175, QuestName = "SkyQuest", QuestId = 1, NpcName = "Mad Scientist", NpcPosition = CFrame.new(-4842, 718, -2622), MobName = "Sky Bandit", MobSpawn = CFrame.new(-4962, 281, -2880) },
-        { MinLevel = 120, MaxLevel = 150, QuestName = "MarineQuest", QuestId = 1, NpcName = "Navy Lieutenant", NpcPosition = CFrame.new(-2440, 13, 3216), MobName = "Chief Petty Officer", MobSpawn = CFrame.new(-2566, 6, 3314) },
-        { MinLevel = 100, MaxLevel = 120, QuestName = "SnowQuest", QuestId = 2, NpcName = "Snow Adventurer", NpcPosition = CFrame.new(1386, 87, -1298), MobName = "Snowman", MobSpawn = CFrame.new(1361, 87, -1544) },
-        { MinLevel = 90, MaxLevel = 100, QuestName = "SnowQuest", QuestId = 1, NpcName = "Snow Adventurer", NpcPosition = CFrame.new(1386, 87, -1298), MobName = "Snow Bandit", MobSpawn = CFrame.new(1279, 104, -1433) },
-        { MinLevel = 75, MaxLevel = 90, QuestName = "DesertQuest", QuestId = 2, NpcName = "Desert Adventurer", NpcPosition = CFrame.new(897, 7, 4388), MobName = "Desert Officer", MobSpawn = CFrame.new(1134, 10, 4424) },
-        { MinLevel = 60, MaxLevel = 75, QuestName = "DesertQuest", QuestId = 1, NpcName = "Desert Adventurer", NpcPosition = CFrame.new(897, 7, 4388), MobName = "Desert Bandit", MobSpawn = CFrame.new(944, 7, 4277) },
-        { MinLevel = 40, MaxLevel = 60, QuestName = "BuggyQuest", QuestId = 2, NpcName = "Rich Man", NpcPosition = CFrame.new(-1140, 5, 3828), MobName = "Brute", MobSpawn = CFrame.new(-1390, 16, 4101) },
-        { MinLevel = 30, MaxLevel = 40, QuestName = "BuggyQuest", QuestId = 1, NpcName = "Rich Man", NpcPosition = CFrame.new(-1140, 5, 3828), MobName = "Pirate", MobSpawn = CFrame.new(-1201, 14, 3938) },
-        { MinLevel = 15, MaxLevel = 30, QuestName = "JungleQuest", QuestId = 2, NpcName = "Adventurer", NpcPosition = CFrame.new(-1601, 37, 153), MobName = "Gorilla", MobSpawn = CFrame.new(-1237, 6, -510) },
-        { MinLevel = 10, MaxLevel = 15, QuestName = "JungleQuest", QuestId = 1, NpcName = "Adventurer", NpcPosition = CFrame.new(-1601, 37, 153), MobName = "Monkey", MobSpawn = CFrame.new(-1498, 51, 60) },
-        { MinLevel = 1, MaxLevel = 10, QuestName = "BanditQuest1", QuestId = 1, NpcName = "Bandit Hero", NpcPosition = CFrame.new(1059, 16, 1549), MobName = "Bandit", MobSpawn = CFrame.new(1141, 17, 1690) }
+        { MinLevel = 625, MaxLevel = 649, QuestName = "FountainQuest", QuestId = 1, NpcName = "Hero", NpcPosition = CFrame.new(5257, 39, 4051), MobName = "Galley Pirate", MobSpawn = CFrame.new(5554, 82, 3971) },
+        { MinLevel = 550, MaxLevel = 624, QuestName = "SkyExp2Quest", QuestId = 2, NpcName = "Conylee", NpcPosition = CFrame.new(-7903, 5635, -1411), MobName = "Nomadic Pirate", MobSpawn = CFrame.new(-7819, 5545, -1727) },
+        { MinLevel = 525, MaxLevel = 549, QuestName = "SkyExp2Quest", QuestId = 1, NpcName = "Conylee", NpcPosition = CFrame.new(-7903, 5635, -1411), MobName = "Royal Squad", MobSpawn = CFrame.new(-7667, 5747, -1964) },
+        { MinLevel = 475, MaxLevel = 524, QuestName = "SkyExp1Quest", QuestId = 2, NpcName = "Instance", NpcPosition = CFrame.new(-7903, 5635, -1411), MobName = "Shanda", MobSpawn = CFrame.new(-7657, 5607, -1412) },
+        { MinLevel = 450, MaxLevel = 474, QuestName = "SkyExp1Quest", QuestId = 1, NpcName = "Instance", NpcPosition = CFrame.new(-7903, 5635, -1411), MobName = "God's Guard", MobSpawn = CFrame.new(-4718, 850, -1945) },
+        { MinLevel = 400, MaxLevel = 449, QuestName = "FishmanQuest", QuestId = 2, NpcName = "Villager", NpcPosition = CFrame.new(6112, 19, 1567), MobName = "Fishman Commando", MobSpawn = CFrame.new(6337, -1, 1145) },
+        { MinLevel = 375, MaxLevel = 399, QuestName = "FishmanQuest", QuestId = 1, NpcName = "Villager", NpcPosition = CFrame.new(6112, 19, 1567), MobName = "Fishman Warrior", MobSpawn = CFrame.new(6090, -1, 1494) },
+        { MinLevel = 325, MaxLevel = 374, QuestName = "MagmaQuest", QuestId = 2, NpcName = "Military Spy", NpcPosition = CFrame.new(-5315, 12, 8515), MobName = "Military Spy", MobSpawn = CFrame.new(-5808, 51, 8829) },
+        { MinLevel = 300, MaxLevel = 324, QuestName = "MagmaQuest", QuestId = 1, NpcName = "Military Spy", NpcPosition = CFrame.new(-5315, 12, 8515), MobName = "Military Soldier", MobSpawn = CFrame.new(-5401, 18, 8450) },
+        { MinLevel = 250, MaxLevel = 299, QuestName = "ColosseumQuest", QuestId = 1, NpcName = "Noble", NpcPosition = CFrame.new(-1580, 7, -2992), MobName = "Toga Warrior", MobSpawn = CFrame.new(-1840, 7, -2735) },
+        { MinLevel = 210, MaxLevel = 249, QuestName = "PrisonerQuest", QuestId = 2, NpcName = "Military Detective", NpcPosition = CFrame.new(487, 5, 327), MobName = "Dangerous Prisoner", MobSpawn = CFrame.new(1099, 5, 130) },
+        { MinLevel = 190, MaxLevel = 209, QuestName = "PrisonerQuest", QuestId = 1, NpcName = "Military Detective", NpcPosition = CFrame.new(487, 5, 327), MobName = "Prisoner", MobSpawn = CFrame.new(524, 5, 484) },
+        { MinLevel = 175, MaxLevel = 189, QuestName = "SkyQuest", QuestId = 2, NpcName = "Mad Scientist", NpcPosition = CFrame.new(-4842, 718, -2622), MobName = "Dark Master", MobSpawn = CFrame.new(-5244, 431, -2279) },
+        { MinLevel = 150, MaxLevel = 174, QuestName = "SkyQuest", QuestId = 1, NpcName = "Mad Scientist", NpcPosition = CFrame.new(-4842, 718, -2622), MobName = "Sky Bandit", MobSpawn = CFrame.new(-4962, 281, -2880) },
+        { MinLevel = 120, MaxLevel = 149, QuestName = "MarineQuest", QuestId = 1, NpcName = "Navy Lieutenant", NpcPosition = CFrame.new(-2440, 13, 3216), MobName = "Chief Petty Officer", MobSpawn = CFrame.new(-2566, 6, 3314) },
+        { MinLevel = 100, MaxLevel = 119, QuestName = "SnowQuest", QuestId = 2, NpcName = "Snow Adventurer", NpcPosition = CFrame.new(1386, 87, -1298), MobName = "Snowman", MobSpawn = CFrame.new(1361, 87, -1544) },
+        { MinLevel = 90, MaxLevel = 99, QuestName = "SnowQuest", QuestId = 1, NpcName = "Snow Adventurer", NpcPosition = CFrame.new(1386, 87, -1298), MobName = "Snow Bandit", MobSpawn = CFrame.new(1279, 104, -1433) },
+        { MinLevel = 75, MaxLevel = 89, QuestName = "DesertQuest", QuestId = 2, NpcName = "Desert Adventurer", NpcPosition = CFrame.new(897, 7, 4388), MobName = "Desert Officer", MobSpawn = CFrame.new(1134, 10, 4424) },
+        { MinLevel = 60, MaxLevel = 74, QuestName = "DesertQuest", QuestId = 1, NpcName = "Desert Adventurer", NpcPosition = CFrame.new(897, 7, 4388), MobName = "Desert Bandit", MobSpawn = CFrame.new(944, 7, 4277) },
+        { MinLevel = 40, MaxLevel = 59, QuestName = "BuggyQuest", QuestId = 2, NpcName = "Rich Man", NpcPosition = CFrame.new(-1140, 5, 3828), MobName = "Brute", MobSpawn = CFrame.new(-1390, 16, 4101) },
+        { MinLevel = 30, MaxLevel = 39, QuestName = "BuggyQuest", QuestId = 1, NpcName = "Rich Man", NpcPosition = CFrame.new(-1140, 5, 3828), MobName = "Pirate", MobSpawn = CFrame.new(-1201, 14, 3938) },
+        { MinLevel = 15, MaxLevel = 29, QuestName = "JungleQuest", QuestId = 2, NpcName = "Adventurer", NpcPosition = CFrame.new(-1601, 37, 153), MobName = "Gorilla", MobSpawn = CFrame.new(-1237, 6, -510) },
+        { MinLevel = 10, MaxLevel = 14, QuestName = "JungleQuest", QuestId = 1, NpcName = "Adventurer", NpcPosition = CFrame.new(-1601, 37, 153), MobName = "Monkey", MobSpawn = CFrame.new(-1498, 51, 60) },
+        { MinLevel = 1, MaxLevel = 9, QuestName = "BanditQuest1", QuestId = 1, NpcName = "Bandit Hero", NpcPosition = CFrame.new(1059, 16, 1549), MobName = "Bandit", MobSpawn = CFrame.new(1141, 17, 1690) }
     }
 }
 
@@ -765,7 +765,7 @@ local function TweenTo(targetCFrame)
 end
 
 -- ====================================================================
--- HÀM KIỂM TRA CHÍNH XÁC TÊN QUEST TRÊN UI
+-- HÀM KIỂM TRA QUEST DÙNG GETDESCENDANTS (SIÊU CHUẨN)
 -- ====================================================================
 local function GetLevel()
     local success, level = pcall(function() return LocalPlayer.Data.Level.Value end)
@@ -788,15 +788,19 @@ end
 local function HasCorrectQuest(questInfo)
     local result = false
     pcall(function()
-        local questGui = LocalPlayer.PlayerGui.Main.Quest
+        local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+        local main = playerGui and playerGui:FindFirstChild("Main")
+        local questGui = main and main:FindFirstChild("Quest")
+
         if not questGui or not questGui.Visible then return end
 
-        local container = questGui:FindFirstChild("Container")
-        local title = container and container:FindFirstChild("QuestTitle")
-        
-        if title and title:IsA("TextLabel") then
-            if string.find(title.Text, questInfo.MobName) then
-                result = true
+        for _, obj in ipairs(questGui:GetDescendants()) do
+            if obj:IsA("TextLabel") then
+                local text = obj.Text or ""
+                if string.find(string.lower(text), string.lower(questInfo.MobName), 1, true) then
+                    result = true
+                    break
+                end
             end
         end
     end)
@@ -855,42 +859,59 @@ local function AttackTarget(mobName)
 end
 
 -- ====================================================================
--- VÒNG LẶP CHÍNH (ĐÃ HOÀN THIỆN LOGIC CHỐNG KẸT)
+-- VÒNG LẶP CHÍNH (FLOW CHUẨN XÁC, TÁCH BẠCH RÕ RÀNG)
 -- ====================================================================
 task.spawn(function()
     while task.wait(0.3) do
-        if _G.AutoFarm then
-            local questInfo = GetCurrentQuest()
-            if questInfo then
-                if not HasCorrectQuest(questInfo) and not _G.RequestingQuest then
-                    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                    if hrp and (hrp.Position - questInfo.NpcPosition.Position).Magnitude > 15 then
-                        TweenTo(questInfo.NpcPosition)
-                    else
-                        _G.RequestingQuest = true
-                        
-                        pcall(function()
-                            ReplicatedStorage.Remotes.CommF_:InvokeServer("StartQuest", questInfo.QuestName, questInfo.QuestId)
-                        end)
-                        
-                        task.wait(1.0)
-                        _G.RequestingQuest = false
-                    end
-                else
-                    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                    if hrp and questInfo.MobSpawn then
-                        if (hrp.Position - questInfo.MobSpawn.Position).Magnitude > 25 then
-                            TweenTo(questInfo.MobSpawn)
-                        else
-                            AttackTarget(questInfo.MobName)
-                        end
-                    end
-                end
-            end
-        else
+        if not _G.AutoFarm then
             if _G.Tweening then
                 _G.Tweening:Cancel()
             end
+            continue
+        end
+
+        local questInfo = GetCurrentQuest()
+        if not questInfo then continue end
+
+        local character = LocalPlayer.Character
+        local hrp = character and character:FindFirstChild("HumanoidRootPart")
+        if not hrp then continue end
+
+        -- 1. KIỂM TRA QUEST
+        local hasQuest = HasCorrectQuest(questInfo)
+
+        if not hasQuest then
+            -- Nếu đang trong tiến trình gửi request nhận quest thì bỏ qua vòng lặp này để chờ
+            if _G.RequestingQuest then
+                continue
+            end
+
+            -- Chưa tới NPC thì bay tới
+            if (hrp.Position - questInfo.NpcPosition.Position).Magnitude > 15 then
+                TweenTo(questInfo.NpcPosition)
+            else
+                -- Đã tới nơi -> Gửi lệnh nhận quest an toàn
+                _G.RequestingQuest = true
+
+                pcall(function()
+                    ReplicatedStorage.Remotes.CommF_:InvokeServer(
+                        "StartQuest",
+                        questInfo.QuestName,
+                        questInfo.QuestId
+                    )
+                end)
+
+                task.wait(0.5)
+                _G.RequestingQuest = false
+            end
+            continue
+        end
+
+        -- 2. ĐÃ CÓ QUEST -> ĐI BÃI FARM VÀ ĐÁNH QUÁI
+        if (hrp.Position - questInfo.MobSpawn.Position).Magnitude > 25 then
+            TweenTo(questInfo.MobSpawn)
+        else
+            AttackTarget(questInfo.MobName)
         end
     end
 end)
