@@ -915,7 +915,7 @@ task.spawn(function()
                 task.wait(1.5) -- Chờ server phản hồi UI
             end
 
-        -- ĐÃ CÓ QUEST -> TẬP TRUNG TỚI GẦN QUÁI THẬT ĐỂ ĐÁNH
+        -- ĐÃ CÓ QUEST -> CỐ ĐỊNH TRÊN ĐẦU QUÁI VÀ ĐÁNH
         else
             local humanoid = character:FindFirstChild("Humanoid")
             if humanoid and humanoid.Health <= 0 then
@@ -928,20 +928,22 @@ task.spawn(function()
             if targetMob and targetMob:FindFirstChild("HumanoidRootPart") then
                 local mobHrp = targetMob.HumanoidRootPart
                 
-                -- Nếu khoảng cách từ nhân vật tới con quái lớn hơn 10 stud thì bay thẳng đến đầu nó
-                if (hrp.Position - mobHrp.Position).Magnitude > 10 then
-                    TweenTo(mobHrp.CFrame + Vector3.new(0, 10, 0))
+                -- Khóa cố định độ cao lơ lửng trên đầu quái, không bị bồng bềnh lên xuống
+                local fixedPosition = Vector3.new(mobHrp.Position.X, mobHrp.Position.Y + 10, mobHrp.Position.Z)
+                
+                if (hrp.Position - fixedPosition).Magnitude > 4 then
+                    TweenTo(CFrame.new(fixedPosition, mobHrp.Position))
                 else
-                    -- Đã tới gần thì xả skill/đánh
+                    hrp.CFrame = CFrame.new(fixedPosition, mobHrp.Position)
                     AttackTarget(questInfo.MobName)
                 end
             else
-                -- Nếu không thấy con nào quanh đấy thì bay về khu vực spawn chờ quái hồi sinh
+                -- Không thấy quái thì bay về bãi chờ
                 if (hrp.Position - questInfo.MobSpawn.Position).Magnitude > 15 then
                     TweenTo(questInfo.MobSpawn)
                 end
             end
-        end
+        end -- Đóng ngoặc cho khối if _G.HasActiveQuest
     end
 end)
 
