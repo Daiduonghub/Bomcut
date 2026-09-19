@@ -838,7 +838,7 @@ local function GetClosestMob(mobName)
 end
 
 -- ====================================================================
--- HÀM ĐÁNH QUÁI (ĐÃ FIX ĐỨNG CAO LÊN, KHÔNG GIẬT LẮC)
+-- HÀM ĐÁNH QUÁI (ĐÃ FIX ỔN ĐỊNH TỌA ĐỘ VÀ GỬI HIT CHUẨN XÁC)
 -- ====================================================================
 local NetModules = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
 local RegisterAttack = NetModules:FindFirstChild("RE/RegisterAttack")
@@ -846,14 +846,16 @@ local RegisterHit = NetModules:FindFirstChild("RE/RegisterHit")
 
 local function AttackTarget(mobName)
     pcall(function()
-        if RegisterAttack then RegisterAttack:FireServer(0.5, 1) end
+        if RegisterAttack then 
+            RegisterAttack:FireServer(0.5, 1) 
+        end
 
         local targetMob = GetClosestMob(mobName)
         if targetMob and targetMob:FindFirstChild("HumanoidRootPart") and RegisterHit then
             local hrp = LocalPlayer.Character.HumanoidRootPart
             local enemyHrp = targetMob.HumanoidRootPart
             
-            -- Ép nhân vật lơ lửng ở trên đầu quái (cao hơn 10 stud) để tránh giật va chạm
+            -- Khóa cứng vị trí lơ lửng trên đầu quái (cao hơn 10 stud) để không bị rung lắc
             hrp.CFrame = CFrame.new(enemyHrp.Position + Vector3.new(0, 10, 0), enemyHrp.Position)
             
             local limb = targetMob:FindFirstChild("LeftLowerLeg") or targetMob:FindFirstChild("HumanoidRootPart")
@@ -870,7 +872,7 @@ local function AttackTarget(mobName)
 end
 
 -- ====================================================================
--- LUỒNG 2: THỰC THI (GET QUEST HOẶC FARM)
+-- LUỒNG 2: THỰC THI (GET QUEST HOẶC FARM MƯỢT MÀ)
 -- ====================================================================
 task.spawn(function()
     while task.wait(0.5) do
@@ -915,7 +917,7 @@ task.spawn(function()
                 task.wait(1.5) -- Chờ server phản hồi UI
             end
 
-        -- ĐÃ CÓ QUEST -> CỐ ĐỊNH TRÊN ĐẦU QUÁI VÀ ĐÁNH
+        -- ĐÃ CÓ QUEST -> TẬP TRUNG TỚI CỐ ĐỊNH TRÊN ĐẦU QUÁI VÀ ĐÁNH
         else
             local humanoid = character:FindFirstChild("Humanoid")
             if humanoid and humanoid.Health <= 0 then
@@ -928,9 +930,10 @@ task.spawn(function()
             if targetMob and targetMob:FindFirstChild("HumanoidRootPart") then
                 local mobHrp = targetMob.HumanoidRootPart
                 
-                -- Khóa cố định độ cao lơ lửng trên đầu quái, không bị bồng bềnh lên xuống
+                -- Tạo vị trí đứng tĩnh: Giữ nguyên X, Z của quái, cố định trục Y cao hơn 10 stud
                 local fixedPosition = Vector3.new(mobHrp.Position.X, mobHrp.Position.Y + 10, mobHrp.Position.Z)
                 
+                -- Nếu khoảng cách lớn hơn 4 stud thì tween nhẹ tới, còn lại khóa cứng và xả đòn
                 if (hrp.Position - fixedPosition).Magnitude > 4 then
                     TweenTo(CFrame.new(fixedPosition, mobHrp.Position))
                 else
@@ -938,12 +941,12 @@ task.spawn(function()
                     AttackTarget(questInfo.MobName)
                 end
             else
-                -- Không thấy quái thì bay về bãi chờ
+                -- Không thấy quái quanh đấy thì bay về khu vực spawn chờ quái hồi sinh
                 if (hrp.Position - questInfo.MobSpawn.Position).Magnitude > 15 then
                     TweenTo(questInfo.MobSpawn)
                 end
             end
-        end -- Đóng ngoặc cho khối if _G.HasActiveQuest
+        end
     end
 end)
 
