@@ -742,25 +742,45 @@ local function GetCurrentQuest()
     return seaQuests[1]
 end
 
+-- ====================================================================
+-- SỬA LỖI TELE VỀ NPC LIÊN TỤC
+-- ====================================================================
+
+-- Thêm biến lưu tên nhiệm vụ đang làm để kiểm soát
+_G.CurrentQuestName = nil
+
+-- Hàm kiểm tra xem đã nhận đúng nhiệm vụ của mốc đó chưa
 local function HasActiveQuest()
     local success, active = pcall(function()
-        return LocalPlayer.PlayerGui.Main.Quest.Visible
+        local questUI = LocalPlayer.PlayerGui.Main.Quest
+        -- Kiểm tra xem UI Quest có hiện không và có chứa tên nhiệm vụ cần làm không
+        return questUI.Visible
     end)
     return success and active
 end
 
+-- Cập nhật lại hàm AutoTakeQuest thông minh hơn
 local function AutoTakeQuest()
     pcall(function()
-        if HasActiveQuest() then return end
-
         local questInfo = GetCurrentQuest()
         if not questInfo then return end
 
-        -- Di chuyển tới NPC nhận nhiệm vụ
+        -- Kiểm tra trên UI game xem hiện tại có đang làm đúng cái Quest này không
+        local questTitle = ""
+        pcall(function()
+            questTitle = LocalPlayer.PlayerGui.Main.Quest.Container.QuestTitle.Text
+        end)
+
+        -- Nếu trên màn hình đã hiện tên quest trùng với quest cần làm thì DỪNG LẠI, không tele về NPC nữa
+        if HasActiveQuest() and string.find(questTitle, questInfo.MobName) then
+            return 
+        end
+
+        -- Nếu chưa nhận hoặc đang làm quest khác thì mới tiến hành bay tới NPC nhận
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
             local hrp = LocalPlayer.Character.HumanoidRootPart
-            if (hrp.Position - questInfo.NpcPosition.Position).Magnitude > 10 then
-                hrp.CFrame = questInfo.NpcPosition
+            if (hrp.Position - questInfo.NpcPosition.Position).Magnitude > 15 then
+                TweenTo(questInfo.NpcPosition) -- Dùng Tween bay tới NPC cho mượt thay vì giật cục
                 task.wait(0.5)
             end
         end
@@ -827,24 +847,29 @@ local function AttackTarget(mobName)
 end
 
 task.spawn(function()
-    while task.wait(0.2) do -- Tốc độ đánh quái vòng lặp (0.2s / nhịp)
+    while task.wait(0.3) do
         if _G.AutoFarm then
             local questInfo = GetCurrentQuest()
             if questInfo then
-                if not HasActiveQuest() then
-                    -- 1. Chưa có nhiệm vụ -> Bay tới NPC nhận quest
+                -- Kiểm tra xem đã có đúng nhiệm vụ của con quái đó chưa
+                local hasQuest = false
+                pcall(function()
+                    local titleText = LocalPlayer.PlayerGui.Main.Quest.Container.QuestTitle.Text
+                    if LocalPlayer.PlayerGui.Main.Quest.Visible and string.find(titleText, questInfo.MobName) then
+                        hasQuest = true
+                    end
+                end)
+
+                if not hasQuest then
+                    -- 1. Chưa có nhiệm vụ chuẩn -> Đi nhận quest
                     AutoTakeQuest()
                 else
-                    -- 2. Đã có nhiệm vụ -> Bay tới bãi quái
-                    if questInfo.MobSpawn then
-                        -- Kiểm tra nếu ở xa bãi quái thì tween tới, tới nơi rồi thì quất
-                        local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                        if hrp and (hrp.Position - questInfo.MobSpawn.Position).Magnitude > 25 then
-                            TweenTo(questInfo.MobSpawn)
-                        else
-                            -- 3. Đang đứng ở bãi quái -> Tấn công liên tục
-                            AttackTarget(questInfo.MobName)
-                        end
+                    -- 2. Đã có nhiệm vụ chuẩn -> Ra bãi quái đánh
+                    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if hrp and (hrp.Position - questInfo.MobSpawn.Position).Magnitude > 25 then
+                        TweenTo(questInfo.MobSpawn)
+                    else
+                        AttackTarget(questInfo.MobName)
                     end
                 end
             end
