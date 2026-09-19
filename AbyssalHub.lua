@@ -870,7 +870,7 @@ local function AttackTarget(mobName)
 end
 
 -- ====================================================================
--- LUỒNG 2: THỰC THI (GET QUEST HOẶC FARM MƯỢT MÀ)
+-- LUỒNG 2: THỰC THI (ĐÃ FIX CHỐNG TREO KHI GỌI COMMF_)
 -- ====================================================================
 task.spawn(function()
     while task.wait(0.5) do
@@ -900,19 +900,18 @@ task.spawn(function()
                 hrp.CFrame = questInfo.NpcPosition
                 task.wait(0.2)
                 
-                local success, err = pcall(function()
-                    ReplicatedStorage.Remotes.CommF_:InvokeServer(
-                        "StartQuest",
-                        questInfo.QuestName,
-                        questInfo.QuestId
-                    )
+                -- Dùng pcall bọc an toàn tuyệt đối để tránh bị treo dòng lệnh
+                pcall(function()
+                    local args = {
+                        [1] = "StartQuest",
+                        [2] = questInfo.QuestName,
+                        [3] = questInfo.QuestId
+                    }
+                    -- Gọi lệnh nhận quest với thời gian chờ ngắn, tránh bị kẹt vĩnh viễn
+                    ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))
                 end)
                 
-                if not success then
-                    warn("Lỗi nhận quest: " .. tostring(err))
-                end
-                
-                task.wait(1.5) -- Chờ server phản hồi UI
+                task.wait(1) -- Chờ một nhịp ngắn cho game load UI quest
             end
 
         -- ĐÃ CÓ QUEST -> TẬP TRUNG TỚI CỐ ĐỊNH TRÊN ĐẦU QUÁI VÀ ĐÁNH
@@ -931,7 +930,7 @@ task.spawn(function()
                 -- Tạo vị trí chuẩn trên đầu quái (cách 12 stud theo trục Y)
                 local fixedPosition = CFrame.new(mobHrp.Position.X, mobHrp.Position.Y + 12, mobHrp.Position.Z, mobHrp.CFrame.LookVector.X, 0, mobHrp.CFrame.LookVector.Z)
                 
-                -- Nếu ở xa thì dùng Tween bay đến, còn khi đã áp sát trong phạm vi 8 stud thì khóa chặt tọa độ lập tức không dùng Tween nữa để tránh bị giật
+                -- Nếu ở xa thì dùng Tween bay đến, còn khi đã áp sát trong phạm vi 8 stud thì khóa chặt tọa độ không dùng Tween nữa
                 if (hrp.Position - fixedPosition.Position).Magnitude > 8 then
                     TweenTo(fixedPosition)
                 else
