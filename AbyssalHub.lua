@@ -784,19 +784,16 @@ local function GetCurrentQuest()
     end
     return seaQuests[1]
 end
-
--- Biến cờ khóa trạng thái để tránh bị lặp lại vô nghĩa
+-- Biến cờ khóa trạng thái
 _G.HasQuest = false
 
 local function AutoTakeQuest()
-    pcall(function
+    pcall(function()
         local questInfo = GetCurrentQuest()
         if not questInfo then return end
 
-        -- Nếu đã đánh dấu là đang làm quest rồi thì KHÔNG bao giờ tự động tele về NPC nữa
         if _G.HasQuest then return end
 
-        -- Bay tới NPC nhận nhiệm vụ
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
             local hrp = LocalPlayer.Character.HumanoidRootPart
             if (hrp.Position - questInfo.NpcPosition.Position).Magnitude > 15 then
@@ -805,9 +802,8 @@ local function AutoTakeQuest()
             end
         end
 
-        -- Gửi lệnh nhận nhiệm vụ
         ReplicatedStorage.Remotes.CommF_:InvokeServer("StartQuest", questInfo.QuestName, questInfo.QuestId)
-        _G.HasQuest = true -- Đánh dấu đã nhận xong, khóa lại không cho chạy về NPC nữa!
+        _G.HasQuest = true
         task.wait(1)
     end)
 end
@@ -862,31 +858,31 @@ local function AttackTarget(mobName)
     end)
 end
 
--- Vòng lặp chính xử lý Auto Farm thông minh
+-- Vòng lặp chính xử lý Auto Farm cực kỳ an toàn
 task.spawn(function()
     while task.wait(0.3) do
         if _G.AutoFarm then
             local questInfo = GetCurrentQuest()
             if questInfo then
-                -- Kiểm tra xem trên màn hình còn hiển thị chữ nhiệm vụ hay thanh máu quái không
-                -- Nếu người chơi chết hoặc hoàn thành nhiệm vụ, bảng UI Quest sẽ tắt hoặc mất chữ
-                local currentTitle = ""
-                local isVisible = false
+                -- Dùng pcall bọc kín phần kiểm tra UI để tránh chết ngầm script
+                local hasActiveQuest = false
                 pcall(function()
-                    isVisible = LocalPlayer.PlayerGui.Main.Quest.Visible
-                    currentTitle = LocalPlayer.PlayerGui.Main.Quest.Container.QuestTitle.Text
+                    local questGui = LocalPlayer.PlayerGui:FindFirstChild("Main") and LocalPlayer.PlayerGui.Main:FindFirstChild("Quest")
+                    if questGui and questGui.Visible then
+                        hasActiveQuest = true
+                    end
                 end)
 
-                -- Nếu UI mất hoặc không có nội dung -> tức là đã xong nhiệm vụ hoặc chết -> Mở khóa _G.HasQuest để đi nhận lại
-                if not isVisible or currentTitle == "" then
+                -- Nếu UI không hiển thị hoặc bị tắt -> coi như chưa có hoặc đã xong nhiệm vụ -> Mở khóa để nhận lại
+                if not hasActiveQuest then
                     _G.HasQuest = false
                 end
 
                 if not _G.HasQuest then
-                    -- 1. Chưa nhận quest -> Đi nhận
+                    -- Chưa có nhiệm vụ -> Đi nhận
                     AutoTakeQuest()
                 else
-                    -- 2. Đã nhận quest rồi -> Thoải mái bay ra bãi quái cày, KHÔNG BAO GIỜ bị kéo về NPC nữa!
+                    -- Đã có nhiệm vụ -> Ra bãi quái cày bét nhè, không lo bị kéo về NPC nữa
                     local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
                     if hrp and questInfo.MobSpawn then
                         if (hrp.Position - questInfo.MobSpawn.Position).Magnitude > 25 then
