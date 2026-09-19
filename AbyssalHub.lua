@@ -1,68 +1,3 @@
-local rawKey = _G.Key or ""
-local userKey = string.gsub(rawKey, "%s+", "")
-local userHWID = game:GetService("RbxAnalyticsService"):GetClientId()
-
-local ngrokUrl = "https://nonsuppositively-unmasticatory-drew.ngrok-free.dev"
-
-if userKey == "" then
-    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\nKey not entered! Please set _G.Key before running.")
-    return -- Dừng hẳn, không chạy tiếp!
-end
-
-local function trim(s)
-    return (s:gsub("^%s*(.-)%s*$", "%1"))
-end
-
-local antiCache = tostring(os.time())
-local checkUrl = ngrokUrl .. "/check?key=" .. tostring(userKey) .. "&hwid=" .. tostring(userHWID) .. "&t=" .. antiCache
-
-local response = nil
-local reqFunc = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
-
-if reqFunc then
-    local success, res = pcall(function()
-        return reqFunc({
-            Url = checkUrl,
-            Method = "GET",
-            Headers = {
-                ["ngrok-skip-browser-warning"] = "true",
-                ["User-Agent"] = "RobloxApp"
-            }
-        })
-    end)
-    if success and res and res.Body then response = res.Body end
-else
-    local success, body = pcall(function() return game:HttpGet(checkUrl) end)
-    if success then response = body end
-end
-
-if not response then
-    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\nCannot connect to Server because it is down!")
-    return -- Dừng hẳn, không chạy tiếp!
-end
-
-local cleanResponse = string.upper(trim(response))
-
-if cleanResponse == "SUCCESS" then
-    print("-> Abyssal Key Verified Successfully!")
-    -- Ở đây code UI và logic chính của cậu sẽ được phép chạy tiếp bên dưới này
-elseif cleanResponse == "BLACKLISTED" then
-    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\nYour Key or HWID has been Blacklisted!")
-    return
-elseif cleanResponse == "HWID_MISMATCH" then
-    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\nThis Key is being used on another device!")
-    return
-elseif cleanResponse == "EXPIRED" then
-    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\nYour Key has expired!")
-    return
-elseif cleanResponse == "INVALID_KEY" then
-    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\nKey does not exist!")
-    return
-else
-    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\nUnknown response: " .. cleanResponse)
-    return
-end
-
 -- ====================================================================
 -- 1. LIBRARY GIAO DIỆN (UI FRAMEWORK)
 -- ====================================================================
@@ -77,17 +12,12 @@ function Library:CreateWindow(hubName)
     ScreenGui.Parent = CoreGui
     ScreenGui.ResetOnSpawn = false
 
-        -- Thay vì dùng Instance.new("Frame"), mình đổi thành ImageLabel để chèn ảnh nền
     local MainFrame = Instance.new("ImageLabel")
     MainFrame.Name = "MainFrame"
     MainFrame.Parent = ScreenGui
     MainFrame.Position = UDim2.new(0.3, 0, 0.22, 0)
     MainFrame.Size = UDim2.new(0, 560, 0, 380)
-    
-    -- ĐIỀN ID ẢNH NỀN CỦA CẬU VÀO ĐÂY (Ví dụ: rbxassetid://123456789)
     MainFrame.Image = "rbxassetid://82833606157114" 
-    
-    -- Chỉnh màu nền dự phòng và độ sáng tối của ảnh (nếu ảnh quá sáng làm chói chữ thì giảm ScaleType hoặc thêm lớp phủ)
     MainFrame.BackgroundColor3 = Color3.fromRGB(11, 15, 20)
     MainFrame.ScaleType = Enum.ScaleType.Slice
     MainFrame.BorderSizePixel = 0
@@ -98,7 +28,7 @@ function Library:CreateWindow(hubName)
     MainCorner.Parent = MainFrame
 
     local MainStroke = Instance.new("UIStroke")
-    MainStroke.Color = Color3.fromRGB(0, 160, 255) -- Viền sáng xanh cho nổi bật trên nền ảnh
+    MainStroke.Color = Color3.fromRGB(0, 160, 255)
     MainStroke.Thickness = 1.3
     MainStroke.Parent = MainFrame
 
@@ -236,17 +166,15 @@ function Library:CreateWindow(hubName)
     TabList.Padding = UDim.new(0, 6)
     TabList.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
-        local ContentContainer = Instance.new("Frame")
+    local ContentContainer = Instance.new("Frame")
     ContentContainer.Name = "ContentContainer"
     ContentContainer.Parent = MainFrame
-    -- Căn lại vị trí và kích thước chuẩn xác theo đúng TabContainer (rộng 150px, cách lề trái 10px) và Topbar (cao 46px)
     ContentContainer.Position = UDim2.new(0, 156, 0, 52)
     ContentContainer.Size = UDim2.new(1, -166, 1, -58)
     ContentContainer.BackgroundTransparency = 1
-    ContentContainer.ClipsDescendants = true -- Bật cái này để chặn mọi thành phần bên trong không bị lòi góc nhọn ra ngoài khung chính
+    ContentContainer.ClipsDescendants = true
 
     -- Nút Toggle nổi
-        -- Nút Toggle nổi
     local ToggleGui = Instance.new("ScreenGui")
     ToggleGui.Name = "AbyssalHub_ToggleGui"
     ToggleGui.Parent = CoreGui
@@ -256,11 +184,11 @@ function Library:CreateWindow(hubName)
     ToggleButton.Name = "ToggleButton"
     ToggleButton.Parent = ToggleGui
     ToggleButton.BackgroundColor3 = Color3.fromRGB(16, 22, 30)
-    ToggleButton.BackgroundTransparency = 1  # <-- CHỈNH THÀNH 1 ĐỂ MẤT NỀN ĐEN
+    ToggleButton.BackgroundTransparency = 1  -- Đã sửa thành dấu trừ kép chuẩn Lua
     ToggleButton.Position = UDim2.new(0.05, 0, 0.15, 0)
     ToggleButton.Size = UDim2.new(0, 52, 0, 52)
     ToggleButton.Image = "rbxassetid://122987919647953"
-    ToggleButton.ScaleType = Enum.ScaleType.Fit  # <-- THÊM DÒNG NÀY ĐỂ ẢNH ÔM ĐẸP TRONG KHUNG
+    ToggleButton.ScaleType = Enum.ScaleType.Fit  -- Đã sửa thành dấu trừ kép chuẩn Lua
     ToggleButton.Active = true
 
     local UICorner = Instance.new("UICorner")
@@ -367,7 +295,7 @@ function Library:CreateWindow(hubName)
 
         local TabElements = {}
 
-                function TabElements:CreateButton(btnName, callback)
+        function TabElements:CreateButton(btnName, callback)
             local Button = Instance.new("TextButton")
             Button.Parent = TabPage
             Button.Size = UDim2.new(1, -8, 0, 40)
@@ -376,18 +304,17 @@ function Library:CreateWindow(hubName)
             Button.TextColor3 = Color3.fromRGB(240, 240, 240)
             Button.Font = Enum.Font.GothamMedium
             Button.TextSize = 13
-            Button.AutoButtonColor = false -- Tắt màu xám mặc định của Roblox đi để tự tween cho đẹp
+            Button.AutoButtonColor = false
 
             local Corner = Instance.new("UICorner")
             Corner.CornerRadius = UDim.new(0, 8)
             Corner.Parent = Button
 
-            -- Hiệu ứng nảy khi bấm vào nút
             Button.MouseButton1Down:Connect(function()
                 TweenService:Create(Button, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                     BackgroundColor3 = Color3.fromRGB(0, 210, 255),
                     TextColor3 = Color3.fromRGB(13, 17, 23),
-                    Size = UDim2.new(1, -14, 0, 36) -- Thu nhỏ lại một chút tạo cảm giác lún xuống
+                    Size = UDim2.new(1, -14, 0, 36)
                 }):Play()
             end)
 
@@ -395,7 +322,7 @@ function Library:CreateWindow(hubName)
                 TweenService:Create(Button, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                     BackgroundColor3 = Color3.fromRGB(21, 27, 36),
                     TextColor3 = Color3.fromRGB(240, 240, 240),
-                    Size = UDim2.new(1, -8, 0, 40) -- Phồng to lại như cũ
+                    Size = UDim2.new(1, -8, 0, 40)
                 }):Play()
             end)
 
@@ -526,7 +453,7 @@ function Library:CreateWindow(hubName)
             end)
         end
 
-        function TabElements:CreateBox(boxName, placeholder, callback)
+                function TabElements:CreateBox(boxName, placeholder, callback)
             local BoxFrame = Instance.new("Frame")
             BoxFrame.Parent = TabPage
             BoxFrame.Size = UDim2.new(1, -8, 0, 40)
@@ -567,140 +494,138 @@ function Library:CreateWindow(hubName)
             end)
         end
 
-                                function TabElements:CreateDropdown(text, options, defaultOption, callback)
-    local dropdownFrame = Instance.new("Frame")
-    local dropdownTitle = Instance.new("TextLabel")
-    local dropdownBtn = Instance.new("TextButton")
-    local optionsHolder = Instance.new("ScrollingFrame")
-    local UIListLayout = Instance.new("UIListLayout")
+        function TabElements:CreateDropdown(text, options, defaultOption, callback)
+            local dropdownFrame = Instance.new("Frame")
+            local dropdownTitle = Instance.new("TextLabel")
+            local dropdownBtn = Instance.new("TextButton")
+            local optionsHolder = Instance.new("ScrollingFrame")
+            local UIListLayout = Instance.new("UIListLayout")
 
-    local selected = defaultOption or options[1]
-    local isOpened = false
+            local selected = defaultOption or options[1]
+            local isOpened = false
 
-    dropdownFrame.Size = UDim2.new(1, -8, 0, 40)
-    dropdownFrame.BackgroundColor3 = Color3.fromRGB(21, 27, 36)
-    dropdownFrame.Parent = TabPage
+            dropdownFrame.Size = UDim2.new(1, -8, 0, 40)
+            dropdownFrame.BackgroundColor3 = Color3.fromRGB(21, 27, 36)
+            dropdownFrame.Parent = TabPage
 
-    local Corner = Instance.new("UICorner")
-    Corner.CornerRadius = UDim.new(0, 8)
-    Corner.Parent = dropdownFrame
+            local Corner = Instance.new("UICorner")
+            Corner.CornerRadius = UDim.new(0, 8)
+            Corner.Parent = dropdownFrame
 
-    dropdownTitle.Size = UDim2.new(0.5, 0, 1, 0)
-    dropdownTitle.Position = UDim2.new(0, 12, 0, 0)
-    dropdownTitle.BackgroundTransparency = 1
-    dropdownTitle.Text = text
-    dropdownTitle.TextColor3 = Color3.fromRGB(240, 240, 240)
-    dropdownTitle.TextXAlignment = Enum.TextXAlignment.Left
-    dropdownTitle.Font = Enum.Font.GothamMedium
-    dropdownTitle.TextSize = 13
-    dropdownTitle.Parent = dropdownFrame
+            dropdownTitle.Size = UDim2.new(0.5, 0, 1, 0)
+            dropdownTitle.Position = UDim2.new(0, 12, 0, 0)
+            dropdownTitle.BackgroundTransparency = 1
+            dropdownTitle.Text = text
+            dropdownTitle.TextColor3 = Color3.fromRGB(240, 240, 240)
+            dropdownTitle.TextXAlignment = Enum.TextXAlignment.Left
+            dropdownTitle.Font = Enum.Font.GothamMedium
+            dropdownTitle.TextSize = 13
+            dropdownTitle.Parent = dropdownFrame
 
-    dropdownBtn.Size = UDim2.new(0.42, 0, 0, 28)
-    dropdownBtn.Position = UDim2.new(0.56, 0, 0.5, -14)
-    dropdownBtn.BackgroundColor3 = Color3.fromRGB(13, 17, 23)
-    dropdownBtn.Text = tostring(selected) .. " ▼"
-    dropdownBtn.TextColor3 = Color3.fromRGB(0, 210, 255)
-    dropdownBtn.Font = Enum.Font.GothamMedium
-    dropdownBtn.TextSize = 12
-    dropdownBtn.Parent = dropdownFrame
+            dropdownBtn.Size = UDim2.new(0.42, 0, 0, 28)
+            dropdownBtn.Position = UDim2.new(0.56, 0, 0.5, -14)
+            dropdownBtn.BackgroundColor3 = Color3.fromRGB(13, 17, 23)
+            dropdownBtn.Text = tostring(selected) .. " ▼"
+            dropdownBtn.TextColor3 = Color3.fromRGB(0, 210, 255)
+            dropdownBtn.Font = Enum.Font.GothamMedium
+            dropdownBtn.TextSize = 12
+            dropdownBtn.Parent = dropdownFrame
 
-    local BtnCorner = Instance.new("UICorner")
-    BtnCorner.CornerRadius = UDim.new(0, 6)
-    BtnCorner.Parent = dropdownBtn
+            local BtnCorner = Instance.new("UICorner")
+            BtnCorner.CornerRadius = UDim.new(0, 6)
+            BtnCorner.Parent = dropdownBtn
 
-    -- Khung chứa danh sách option (có thể vuốt)
-    optionsHolder.Size = UDim2.new(1, 0, 0, 0)
-    optionsHolder.Position = UDim2.new(0, 0, 1, 6)
-    optionsHolder.BackgroundColor3 = Color3.fromRGB(16, 21, 28)
-    optionsHolder.Visible = false
-    optionsHolder.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    optionsHolder.CanvasSize = UDim2.new(0, 0, 0, 0)
-    optionsHolder.ScrollBarThickness = 4 
-    optionsHolder.ScrollBarImageColor3 = Color3.fromRGB(0, 210, 255)
-    optionsHolder.ZIndex = 15
-    optionsHolder.Parent = dropdownFrame
+            optionsHolder.Size = UDim2.new(1, 0, 0, 0)
+            optionsHolder.Position = UDim2.new(0, 0, 1, 6)
+            optionsHolder.BackgroundColor3 = Color3.fromRGB(16, 21, 28)
+            optionsHolder.Visible = false
+            optionsHolder.AutomaticCanvasSize = Enum.AutomaticSize.Y
+            optionsHolder.CanvasSize = UDim2.new(0, 0, 0, 0)
+            optionsHolder.ScrollBarThickness = 4 
+            optionsHolder.ScrollBarImageColor3 = Color3.fromRGB(0, 210, 255)
+            optionsHolder.ZIndex = 15
+            optionsHolder.Parent = dropdownFrame
 
-    local HolderCorner = Instance.new("UICorner")
-    HolderCorner.CornerRadius = UDim.new(0, 6)
-    HolderCorner.Parent = optionsHolder
+            local HolderCorner = Instance.new("UICorner")
+            HolderCorner.CornerRadius = UDim.new(0, 6)
+            HolderCorner.Parent = optionsHolder
 
-    local HolderStroke = Instance.new("UIStroke")
-    HolderStroke.Color = Color3.fromRGB(35, 48, 68)
-    HolderStroke.Thickness = 1
-    HolderStroke.Parent = optionsHolder
+            local HolderStroke = Instance.new("UIStroke")
+            HolderStroke.Color = Color3.fromRGB(35, 48, 68)
+            HolderStroke.Thickness = 1
+            HolderStroke.Parent = optionsHolder
 
-    UIListLayout.Parent = optionsHolder
-    UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    UIListLayout.Padding = UDim.new(0, 4)
+            UIListLayout.Parent = optionsHolder
+            UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+            UIListLayout.Padding = UDim.new(0, 4)
 
-    -- Hàm đóng/mở dropdown chuẩn xác
-    local function closeDropdown()
-        isOpened = false
-        optionsHolder.Visible = false
-        dropdownBtn.Text = tostring(selected) .. " ▼"
-        optionsHolder.Size = UDim2.new(1, 0, 0, 0)
-        dropdownFrame.Size = UDim2.new(1, -8, 0, 40)
-    end
-
-    local function toggleDropdown()
-        isOpened = not isOpened
-        if isOpened then
-            optionsHolder.Visible = true
-            dropdownBtn.Text = tostring(selected) .. " ▲"
-            task.wait()
-            local contentHeight = UIListLayout.AbsoluteContentSize.Y
-            local targetHeight = math.min(contentHeight + 8, 150)
-            optionsHolder.Size = UDim2.new(1, 0, 0, targetHeight)
-            dropdownFrame.Size = UDim2.new(1, -8, 0, 40 + targetHeight + 12)
-        else
-            closeDropdown()
-        end
-    end
-
-    dropdownBtn.MouseButton1Click:Connect(toggleDropdown)
-
-    local function createOptions()
-        for _, child in ipairs(optionsHolder:GetChildren()) do
-            if child:IsA("TextButton") then child:Destroy() end
-        end
-
-        for _, opt in ipairs(options) do
-            local optBtn = Instance.new("TextButton")
-            optBtn.Size = UDim2.new(1, -4, 0, 32)
-            optBtn.BackgroundColor3 = Color3.fromRGB(21, 27, 36)
-            optBtn.BackgroundTransparency = 0.6
-            optBtn.Text = "   " .. tostring(opt)
-            optBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
-            optBtn.Font = Enum.Font.Gotham
-            optBtn.TextSize = 12
-            optBtn.TextXAlignment = Enum.TextXAlignment.Left
-            optBtn.ZIndex = 16
-            optBtn.Parent = optionsHolder
-
-            local optCorner = Instance.new("UICorner")
-            optCorner.CornerRadius = UDim.new(0, 6)
-            optCorner.Parent = optBtn
-
-            optBtn.MouseButton1Click:Connect(function()
-                selected = opt
+            local function closeDropdown()
+                isOpened = false
+                optionsHolder.Visible = false
                 dropdownBtn.Text = tostring(selected) .. " ▼"
-                closeDropdown() -- Ép đóng khung an toàn, không sợ bị kẹt
-                if callback then pcall(callback, selected) end
-            end)
+                optionsHolder.Size = UDim2.new(1, 0, 0, 0)
+                dropdownFrame.Size = UDim2.new(1, -8, 0, 40)
+            end
+
+            local function toggleDropdown()
+                isOpened = not isOpened
+                if isOpened then
+                    optionsHolder.Visible = true
+                    dropdownBtn.Text = tostring(selected) .. " ▲"
+                    task.wait()
+                    local contentHeight = UIListLayout.AbsoluteContentSize.Y
+                    local targetHeight = math.min(contentHeight + 8, 150)
+                    optionsHolder.Size = UDim2.new(1, 0, 0, targetHeight)
+                    dropdownFrame.Size = UDim2.new(1, -8, 0, 40 + targetHeight + 12)
+                else
+                    closeDropdown()
+                end
+            end
+
+            dropdownBtn.MouseButton1Click:Connect(toggleDropdown)
+
+            local function createOptions()
+                for _, child in ipairs(optionsHolder:GetChildren()) do
+                    if child:IsA("TextButton") then child:Destroy() end
+                end
+
+                for _, opt in ipairs(options) do
+                    local optBtn = Instance.new("TextButton")
+                    optBtn.Size = UDim2.new(1, -4, 0, 32)
+                    optBtn.BackgroundColor3 = Color3.fromRGB(21, 27, 36)
+                    optBtn.BackgroundTransparency = 0.6
+                    optBtn.Text = "   " .. tostring(opt)
+                    optBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
+                    optBtn.Font = Enum.Font.Gotham
+                    optBtn.TextSize = 12
+                    optBtn.TextXAlignment = Enum.TextXAlignment.Left
+                    optBtn.ZIndex = 16
+                    optBtn.Parent = optionsHolder
+
+                    local optCorner = Instance.new("UICorner")
+                    optCorner.CornerRadius = UDim.new(0, 6)
+                    optCorner.Parent = optBtn
+
+                    optBtn.MouseButton1Click:Connect(function()
+                        selected = opt
+                        dropdownBtn.Text = tostring(selected) .. " ▼"
+                        closeDropdown()
+                        if callback then pcall(callback, selected) end
+                    end)
+                end
+            end
+
+            createOptions()
+
+            local dropdownObj = {}
+            function dropdownObj:Refresh(newOptions)
+                options = newOptions
+                createOptions()
+            end
+
+            if callback then pcall(callback, selected) end
+            return dropdownObj
         end
-    end
-
-    createOptions()
-
-    local dropdownObj = {}
-    function dropdownObj:Refresh(newOptions)
-        options = newOptions
-        createOptions()
-    end
-
-    if callback then pcall(callback, selected) end
-    return dropdownObj
-end
 
         function TabElements:CreateLabel(initialText, updateFunction)
             local labelContainer = Instance.new("Frame")
@@ -826,12 +751,10 @@ end)
 
 TestTab:CreateButton("NAME BUTTON", function()
     print("Nút đã được bấm!")
-    -- Viết code dịch chuyển hoặc tính năng của cậu ở đây
 end)
 
 TestTab:CreateSlider("NAME SLIDER", 16, 200, 16, function(value)
     print("Giá trị hiện tại:", value)
-    -- value chính là số mà người dùng kéo chọn
 end)
 
 TestTab:CreateBox("TEXTBOX", "Điền text vào đây...", function(text)
