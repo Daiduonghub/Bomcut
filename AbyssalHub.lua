@@ -683,15 +683,16 @@ local StatsTab = Window:CreateTab("Stats and sever")
 local FarmTab = Window:CreateTab("Tab Farming")
 
 -- ====================================================================
--- 0. KHỞI TẠO BIẾN & CẤU HÌNH STATE MACHINE (CHECK DATA PLAYER)
+-- 0. KHỞI TẠO BIẾN & CẤU HÌNH STATE MACHINE (CHUẨN THỰC TẾ)
 -- ====================================================================
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
-_G.AutoFarm = false
+_G.AutoFarm = false -- Bật sẵn hoặc chỉnh thành false tùy cậu
 _G.FarmState = "CHECK_QUEST"
+_G.HasActiveQuest = false -- Cờ nội bộ quản lý trạng thái nhiệm vụ
 
 -- ====================================================================
 -- 1. DATABASE NHIỆM VỤ FIRST SEA (Đã chuẩn hóa BanditQuest)
@@ -765,7 +766,7 @@ local function TweenTo(targetCFrame)
 end
 
 -- ====================================================================
--- HÀM LẤY THÔNG TIN & CHECK DATA PLAYER CHUẨN XÁC
+-- HÀM LẤY THÔNG TIN LEVEL & QUEST
 -- ====================================================================
 local function GetLevel()
     local success, level = pcall(function() return LocalPlayer.Data.Level.Value end)
@@ -785,22 +786,6 @@ local function GetCurrentQuest()
         end
     end
     return nil
-end
-
--- Kiểm tra trực tiếp dữ liệu/trạng thái quest đang nằm trên người Player
-local function HasQuestData()
-    local hasQuest = false
-    pcall(function()
-        -- Kiểm tra thông qua giá trị Quest trong PlayerGui hoặc data ngầm của game
-        local questContainer = LocalPlayer.PlayerGui.Main.Quest
-        if questContainer and questContainer.Visible then
-            local titleLabel = questContainer:FindFirstChild("Container") and questContainer.Container:FindFirstChild("Quest") and questContainer.Container.Quest:FindFirstChild("Title")
-            if titleLabel and titleLabel.Text ~= "" then
-                hasQuest = true
-            end
-        end
-    end)
-    return hasQuest
 end
 
 -- ====================================================================
@@ -855,29 +840,11 @@ local function AttackTarget(mobName)
 end
 
 -- ====================================================================
--- HÀM CHECK QUEST CHUẨN XÁC TỪ SERVER (XỬ LÝ CẢ NIL VÀ TABLE)
--- ====================================================================
-local function GetCurrentActiveQuest()
-    local success, questData = pcall(function()
-        return ReplicatedStorage.Remotes.CommF_:InvokeServer("DressrosaQuestProgress")
-    end)
-    
-    -- Nếu gọi thành công và có dữ liệu trả về (không phải nil hoặc false)
-    if success and questData then
-        -- Nếu là table và có nội dung, hoặc là string/giá trị khác nil thì tính là đang có quest
-        if type(questData) == "table" then
-            if next(questData) ~= nil then return questData end
-        elseif questData ~= "" then
-            return questData
-        end
-    end
-    return nil -- Hoàn toàn rảnh rỗi, chưa có quest
-end
-
--- ====================================================================
--- VÒNG LẶP CHÍNH FIX LỖI GỬI REQUEST NHẬN QUEST
+-- VÒNG LẶP CHÍNH DÙNG FLAG VÀ THỜI GIAN (TUYỆT ĐỐI KHÔNG BỊ LỖI SERVER)
 -- ====================================================================
 task.spawn(function()
+    local lastQuestTime = 0
+
     while task.wait(0.5) do
         if not _G.AutoFarm then
             if _G.Tweening then
@@ -899,13 +866,11 @@ task.spawn(function()
         local hrp = character and character:FindFirstChild("HumanoidRootPart")
         if not hrp then continue end
 
-        local activeQuest = GetCurrentActiveQuest()
+        setclipboard(string.format("State: %s | HasQuest: %s | Level: %d", tostring(_G.FarmState), tostring(_G.HasActiveQuest), currentLevel))
 
-        setclipboard(string.format("State: %s | Active: %s | Level: %d", tostring(_G.FarmState), tostring(activeQuest ~= nil), currentLevel))
-
-        -- ĐIỀU HƯỚNG TRẠNG THÁI DỰA TRÊN SERVER
+        -- STATE MACHINE CHUẨN XÁC
         if _G.FarmState == "CHECK_QUEST" then
-            if not activeQuest then
+            if not _G.HasActiveQuest then
                 _G.FarmState = "GET_QUEST"
             else
                 _G.FarmState = "FARM"
@@ -915,7 +880,7 @@ task.spawn(function()
             if (hrp.Position - questInfo.NpcPosition.Position).Magnitude > 15 then
                 TweenTo(questInfo.NpcPosition)
             else
-                -- Gửi request nhận quest dứt khoát
+                -- Tới sát NPC, bắn request nhận quest dứt khoát
                 pcall(function()
                     ReplicatedStorage.Remotes.CommF_:InvokeServer(
                         "StartQuest",
@@ -924,21 +889,34 @@ task.spawn(function()
                     )
                 end)
                 
+                -- Dừng lại 1 nhịp để server kịp cộng quest vào
                 task.wait(1.0)
                 
-                -- Check lại lần nữa, nếu server đã cấp quest thì nhảy sang FARM ngay lập tức
-                if GetCurrentActiveQuest() then
-                    _G.FarmState = "FARM"
-                end
+                -- Bật cờ đã nhận quest và chuyển sang trạng thái FARM
+                _G.HasActiveQuest = true
+                _G.FarmState = "FARM"
+                lastQuestTime = tick() -- Đánh dấu thời điểm nhận quest
             end
 
         elseif _G.FarmState == "FARM" then
-            -- Nếu hoàn thành quest hoặc chết, server trả về nil -> Tự động quay về CHECK_QUEST để nhận quest mới
-            if not activeQuest then
+            local humanoid = character:FindFirstChild("Humanoid")
+            
+            -- Cơ chế an toàn 1: Nếu nhân vật chết, tự động bật cờ reset về CHECK_QUEST để đi nhận lại
+            if humanoid and humanoid.Health <= 0 then
+                _G.HasActiveQuest = false
+                _G.FarmState = "CHECK_QUEST"
+                task.wait(3) -- Đợi hồi sinh
+                continue
+            end
+
+            -- Cơ chế an toàn 2: Nếu farm quá 4 phút mà chưa xong (phòng hờ kẹt quái), tự động reset quest mới
+            if tick() - lastQuestTime > 240 then
+                _G.HasActiveQuest = false
                 _G.FarmState = "CHECK_QUEST"
                 continue
             end
 
+            -- Tiến hành bay đến bãi quái và đập
             if (hrp.Position - questInfo.MobSpawn.Position).Magnitude > 25 then
                 TweenTo(questInfo.MobSpawn)
             else
