@@ -867,27 +867,32 @@ local function AttackTarget(mobName)
     end)
 end
 
+-- ====================================================================
+-- VÒNG LẶP CHÍNH AUTO FARM (ĐÃ SỔ TẬN GỐC LỖI ĐỨNG LÌ Ở NPC)
+-- ====================================================================
 task.spawn(function()
     while task.wait(0.3) do
         if _G.AutoFarm then
             local questInfo = GetCurrentQuest()
             if questInfo then
-                local hasQuest = false
+                -- Kiểm tra đơn giản: Khung nhiệm vụ có đang bật không?
+                local hasActiveQuest = false
                 pcall(function()
-                    local titleText = LocalPlayer.PlayerGui.Main.Quest.Container.QuestTitle.Text
-                    if LocalPlayer.PlayerGui.Main.Quest.Visible and string.find(titleText, questInfo.MobName) then
-                        hasQuest = true
-                    end
+                    hasActiveQuest = LocalPlayer.PlayerGui.Main.Quest.Visible
                 end)
 
-                if not hasQuest then
+                if not hasActiveQuest then
+                    -- 1. Chưa có nhiệm vụ -> Bay tới NPC nhận quest
                     AutoTakeQuest()
                 else
+                    -- 2. ĐÃ CÓ NHIỆM VỤ -> Lập tức bay ra bãi quái (`MobSpawn`) để cày!
                     local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                    if hrp and (hrp.Position - questInfo.MobSpawn.Position).Magnitude > 25 then
-                        TweenTo(questInfo.MobSpawn)
-                    else
-                        AttackTarget(questInfo.MobName)
+                    if hrp and questInfo.MobSpawn then
+                        if (hrp.Position - questInfo.MobSpawn.Position).Magnitude > 25 then
+                            TweenTo(questInfo.MobSpawn) -- Bay mượt tới bãi quái
+                        else
+                            AttackTarget(questInfo.MobName) -- Đến nơi thì đấm quái
+                        end
                     end
                 end
             end
