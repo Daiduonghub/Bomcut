@@ -716,6 +716,47 @@ local FirstSeaQuests = {
 }
 
 -- ====================================================================
+-- HÀM TWEEN (BAY MƯỢT MÀ) ĐẾN VỊ TRÍ
+-- ====================================================================
+local TweenService = game:GetService("TweenService")
+
+local function TweenTo(targetCFrame)
+    local character = LocalPlayer.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+    
+    local hrp = character.HumanoidRootPart
+    local distance = (hrp.Position - targetCFrame.Position).Magnitude
+    local speed = 300 -- Tốc độ bay
+    local time = distance / speed
+    
+    if distance < 20 then
+        hrp.CFrame = targetCFrame
+        return
+    end
+
+    local tweenInfo = TweenInfo.new(time, Enum.EasingStyle.Linear)
+    local tween = TweenService:Create(hrp, tweenInfo, {CFrame = targetCFrame + Vector3.new(0, 10, 0)})
+    
+    _G.Tweening = tween
+    tween:Play()
+    
+    local completed = false
+    local connection
+    connection = tween.Completed:Connect(function()
+        completed = true
+        if connection then connection:Disconnect() end
+    end)
+    
+    while not completed and _G.AutoFarm do
+        task.wait(0.1)
+        if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            tween:Cancel()
+            break
+        end
+    end
+end
+
+-- ====================================================================
 -- 2. CÁC HÀM XỬ LÝ NHIỆM VỤ (AUTO QUEST LOGIC)
 -- ====================================================================
 local Players = game:GetService("Players")
