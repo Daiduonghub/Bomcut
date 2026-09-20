@@ -1,3 +1,81 @@
+local rawKey = _G.Key or ""
+local userKey = string.gsub(rawKey, "%s+", "")
+local userHWID = game:GetService("RbxAnalyticsService"):GetClientId()
+
+-- Địa chỉ Server nội bộ và Domain DuckDNS
+local localUrl = "http://192.168.1.12:5000"
+local duckUrl  = "http://abyssalvipcde.duckdns.org:5000"
+
+if userKey == "" then
+    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\nKey not entered! Please set _G.Key before running.")
+    return
+end
+
+local function trim(s)
+    return (s:gsub("^%s*(.-)%s*$", "%1"))
+end
+
+-- Tự động kiểm tra và chọn URL kết nối tối ưu nhất
+local function getBestUrl()
+    local req = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
+    if req then
+        local success, res = pcall(function()
+            return req({ Url = localUrl .. "/check", Method = "HEAD" })
+        end)
+        if success and res then return localUrl end
+    else
+        local success = pcall(function()
+            return game:HttpGet(localUrl .. "/check")
+        end)
+        if success then return localUrl end
+    end
+    return duckUrl
+end
+
+local serverUrl = getBestUrl()
+local antiCache = tostring(os.time())
+local checkUrl = serverUrl .. "/check?key=" .. tostring(userKey) .. "&hwid=" .. tostring(userHWID) .. "&t=" .. antiCache
+
+local response = nil
+local reqFunc = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
+
+if reqFunc then
+    local success, res = pcall(function()
+        return reqFunc({
+            Url = checkUrl,
+            Method = "GET",
+            Headers = {
+                ["User-Agent"] = "RobloxApp"
+            }
+        })
+    end)
+    if success and res and res.Body then response = res.Body end
+else
+    local success, body = pcall(function() return game:HttpGet(checkUrl) end)
+    if success then response = body end
+end
+
+if not response then
+    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\nCannot connect to Server because it is down!")
+    return
+end
+
+local cleanResponse = string.upper(trim(response))
+
+if cleanResponse == "SUCCESS" then
+    print("-> Abyssal Key Verified Successfully!")
+elseif cleanResponse == "BLACKLISTED" then
+    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\nYour Key or HWID has been Blacklisted!")
+elseif cleanResponse == "HWID_MISMATCH" then
+    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\nThis Key is being used on another device!")
+elseif cleanResponse == "EXPIRED" then
+    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\nYour Key has expired!")
+elseif cleanResponse == "INVALID_KEY" then
+    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\nKey does not exist!")
+else
+    game.Players.LocalPlayer:Kick("\n[ABYSSAL HUB]\nUnknown response: " .. cleanResponse)
+end
+
 -- ====================================================================
 -- 1. LIBRARY GIAO DIỆN (UI FRAMEWORK)
 -- ====================================================================
