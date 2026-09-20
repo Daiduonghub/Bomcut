@@ -683,13 +683,17 @@ local StatsTab = Window:CreateTab("Stats and sever")
 local FarmTab = Window:CreateTab("Tab Farming")
 
 -- ====================================================================
--- 0. KHỞI TẠO BIẾN & CẤU HÌNH
+-- 0. KHỞI TẠO BIẾN & CẤU HÌNH (LẤY PLAYERS CHUẨN)
 -- ====================================================================
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
-local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
 
+-- Lấy LocalPlayer an toàn (Chờ Player load hoàn tất)
+local LocalPlayer = Players.LocalPlayer or Players:GetPropertyChangedSignal("LocalPlayer"):Wait() or Players.LocalPlayer
+
+-- Biến AutoFarm mặc định để false (Do Toggle UI của cậu điều khiển)
 _G.AutoFarm = false
 
 -- ====================================================================
@@ -726,40 +730,37 @@ local FirstSeaQuests = {
 }
 
 -- ====================================================================
--- 2. HÀM CHECK QUEST CHỈ CHECK TRACKED (MỚI)
+-- 2. HÀM CHECK QUEST TỪ PLAYER & NOCLIP
 -- ====================================================================
-local Players = game:GetService("Players")
-
--- Hàm lấy LocalPlayer an toàn (chờ cho tới khi Player load xong)
-local function GetLocalPlayer()
-    local player = Players.LocalPlayer
-    while not player do
-        task.wait()
-        player = Players.LocalPlayer
-    end
-    return player
-end
-
--- Hàm local CheckQuest kiểm tra an toàn từng cấp
 local function HasActiveQuest()
-    local player = GetLocalPlayer()
-    if not player then return false end
+    local success, result = pcall(function()
+        local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+        if not playerGui then return false end
 
-    -- Chờ/kiểm tra PlayerGui
-    local playerGui = player:FindFirstChild("PlayerGui")
-    if not playerGui then return false end
-
-    -- Quét tìm TrackedQuestFrame
-    local trackedFrame = playerGui:FindFirstChild("TrackedQuestFrame", true)
-    if trackedFrame and trackedFrame.Visible then
-        return true
-    end
-
-    return false
+        local trackedFrame = playerGui:FindFirstChild("TrackedQuestFrame", true)
+        return trackedFrame and trackedFrame.Visible
+    end)
+    return success and result or false
 end
 
+-- Tắt va chạm (Noclip) khi Toggle AutoFarm = true
+RunService.Stepped:Connect(function()
+    if _G.AutoFarm then
+        pcall(function()
+            local char = LocalPlayer.Character
+            if char then
+                for _, part in ipairs(char:GetChildren()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end)
+    end
+end)
+
 -- ====================================================================
--- 3. HÀM HỖ TRỢ CHUNG
+-- 3. HÀM HỖ TRỢ DI CHUYỂN & VŨ KHÍ
 -- ====================================================================
 local function EquipWeapon()
     pcall(function()
@@ -782,6 +783,13 @@ local function EquipWeapon()
     end)
 end
 
+local function StopTween()
+    if _G.Tweening then
+        _G.Tweening:Cancel()
+        _G.Tweening = nil
+    end
+end
+
 local function TweenTo(targetCFrame)
     local character = LocalPlayer.Character
     if not character or not character:FindFirstChild("HumanoidRootPart") then return end
@@ -789,15 +797,13 @@ local function TweenTo(targetCFrame)
     local hrp = character.HumanoidRootPart
     local distance = (hrp.Position - targetCFrame.Position).Magnitude
     
-    if distance < 10 then
+    if distance <= 15 then
+        StopTween()
         hrp.CFrame = targetCFrame
         return
     end
 
-    if _G.Tweening then
-        _G.Tweening:Cancel()
-        _G.Tweening = nil
-    end
+    StopTween()
 
     local speed = 300
     local tweenInfo = TweenInfo.new(distance / speed, Enum.EasingStyle.Linear)
@@ -805,21 +811,6 @@ local function TweenTo(targetCFrame)
     
     _G.Tweening = tween
     tween:Play()
-    
-    local completed = false
-    local connection
-    connection = tween.Completed:Connect(function()
-        completed = true
-        if connection then connection:Disconnect() end
-    end)
-    
-    while not completed and _G.AutoFarm do
-        task.wait(0.1)
-        if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            if _G.Tweening then _G.Tweening:Cancel() end
-            break
-        end
-    end
 end
 
 local function GetLevel()
@@ -875,7 +866,7 @@ local NetModules = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
 local RegisterAttack = NetModules:FindFirstChild("RE/RegisterAttack")
 local RegisterHit = NetModules:FindFirstChild("RE/RegisterHit")
 
-local function AttackTarget(mobName)
+local function AttackTarget(targetMob)
     pcall(function()
         EquipWeapon()
 
@@ -883,15 +874,9 @@ local function AttackTarget(mobName)
             RegisterAttack:FireServer(0.5, 1) 
         end
 
-        local targetMob = GetClosestMob(mobName)
-        if targetMob and targetMob:FindFirstChild("HumanoidRootPart") and RegisterHit then
-            local hrp = LocalPlayer.Character.HumanoidRootPart
-            local enemyHrp = targetMob.HumanoidRootPart
-            
-            hrp.CFrame = CFrame.new(enemyHrp.Position + Vector3.new(0, 11, 0), enemyHrp.Position)
-            
+        if targetMob and targetMob:FindFirstChild("HumanoidRootPart") then
             local limb = targetMob:FindFirstChild("LeftLowerLeg") or targetMob:FindFirstChild("HumanoidRootPart")
-            if limb then
+            if limb and RegisterHit then
                 local args = {
                     [1] = limb,
                     [2] = {},
@@ -904,22 +889,19 @@ local function AttackTarget(mobName)
 end
 
 -- ====================================================================
--- 5. LUỒNG CHÍNH
+-- 5. LUỒNG CHÍNH (MAIN LOOP)
 -- ====================================================================
 task.spawn(function()
-    while task.wait(0.2) do
+    while task.wait(0.1) do
         if not _G.AutoFarm then
-            if _G.Tweening then 
-                _G.Tweening:Cancel() 
-                _G.Tweening = nil
-            end
+            StopTween()
             continue
         end
 
         pcall(function()
             local currentLevel = GetLevel()
             if currentLevel > 700 then
-                _G.AutoFarm = false
+                StopTween()
                 return
             end
 
@@ -928,13 +910,21 @@ task.spawn(function()
 
             local character = LocalPlayer.Character
             local hrp = character and character:FindFirstChild("HumanoidRootPart")
-            if not hrp then return end
+            local humanoid = character and character:FindFirstChild("Humanoid")
 
-            -- CHECK QUEST TRỰC TIẾP TỪ TRACKEDQUESTFRAME
+            if not hrp or not humanoid or humanoid.Health <= 0 then
+                StopTween()
+                task.wait(1)
+                return
+            end
+
+            -- BƯỚC 1: CHƯA CÓ QUEST -> BAY TỚI NPC LẤY QUEST
             if not HasActiveQuest() then
-                if (hrp.Position - questInfo.NpcPosition.Position).Magnitude > 8 then
+                local distanceToNpc = (hrp.Position - questInfo.NpcPosition.Position).Magnitude
+                if distanceToNpc > 8 then
                     TweenTo(questInfo.NpcPosition)
                 else
+                    StopTween()
                     hrp.CFrame = questInfo.NpcPosition
                     task.wait(0.2)
                     
@@ -944,29 +934,31 @@ task.spawn(function()
                         [3] = questInfo.QuestId
                     }
                     ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))
-                    task.wait(0.8)
-                end
-            else
-                local humanoid = character:FindFirstChild("Humanoid")
-                if humanoid and humanoid.Health <= 0 then
-                    task.wait(2)
-                    return
+                    task.wait(0.5)
                 end
 
+            -- BƯỚC 2: ĐÃ CÓ QUEST -> TÌM QUÁI & ĐÁNH
+            else
                 local targetMob = GetClosestMob(questInfo.MobName)
+                
                 if targetMob and targetMob:FindFirstChild("HumanoidRootPart") then
                     local mobHrp = targetMob.HumanoidRootPart
-                    local fixedPosition = CFrame.new(mobHrp.Position + Vector3.new(0, 11, 0), mobHrp.Position)
-                    
-                    if (hrp.Position - fixedPosition.Position).Magnitude > 12 then
-                        TweenTo(fixedPosition)
+                    local targetPos = CFrame.new(mobHrp.Position + Vector3.new(0, 10, 0), mobHrp.Position)
+                    local distanceToMob = (hrp.Position - targetPos.Position).Magnitude
+
+                    if distanceToMob > 15 then
+                        TweenTo(targetPos)
                     else
-                        AttackTarget(questInfo.MobName)
+                        StopTween()
+                        hrp.CFrame = targetPos
+                        AttackTarget(targetMob)
                     end
                 else
-                    if (hrp.Position - questInfo.MobSpawn.Position).Magnitude > 12 then
+                    local distanceToSpawn = (hrp.Position - questInfo.MobSpawn.Position).Magnitude
+                    if distanceToSpawn > 15 then
                         TweenTo(questInfo.MobSpawn)
                     else
+                        StopTween()
                         hrp.CFrame = questInfo.MobSpawn
                     end
                 end
