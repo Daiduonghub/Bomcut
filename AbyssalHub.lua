@@ -2,7 +2,6 @@ local rawKey = _G.Key or ""
 local userKey = string.gsub(rawKey, "%s+", "")
 local userHWID = game:GetService("RbxAnalyticsService"):GetClientId()
 
--- Địa chỉ Server nội bộ và Domain DuckDNS
 local localUrl = "http://192.168.1.12:5000"
 local duckUrl  = "http://abyssalvipcde.duckdns.org:5000"
 
@@ -15,30 +14,28 @@ local function trim(s)
     return (s:gsub("^%s*(.-)%s*$", "%1"))
 end
 
--- Tự động kiểm tra và chọn URL kết nối tối ưu nhất
--- Tự động kiểm tra và chọn URL kết nối
+-- Hàm tự động chọn URL tối ưu (Kiểm tra xem có ở nhà không)
 local function getBestUrl()
-    local testKey = userKey ~= "" and userKey or "test"
-    local testUrl = localUrl .. "/check?key=" .. testKey .. "&hwid=" .. userHWID
+    local reqFunc = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
+    local testUrl = localUrl .. "/ping"
     
-    local req = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
-    if req then
+    if reqFunc then
         local success, res = pcall(function()
-            return req({ Url = testUrl, Method = "GET" })
+            return reqFunc({ Url = testUrl, Method = "GET" })
         end)
-        -- Nếu nhận được phản hồi từ IP nội bộ (không bị lỗi mạng)
-        if success and res and res.StatusCode then 
-            return localUrl 
+        if success and res and (res.StatusCode == 200 or res.Status == 200) then
+            return localUrl
         end
     else
-        local success, res = pcall(function()
+        local success, body = pcall(function()
             return game:HttpGet(testUrl)
         end)
-        if success and res then 
-            return localUrl 
+        if success then
+            return localUrl
         end
     end
     
+    -- Nếu không gọi được IP nội bộ (đang ở ngoài hoặc xài 4G), tự động đổi sang DuckDNS
     return duckUrl
 end
 
