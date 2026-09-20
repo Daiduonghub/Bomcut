@@ -728,18 +728,34 @@ local FirstSeaQuests = {
 -- ====================================================================
 -- 2. HÀM CHECK QUEST CHỈ CHECK TRACKED (MỚI)
 -- ====================================================================
-local function HasActiveQuest()
-    local hasQuest = false
-    pcall(function()
-        local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-        if not playerGui then return end
+local Players = game:GetService("Players")
 
-        local tracked = playerGui:FindFirstChild("TrackedQuestFrame", true)
-        if tracked and tracked.Visible then
-            hasQuest = true
-        end
-    end)
-    return hasQuest
+-- Hàm lấy LocalPlayer an toàn (chờ cho tới khi Player load xong)
+local function GetLocalPlayer()
+    local player = Players.LocalPlayer
+    while not player do
+        task.wait()
+        player = Players.LocalPlayer
+    end
+    return player
+end
+
+-- Hàm local CheckQuest kiểm tra an toàn từng cấp
+local function HasActiveQuest()
+    local player = GetLocalPlayer()
+    if not player then return false end
+
+    -- Chờ/kiểm tra PlayerGui
+    local playerGui = player:FindFirstChild("PlayerGui")
+    if not playerGui then return false end
+
+    -- Quét tìm TrackedQuestFrame
+    local trackedFrame = playerGui:FindFirstChild("TrackedQuestFrame", true)
+    if trackedFrame and trackedFrame.Visible then
+        return true
+    end
+
+    return false
 end
 
 -- ====================================================================
