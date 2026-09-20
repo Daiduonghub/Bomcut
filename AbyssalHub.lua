@@ -683,17 +683,16 @@ local StatsTab = Window:CreateTab("Stats and sever")
 local FarmTab = Window:CreateTab("Tab Farming")
 
 -- ====================================================================
--- 0. KHỞI TẠO BIẾN & CẤU HÌNH (LẤY PLAYERS CHUẨN)
+-- 0. KHỞI TẠO BIẾN & CẤU HÌNH
 -- ====================================================================
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 
--- Lấy LocalPlayer an toàn (Chờ Player load hoàn tất)
-local LocalPlayer = Players.LocalPlayer or Players:GetPropertyChangedSignal("LocalPlayer"):Wait() or Players.LocalPlayer
+-- Lấy LocalPlayer
+local LocalPlayer = Players.LocalPlayer
 
--- Biến AutoFarm mặc định để false (Do Toggle UI của cậu điều khiển)
 _G.AutoFarm = false
 
 -- ====================================================================
@@ -730,20 +729,33 @@ local FirstSeaQuests = {
 }
 
 -- ====================================================================
--- 2. HÀM CHECK QUEST TỪ PLAYER & NOCLIP
+-- 2. HÀM CHECK QUEST CHỈ CHECK TRACKED (ĐÚNG NGUYÊN BẢN CỦA CẬU)
 -- ====================================================================
-local function HasActiveQuest()
-    local success, result = pcall(function()
-        local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-        if not playerGui then return false end
-
-        local trackedFrame = playerGui:FindFirstChild("TrackedQuestFrame", true)
-        return trackedFrame and trackedFrame.Visible
-    end)
-    return success and result or false
+local function GetLocalPlayer()
+    local player = Players.LocalPlayer
+    while not player do
+        task.wait()
+        player = Players.LocalPlayer
+    end
+    return player
 end
 
--- Tắt va chạm (Noclip) khi Toggle AutoFarm = true
+local function HasActiveQuest()
+    local player = GetLocalPlayer()
+    if not player then return false end
+
+    local playerGui = player:FindFirstChild("PlayerGui")
+    if not playerGui then return false end
+
+    local trackedFrame = playerGui:FindFirstChild("TrackedQuestFrame", true)
+    if trackedFrame and trackedFrame.Visible then
+        return true
+    end
+
+    return false
+end
+
+-- Noclip xuyên địa hình khi auto farm
 RunService.Stepped:Connect(function()
     if _G.AutoFarm then
         pcall(function()
@@ -760,7 +772,7 @@ RunService.Stepped:Connect(function()
 end)
 
 -- ====================================================================
--- 3. HÀM HỖ TRỢ DI CHUYỂN & VŨ KHÍ
+-- 3. HÀM HỖ TRỢ CHUNG
 -- ====================================================================
 local function EquipWeapon()
     pcall(function()
@@ -889,7 +901,7 @@ local function AttackTarget(targetMob)
 end
 
 -- ====================================================================
--- 5. LUỒNG CHÍNH (MAIN LOOP)
+-- 5. LUỒNG CHÍNH
 -- ====================================================================
 task.spawn(function()
     while task.wait(0.1) do
@@ -918,7 +930,7 @@ task.spawn(function()
                 return
             end
 
-            -- BƯỚC 1: CHƯA CÓ QUEST -> BAY TỚI NPC LẤY QUEST
+            -- BƯỚC 1: CHƯA CÓ QUEST -> TỚI NPC LẤY QUEST
             if not HasActiveQuest() then
                 local distanceToNpc = (hrp.Position - questInfo.NpcPosition.Position).Magnitude
                 if distanceToNpc > 8 then
@@ -937,7 +949,7 @@ task.spawn(function()
                     task.wait(0.5)
                 end
 
-            -- BƯỚC 2: ĐÃ CÓ QUEST -> TÌM QUÁI & ĐÁNH
+            -- BƯỚC 2: ĐÃ CÓ QUEST -> TÌM QUÁI VÀ ĐÁNH
             else
                 local targetMob = GetClosestMob(questInfo.MobName)
                 
