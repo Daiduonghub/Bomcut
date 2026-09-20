@@ -16,19 +16,29 @@ local function trim(s)
 end
 
 -- Tự động kiểm tra và chọn URL kết nối tối ưu nhất
+-- Tự động kiểm tra và chọn URL kết nối
 local function getBestUrl()
+    local testKey = userKey ~= "" and userKey or "test"
+    local testUrl = localUrl .. "/check?key=" .. testKey .. "&hwid=" .. userHWID
+    
     local req = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
     if req then
         local success, res = pcall(function()
-            return req({ Url = localUrl .. "/check", Method = "HEAD" })
+            return req({ Url = testUrl, Method = "GET" })
         end)
-        if success and res then return localUrl end
+        -- Nếu nhận được phản hồi từ IP nội bộ (không bị lỗi mạng)
+        if success and res and res.StatusCode then 
+            return localUrl 
+        end
     else
-        local success = pcall(function()
-            return game:HttpGet(localUrl .. "/check")
+        local success, res = pcall(function()
+            return game:HttpGet(testUrl)
         end)
-        if success then return localUrl end
+        if success and res then 
+            return localUrl 
+        end
     end
+    
     return duckUrl
 end
 
