@@ -690,7 +690,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
-_G.AutoFarm = true -- Bật AutoFarm
+_G.AutoFarm = false
 
 -- ====================================================================
 -- 1. DATABASE NHIỆM VỤ FIRST SEA
@@ -726,21 +726,34 @@ local FirstSeaQuests = {
 }
 
 -- ====================================================================
--- 2. HÀM TỰ ĐỘNG CẦM VŨ KHÍ (CỰC KỲ QUAN TRỌNG)
+-- 2. HÀM CHECK QUEST CHỈ CHECK TRACKED (MỚI)
+-- ====================================================================
+local function HasActiveQuest()
+    local hasQuest = false
+    pcall(function()
+        local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+        if not playerGui then return end
+
+        local tracked = playerGui:FindFirstChild("TrackedQuestFrame", true)
+        if tracked and tracked.Visible then
+            hasQuest = true
+        end
+    end)
+    return hasQuest
+end
+
+-- ====================================================================
+-- 3. HÀM HỖ TRỢ CHUNG
 -- ====================================================================
 local function EquipWeapon()
     pcall(function()
         local character = LocalPlayer.Character
         if not character or not character:FindFirstChild("Humanoid") then return end
         
-        -- Nếu đã cầm sẵn vũ khí trên tay thì không cần đổi
         for _, tool in ipairs(character:GetChildren()) do
-            if tool:IsA("Tool") then
-                return
-            end
+            if tool:IsA("Tool") then return end
         end
         
-        -- Nếu chưa cầm, tự lấy Melee / Sword từ Backpack ra cầm
         local backpack = LocalPlayer:FindFirstChild("Backpack")
         if backpack then
             for _, tool in ipairs(backpack:GetChildren()) do
@@ -753,52 +766,6 @@ local function EquipWeapon()
     end)
 end
 
--- ====================================================================
--- 3. HÀM CHECK QUEST CHUẨN XÁC
--- ====================================================================
-local function HasActiveQuest()
-    local hasQuest = false
-    pcall(function()
-        local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-        if not playerGui then return end
-
-        local main = playerGui:FindFirstChild("Main")
-        if main and main:FindFirstChild("Quest") and main.Quest.Visible then
-            hasQuest = true
-            return
-        end
-
-        local tracked = playerGui:FindFirstChild("TrackedQuestFrame", true)
-        if tracked and tracked.Visible then
-            hasQuest = true
-            return
-        end
-    end)
-    return hasQuest
-end
-
-local function GetLevel()
-    local success, level = pcall(function() return LocalPlayer.Data.Level.Value end)
-    return success and level or 1
-end
-
-local function GetCurrentQuest()
-    local currentLevel = GetLevel()
-    if currentLevel > 700 then return nil end
-    local seaQuests = FirstSeaQuests[1]
-    if not seaQuests then return nil end
-
-    for _, questData in ipairs(seaQuests) do
-        if currentLevel >= questData.MinLevel and currentLevel <= questData.MaxLevel then
-            return questData
-        end
-    end
-    return nil
-end
-
--- ====================================================================
--- 4. HÀM DI CHUYỂN TWEEN
--- ====================================================================
 local function TweenTo(targetCFrame)
     local character = LocalPlayer.Character
     if not character or not character:FindFirstChild("HumanoidRootPart") then return end
@@ -839,9 +806,25 @@ local function TweenTo(targetCFrame)
     end
 end
 
--- ====================================================================
--- 5. HÀM TÌM QUÁI SỐNG GẦN NHẤT
--- ====================================================================
+local function GetLevel()
+    local success, level = pcall(function() return LocalPlayer.Data.Level.Value end)
+    return success and level or 1
+end
+
+local function GetCurrentQuest()
+    local currentLevel = GetLevel()
+    if currentLevel > 700 then return nil end
+    local seaQuests = FirstSeaQuests[1]
+    if not seaQuests then return nil end
+
+    for _, questData in ipairs(seaQuests) do
+        if currentLevel >= questData.MinLevel and currentLevel <= questData.MaxLevel then
+            return questData
+        end
+    end
+    return nil
+end
+
 local function GetClosestMob(mobName)
     local character = LocalPlayer.Character
     if not character or not character:FindFirstChild("HumanoidRootPart") then return nil end
@@ -870,7 +853,7 @@ local function GetClosestMob(mobName)
 end
 
 -- ====================================================================
--- 6. HÀM ĐÁNH QUÁI (GỬI REMOTE & TỰ ĐỘNG TRANG BỊ)
+-- 4. HÀM ĐÁNH QUÁI
 -- ====================================================================
 local NetModules = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
 local RegisterAttack = NetModules:FindFirstChild("RE/RegisterAttack")
@@ -878,7 +861,6 @@ local RegisterHit = NetModules:FindFirstChild("RE/RegisterHit")
 
 local function AttackTarget(mobName)
     pcall(function()
-        -- Tự cầm vũ khí trước khi vung đòn
         EquipWeapon()
 
         if RegisterAttack then 
@@ -890,7 +872,6 @@ local function AttackTarget(mobName)
             local hrp = LocalPlayer.Character.HumanoidRootPart
             local enemyHrp = targetMob.HumanoidRootPart
             
-            -- Đặt CFrame cố định trên đầu quái
             hrp.CFrame = CFrame.new(enemyHrp.Position + Vector3.new(0, 11, 0), enemyHrp.Position)
             
             local limb = targetMob:FindFirstChild("LeftLowerLeg") or targetMob:FindFirstChild("HumanoidRootPart")
@@ -907,10 +888,9 @@ local function AttackTarget(mobName)
 end
 
 -- ====================================================================
--- 7. LUỒNG CHÍNH (ĐỒNG BỘ 100%)
+-- 5. LUỒNG CHÍNH
 -- ====================================================================
 task.spawn(function()
-    print("[AutoFarm] Đã bật luồng Auto Farm thành công!")
     while task.wait(0.2) do
         if not _G.AutoFarm then
             if _G.Tweening then 
@@ -934,7 +914,7 @@ task.spawn(function()
             local hrp = character and character:FindFirstChild("HumanoidRootPart")
             if not hrp then return end
 
-            -- TRƯỜNG HỢP 1: CHƯA CÓ QUEST -> ĐẾN NPC LẤY QUEST
+            -- CHECK QUEST TRỰC TIẾP TỪ TRACKEDQUESTFRAME
             if not HasActiveQuest() then
                 if (hrp.Position - questInfo.NpcPosition.Position).Magnitude > 8 then
                     TweenTo(questInfo.NpcPosition)
@@ -950,8 +930,6 @@ task.spawn(function()
                     ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))
                     task.wait(0.8)
                 end
-
-            -- TRƯỜNG HỢP 2: ĐÃ CÓ QUEST -> TỚI BÃI QUÁI & ĐÁNH
             else
                 local humanoid = character:FindFirstChild("Humanoid")
                 if humanoid and humanoid.Health <= 0 then
@@ -970,7 +948,6 @@ task.spawn(function()
                         AttackTarget(questInfo.MobName)
                     end
                 else
-                    -- Nếu quái chưa spawn -> Di chuyển/Đứng sẵn tại vị trí Spawn của bãi đó
                     if (hrp.Position - questInfo.MobSpawn.Position).Magnitude > 12 then
                         TweenTo(questInfo.MobSpawn)
                     else
