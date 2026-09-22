@@ -978,3 +978,73 @@ task.spawn(function()
         end)
     end
 end)
+
+-- ====================================================================
+-- 3. KHỞI TẠO LABELS & VÒNG LẶP STATS & SERVER
+-- ====================================================================
+local Players = game:GetService("Players")
+local StatsService = game:GetService("Stats")
+local Lighting = game:GetService("Lighting")
+local LocalPlayer = Players.LocalPlayer
+
+local PingLabel   = StatsTab:CreateLabel("📡 Ping: Đang tải...", function()
+    local ping = 0
+    pcall(function()
+        if LocalPlayer and LocalPlayer.NetworkPing then
+            ping = math.floor(LocalPlayer.NetworkPing * 1000)
+        else
+            local networkStats = StatsService:FindFirstChild("Network")
+            local serverStatsItem = networkStats and networkStats:FindFirstChild("ServerStatsItem")
+            local dataPing = serverStatsItem and serverStatsItem:FindFirstChild("Data Ping")
+            if dataPing then ping = math.floor(dataPing:GetValue()) end
+        end
+    end)
+    return "📡 Ping: " .. ping .. " ms"
+end)
+
+local FpsLabel    = StatsTab:CreateLabel("⚡ FPS: Đang tải...", function()
+    local fps = 60
+    pcall(function()
+        fps = math.floor(1 / game:GetService("RunService").RenderStepped:Wait())
+    end)
+    return "⚡ FPS: " .. fps
+end)
+
+local MoonLabel   = StatsTab:CreateLabel("🌕 Trăng (Moon): Đang quét...", function()
+    local text = "🌕 Trăng: Đang ban ngày ☀️"
+    pcall(function()
+        local clockTime = Lighting.ClockTime
+        if clockTime < 6 or clockTime > 18 then
+            local moonId = tostring(Lighting.MoonTextureId or "")
+            if moonId:find("9701506161") or moonId:find("1440") or Lighting.MoonSize > 2 then
+                text = "🌕 Trăng: 🟢 FULL MOON (TRĂNG TRÒN!)"
+            else
+                text = "🌕 Trăng: Đang ban đêm (Chưa Full)"
+            end
+        end
+    end)
+    return text
+end)
+
+local MirageLabel = StatsTab:CreateLabel("🏝️ Đảo Bí Ẩn (Mirage): Không thấy", function()
+    local found = false
+    pcall(function()
+        for _, obj in ipairs(workspace:GetChildren()) do
+            if obj.Name == "Mirage Island" or obj.Name:lower():find("mirage") then
+                found = true
+                break
+            end
+        end
+    end)
+    return found and "🏝️ Đảo Bí Ẩn (Mirage): 🟢 XUẤT HIỆN RỒI!" or "🏝️ Đảo Bí Ẩn (Mirage): 🔴 Không có trong Server"
+end)
+
+FarmTab:CreateToggle("Auto Farm Level", false, function(state)
+    _G.AutoFarm = state -- Cập nhật trạng thái khi cậu bấm gạt nút trên UI
+    
+    if state then
+        print("🟢 Đã BẬT Auto Farm!")
+    else
+        print("🔴 Đã TẮT Auto Farm!")
+    end
+end)
