@@ -156,6 +156,145 @@ CloseBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ============================================================
+-- TOGGLE BAT/TAT UI (KEYBIND + BUTTON)
+-- ============================================================
+local UIOpen = true
+local ToggleKey = Enum.KeyCode.RightControl -- phim tat mo/dong UI
+
+-- Nut nho de mo lai UI khi da an
+local OpenButton = Instance.new("TextButton")
+OpenButton.Name = "OpenButton"
+OpenButton.Size = UDim2.new(0, 90, 0, 34)
+OpenButton.Position = UDim2.new(0, 20, 0, 20)
+OpenButton.BackgroundColor3 = Color3.fromRGB(140, 60, 255)
+OpenButton.BackgroundTransparency = 0.15
+OpenButton.Text = "ABYSSALHUB"
+OpenButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+OpenButton.TextSize = 12
+OpenButton.Font = Enum.Font.GothamBold
+OpenButton.BorderSizePixel = 0
+OpenButton.Visible = false
+OpenButton.Parent = ScreenGui
+
+local OpenCorner = Instance.new("UICorner")
+OpenCorner.CornerRadius = UDim.new(0, 10)
+OpenCorner.Parent = OpenButton
+
+local OpenStroke = Instance.new("UIStroke")
+OpenStroke.Color = Color3.fromRGB(180, 120, 255)
+OpenStroke.Thickness = 1
+OpenStroke.Transparency = 0.4
+OpenStroke.Parent = OpenButton
+
+OpenButton.MouseEnter:Connect(function()
+    TweenService:Create(OpenButton, TweenInfo.new(0.15), {BackgroundTransparency = 0}):Play()
+end)
+OpenButton.MouseLeave:Connect(function()
+    TweenService:Create(OpenButton, TweenInfo.new(0.15), {BackgroundTransparency = 0.15}):Play()
+end)
+
+-- Ham an UI
+local function HideUI()
+    UIOpen = false
+    local tween = TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+        Size = UDim2.new(0, 0, 0, 0),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        BackgroundTransparency = 1
+    })
+    tween:Play()
+    tween.Completed:Connect(function()
+        MainFrame.Visible = false
+        OpenButton.Visible = true
+    end)
+end
+
+-- Ham hien UI
+local function ShowUI()
+    UIOpen = true
+    OpenButton.Visible = false
+    MainFrame.Visible = true
+    MainFrame.Size = UDim2.new(0, 0, 0, 0)
+    MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+    MainFrame.BackgroundTransparency = 1
+    TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Size = UDim2.new(0, 520, 0, 360),
+        Position = UDim2.new(0.5, -260, 0.5, -180),
+        BackgroundTransparency = 0.05
+    }):Play()
+end
+
+-- Xu ly phim tat
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    if input.KeyCode == ToggleKey then
+        if UIOpen then
+            HideUI()
+        else
+            ShowUI()
+        end
+    end
+end)
+
+OpenButton.MouseButton1Click:Connect(ShowUI)
+
+-- Nut X tren header gio chi an UI chu khong Destroy
+CloseBtn.MouseButton1Click:Connect(function()
+    HideUI()
+end)
+
+-- ============================================================
+-- HE THONG PHONG TO / THU NHO UI
+-- ============================================================
+local OriginalSize = UDim2.new(0, 520, 0, 360)
+local OriginalPos = UDim2.new(0.5, -260, 0.5, -180)
+local IsMaximized = false
+
+-- Tao nut phong to
+local MaximizeBtn = Instance.new("TextButton")
+MaximizeBtn.Size = UDim2.new(0, 32, 0, 32)
+MaximizeBtn.Position = UDim2.new(1, -80, 0, 10)
+MaximizeBtn.BackgroundColor3 = Color3.fromRGB(80, 180, 255)
+MaximizeBtn.BackgroundTransparency = 0.85
+MaximizeBtn.Text = "□"
+MaximizeBtn.TextColor3 = Color3.fromRGB(200, 230, 255)
+MaximizeBtn.TextSize = 18
+MaximizeBtn.Font = Enum.Font.GothamBold
+MaximizeBtn.BorderSizePixel = 0
+MaximizeBtn.Parent = Header
+
+local MaxCorner = Instance.new("UICorner")
+MaxCorner.CornerRadius = UDim.new(0, 8)
+MaxCorner.Parent = MaximizeBtn
+
+MaximizeBtn.MouseEnter:Connect(function()
+    TweenService:Create(MaximizeBtn, TweenInfo.new(0.15), {BackgroundTransparency = 0.5, TextColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+end)
+MaximizeBtn.MouseLeave:Connect(function()
+    TweenService:Create(MaximizeBtn, TweenInfo.new(0.15), {BackgroundTransparency = 0.85, TextColor3 = Color3.fromRGB(200, 230, 255)}):Play()
+end)
+
+MaximizeBtn.MouseButton1Click:Connect(function()
+    IsMaximized = not IsMaximized
+    if IsMaximized then
+        -- Phong to
+        TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, 800, 0, 520),
+            Position = UDim2.new(0.5, -400, 0.5, -260)
+        }):Play()
+        MaximizeBtn.Text = "❐"
+        Library:Notify("AbyssalHub", "Da phong to UI", 2)
+    else
+        -- Thu nho ve mac dinh
+        TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Size = OriginalSize,
+            Position = OriginalPos
+        }):Play()
+        MaximizeBtn.Text = "□"
+        Library:Notify("AbyssalHub", "Da thu nho UI", 2)
+    end
+end)
+
+-- ============================================================
 -- ЛЕВАЯ ПАНЕЛЬ ВКЛАДОК
 -- ============================================================
 local SideBar = Instance.new("Frame")
