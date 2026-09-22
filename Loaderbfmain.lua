@@ -680,3 +680,301 @@ end
 local Window = Library:CreateWindow("ABYSSAL HUB")
 local StatsTab = Window:CreateTab("Stats and sever")
 local FarmTab = Window:CreateTab("Tab Farming")
+
+-- ====================================================================
+-- 0. KHỞI TẠO BIẾN & CẤU HÌNH
+-- ====================================================================
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+local StatsService = game:GetService("Stats")
+
+local LocalPlayer = Players.LocalPlayer
+_G.AutoFarm = false
+
+-- ====================================================================
+-- 1. DATABASE NHIỆM VỤ FIRST SEA
+-- ====================================================================
+local FirstSeaQuests = {
+    [1] = {
+        { MinLevel = 650, MaxLevel = 700, QuestName = "FountainQuest", QuestId = 2, NpcName = "Hero", NpcPosition = CFrame.new(5257, 39, 4051), MobName = "Galley Captain", MobSpawn = CFrame.new(5790, 60, 4975) },
+        { MinLevel = 625, MaxLevel = 649, QuestName = "FountainQuest", QuestId = 1, NpcName = "Hero", NpcPosition = CFrame.new(5257, 39, 4051), MobName = "Galley Pirate", MobSpawn = CFrame.new(5554, 82, 3971) },
+        { MinLevel = 550, MaxLevel = 624, QuestName = "SkyExp2Quest", QuestId = 2, NpcName = "Conylee", NpcPosition = CFrame.new(-7903, 5635, -1411), MobName = "Nomadic Pirate", MobSpawn = CFrame.new(-7819, 5545, -1727) },
+        { MinLevel = 525, MaxLevel = 549, QuestName = "SkyExp2Quest", QuestId = 1, NpcName = "Conylee", NpcPosition = CFrame.new(-7903, 5635, -1411), MobName = "Royal Squad", MobSpawn = CFrame.new(-7667, 5747, -1964) },
+        { MinLevel = 475, MaxLevel = 524, QuestName = "SkyExp1Quest", QuestId = 2, NpcName = "Instance", NpcPosition = CFrame.new(-7903, 5635, -1411), MobName = "Shanda", MobSpawn = CFrame.new(-7657, 5607, -1412) },
+        { MinLevel = 450, MaxLevel = 474, QuestName = "SkyExp1Quest", QuestId = 1, NpcName = "Instance", NpcPosition = CFrame.new(-7903, 5635, -1411), MobName = "God's Guard", MobSpawn = CFrame.new(-4718, 850, -1945) },
+        { MinLevel = 400, MaxLevel = 449, QuestName = "FishmanQuest", QuestId = 2, NpcName = "Villager", NpcPosition = CFrame.new(6112, 19, 1567), MobName = "Fishman Commando", MobSpawn = CFrame.new(6337, -1, 1145) },
+        { MinLevel = 375, MaxLevel = 399, QuestName = "FishmanQuest", QuestId = 1, NpcName = "Villager", NpcPosition = CFrame.new(6112, 19, 1567), MobName = "Fishman Warrior", MobSpawn = CFrame.new(6090, -1, 1494) },
+        { MinLevel = 325, MaxLevel = 374, QuestName = "MagmaQuest", QuestId = 2, NpcName = "Military Spy", NpcPosition = CFrame.new(-5315, 12, 8515), MobName = "Military Spy", MobSpawn = CFrame.new(-5808, 51, 8829) },
+        { MinLevel = 300, MaxLevel = 324, QuestName = "MagmaQuest", QuestId = 1, NpcName = "Military Spy", NpcPosition = CFrame.new(-5315, 12, 8515), MobName = "Military Soldier", MobSpawn = CFrame.new(-5401, 18, 8450) },
+        { MinLevel = 250, MaxLevel = 299, QuestName = "ColosseumQuest", QuestId = 1, NpcName = "Noble", NpcPosition = CFrame.new(-1580, 7, -2992), MobName = "Toga Warrior", MobSpawn = CFrame.new(-1840, 7, -2735) },
+        { MinLevel = 210, MaxLevel = 249, QuestName = "PrisonerQuest", QuestId = 2, NpcName = "Military Detective", NpcPosition = CFrame.new(487, 5, 327), MobName = "Dangerous Prisoner", MobSpawn = CFrame.new(1099, 5, 130) },
+        { MinLevel = 190, MaxLevel = 209, QuestName = "PrisonerQuest", QuestId = 1, NpcName = "Military Detective", NpcPosition = CFrame.new(487, 5, 327), MobName = "Prisoner", MobSpawn = CFrame.new(524, 5, 484) },
+        { MinLevel = 175, MaxLevel = 189, QuestName = "SkyQuest", QuestId = 2, NpcName = "Mad Scientist", NpcPosition = CFrame.new(-4842, 718, -2622), MobName = "Dark Master", MobSpawn = CFrame.new(-5244, 431, -2279) },
+        { MinLevel = 150, MaxLevel = 174, QuestName = "SkyQuest", QuestId = 1, NpcName = "Mad Scientist", NpcPosition = CFrame.new(-4842, 718, -2622), MobName = "Sky Bandit", MobSpawn = CFrame.new(-4962, 281, -2880) },
+        { MinLevel = 120, MaxLevel = 149, QuestName = "MarineQuest2", QuestId = 1, NpcName = "Navy Lieutenant", NpcPosition = CFrame.new(-2440, 13, 3216), MobName = "Chief Petty Officer", MobSpawn = CFrame.new(-2566, 6, 3314) },
+        { MinLevel = 100, MaxLevel = 119, QuestName = "SnowQuest", QuestId = 2, NpcName = "Snow Adventurer", NpcPosition = CFrame.new(1386, 87, -1298), MobName = "Snowman", MobSpawn = CFrame.new(1361, 87, -1544) },
+        { MinLevel = 90, MaxLevel = 99, QuestName = "SnowQuest", QuestId = 1, NpcName = "Snow Adventurer", NpcPosition = CFrame.new(1386, 87, -1298), MobName = "Snow Bandit", MobSpawn = CFrame.new(1279, 104, -1433) },
+        { MinLevel = 75, MaxLevel = 89, QuestName = "DesertQuest", QuestId = 2, NpcName = "Desert Adventurer", NpcPosition = CFrame.new(897, 7, 4388), MobName = "Desert Officer", MobSpawn = CFrame.new(1134, 10, 4424) },
+        { MinLevel = 60, MaxLevel = 74, QuestName = "DesertQuest", QuestId = 1, NpcName = "Desert Adventurer", NpcPosition = CFrame.new(897, 7, 4388), MobName = "Desert Bandit", MobSpawn = CFrame.new(944, 7, 4277) },
+        { MinLevel = 40, MaxLevel = 59, QuestName = "BuggyQuest1", QuestId = 2, NpcName = "Rich Man", NpcPosition = CFrame.new(-1140, 5, 3828), MobName = "Brute", MobSpawn = CFrame.new(-1390, 16, 4101) },
+        { MinLevel = 30, MaxLevel = 39, QuestName = "BuggyQuest1", QuestId = 1, NpcName = "Rich Man", NpcPosition = CFrame.new(-1140, 5, 3828), MobName = "Pirate", MobSpawn = CFrame.new(-1201, 14, 3938) },
+        { MinLevel = 15, MaxLevel = 29, QuestName = "JungleQuest", QuestId = 2, NpcName = "Adventurer", NpcPosition = CFrame.new(-1601, 37, 153), MobName = "Gorilla", MobSpawn = CFrame.new(-1237, 6, -510) },
+        { MinLevel = 10, MaxLevel = 14, QuestName = "JungleQuest", QuestId = 1, NpcName = "Adventurer", NpcPosition = CFrame.new(-1683.78, 50.35, 171.07), MobName = "Monkey", MobSpawn = CFrame.new(-1498, 51, 60) },
+        { MinLevel = 1, MaxLevel = 9, QuestName = "BanditQuest1", QuestId = 1, NpcName = "Bandit Hero", NpcPosition = CFrame.new(1059, 16, 1549), MobName = "Bandit", MobSpawn = CFrame.new(1141, 17, 1690) }
+    }
+}
+
+-- ====================================================================
+-- 2. HÀM KIỂM TRA QUEST ĐÃ ĐƯỢC VÁ LỖI KHÔNG BỊ KẸT
+-- ====================================================================
+local function HasActiveQuest()
+    local success, result = pcall(function()
+        local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+        if not playerGui then return false end
+
+        -- Check khung Main/Quest của Blox Fruits
+        local main = playerGui:FindFirstChild("Main")
+        if main then
+            local questContainer = main:FindFirstChild("Quest")
+            if questContainer and questContainer.Visible then
+                return true
+            end
+        end
+
+        -- Check TrackedQuestFrame dự phòng
+        local trackedFrame = playerGui:FindFirstChild("TrackedQuestFrame", true)
+        if trackedFrame and trackedFrame.Visible then
+            return true
+        end
+
+        return false
+    end)
+    return success and result or false
+end
+
+-- Noclip xuyên địa hình khi auto farm
+RunService.Stepped:Connect(function()
+    if _G.AutoFarm then
+        pcall(function()
+            local char = LocalPlayer.Character
+            if char then
+                for _, part in ipairs(char:GetChildren()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+-- ====================================================================
+-- 3. HÀM HỖ TRỢ CHUNG
+-- ====================================================================
+local function EquipWeapon()
+    pcall(function()
+        local character = LocalPlayer.Character
+        if not character or not character:FindFirstChild("Humanoid") then return end
+        
+        for _, tool in ipairs(character:GetChildren()) do
+            if tool:IsA("Tool") then return end
+        end
+        
+        local backpack = LocalPlayer:FindFirstChild("Backpack")
+        if backpack then
+            for _, tool in ipairs(backpack:GetChildren()) do
+                if tool:IsA("Tool") and (tool.ToolTip == "Melee" or tool.ToolTip == "Sword" or tool.ToolTip == "Blox Fruit") then
+                    character.Humanoid:EquipTool(tool)
+                    break
+                end
+            end
+        end
+    end)
+end
+
+local function StopTween()
+    if _G.Tweening then
+        _G.Tweening:Cancel()
+        _G.Tweening = nil
+    end
+end
+
+local function TweenTo(targetCFrame)
+    local character = LocalPlayer.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+    
+    local hrp = character.HumanoidRootPart
+    local distance = (hrp.Position - targetCFrame.Position).Magnitude
+    
+    if distance <= 15 then
+        StopTween()
+        hrp.CFrame = targetCFrame
+        return
+    end
+
+    StopTween()
+
+    local speed = 300
+    local tweenInfo = TweenInfo.new(distance / speed, Enum.EasingStyle.Linear)
+    local tween = TweenService:Create(hrp, tweenInfo, {CFrame = targetCFrame})
+    
+    _G.Tweening = tween
+    tween:Play()
+end
+
+local function GetLevel()
+    local success, level = pcall(function() return LocalPlayer.Data.Level.Value end)
+    return success and level or 1
+end
+
+local function GetCurrentQuest()
+    local currentLevel = GetLevel()
+    if currentLevel > 700 then return nil end
+    local seaQuests = FirstSeaQuests[1]
+    if not seaQuests then return nil end
+
+    for _, questData in ipairs(seaQuests) do
+        if currentLevel >= questData.MinLevel and currentLevel <= questData.MaxLevel then
+            return questData
+        end
+    end
+    return nil
+end
+
+local function GetClosestMob(mobName)
+    local character = LocalPlayer.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return nil end
+    local hrp = character.HumanoidRootPart
+    
+    local closestMob = nil
+    local shortestDistance = math.huge
+
+    local enemiesFolder = workspace:FindFirstChild("Enemies")
+    if enemiesFolder then
+        for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+            if string.find(enemy.Name, mobName) then
+                local enemyHrp = enemy:FindFirstChild("HumanoidRootPart")
+                local humanoid = enemy:FindFirstChild("Humanoid")
+                if enemyHrp and humanoid and humanoid.Health > 0 then
+                    local distance = (hrp.Position - enemyHrp.Position).Magnitude
+                    if distance < shortestDistance then
+                        shortestDistance = distance
+                        closestMob = enemy
+                    end
+                end
+            end
+        end
+    end
+    return closestMob
+end
+
+-- ====================================================================
+-- 4. HÀM ĐÁNH QUÁI
+-- ====================================================================
+local NetModules = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
+local RegisterAttack = NetModules:FindFirstChild("RE/RegisterAttack")
+local RegisterHit = NetModules:FindFirstChild("RE/RegisterHit")
+
+local function AttackTarget(targetMob)
+    pcall(function()
+        EquipWeapon()
+
+        if RegisterAttack then 
+            RegisterAttack:FireServer(0.5, 1) 
+        end
+
+        if targetMob and targetMob:FindFirstChild("HumanoidRootPart") then
+            local limb = targetMob:FindFirstChild("LeftLowerLeg") or targetMob:FindFirstChild("HumanoidRootPart")
+            if limb and RegisterHit then
+                local args = {
+                    [1] = limb,
+                    [2] = {},
+                    [4] = "1689a737"
+                }
+                RegisterHit:FireServer(unpack(args))
+            end
+        end
+    end)
+end
+
+-- ====================================================================
+-- 5. LUỒNG CHÍNH AUTO FARM
+-- ====================================================================
+task.spawn(function()
+    while task.wait(0.1) do
+        if not _G.AutoFarm then
+            StopTween()
+            continue
+        end
+
+        pcall(function()
+            local currentLevel = GetLevel()
+            if currentLevel > 700 then
+                StopTween()
+                return
+            end
+
+            local questInfo = GetCurrentQuest()
+            if not questInfo then return end
+
+            local character = LocalPlayer.Character
+            local hrp = character and character:FindFirstChild("HumanoidRootPart")
+            local humanoid = character and character:FindFirstChild("Humanoid")
+
+            if not hrp or not humanoid or humanoid.Health <= 0 then
+                StopTween()
+                task.wait(1)
+                return
+            end
+
+            -- BƯỚC 1: CHƯA CÓ QUEST -> TỚI NPC LẤY QUEST
+            if not HasActiveQuest() then
+                local distanceToNpc = (hrp.Position - questInfo.NpcPosition.Position).Magnitude
+                if distanceToNpc > 8 then
+                    TweenTo(questInfo.NpcPosition)
+                else
+                    StopTween()
+                    hrp.CFrame = questInfo.NpcPosition
+                    task.wait(0.2)
+                    
+                    local args = {
+                        [1] = "StartQuest",
+                        [2] = questInfo.QuestName,
+                        [3] = questInfo.QuestId
+                    }
+                    ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))
+                    task.wait(1) -- Chờ game load UI quest xong để chuyển sang farm
+                end
+
+            -- BƯỚC 2: ĐÃ CÓ QUEST -> TÌM QUÁI VÀ ĐÁNH
+            else
+                local targetMob = GetClosestMob(questInfo.MobName)
+                
+                if targetMob and targetMob:FindFirstChild("HumanoidRootPart") then
+                    local mobHrp = targetMob.HumanoidRootPart
+                    local targetPos = CFrame.new(mobHrp.Position + Vector3.new(0, 10, 0), mobHrp.Position)
+                    local distanceToMob = (hrp.Position - targetPos.Position).Magnitude
+
+                    if distanceToMob > 15 then
+                        TweenTo(targetPos)
+                    else
+                        StopTween()
+                        hrp.CFrame = targetPos
+                        AttackTarget(targetMob)
+                    end
+                else
+                    local distanceToSpawn = (hrp.Position - questInfo.MobSpawn.Position).Magnitude
+                    if distanceToSpawn > 15 then
+                        TweenTo(questInfo.MobSpawn)
+                    else
+                        StopTween()
+                        hrp.CFrame = questInfo.MobSpawn
+                    end
+                end
+            end
+        end)
+    end
+end)
