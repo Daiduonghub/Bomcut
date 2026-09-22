@@ -12,14 +12,12 @@ function Library:CreateWindow(hubName)
     ScreenGui.Parent = CoreGui
     ScreenGui.ResetOnSpawn = false
 
-    local MainFrame = Instance.new("ImageLabel")
+    local MainFrame = Instance.new("Frame")
     MainFrame.Name = "MainFrame"
     MainFrame.Parent = ScreenGui
     MainFrame.Position = UDim2.new(0.3, 0, 0.22, 0)
     MainFrame.Size = UDim2.new(0, 560, 0, 380)
-    MainFrame.Image = "rbxassetid://82833606157114" 
     MainFrame.BackgroundColor3 = Color3.fromRGB(11, 15, 20)
-    MainFrame.ScaleType = Enum.ScaleType.Slice
     MainFrame.BorderSizePixel = 0
     MainFrame.ClipsDescendants = true
 
@@ -174,25 +172,26 @@ function Library:CreateWindow(hubName)
     ContentContainer.BackgroundTransparency = 1
     ContentContainer.ClipsDescendants = true
 
-    -- Nút Toggle nổi
+    -- Nút Toggle nổi dùng Emoji Biển Cả (🌊) thay cho ảnh để chống lỗi 404
     local ToggleGui = Instance.new("ScreenGui")
     ToggleGui.Name = "AbyssalHub_ToggleGui"
     ToggleGui.Parent = CoreGui
     ToggleGui.ResetOnSpawn = false
 
-    local ToggleButton = Instance.new("ImageButton")
+    local ToggleButton = Instance.new("TextButton")
     ToggleButton.Name = "ToggleButton"
     ToggleButton.Parent = ToggleGui
     ToggleButton.BackgroundColor3 = Color3.fromRGB(16, 22, 30)
-    ToggleButton.BackgroundTransparency = 1  -- Đã sửa thành dấu trừ kép chuẩn Lua
+    ToggleButton.BackgroundTransparency = 0.2
     ToggleButton.Position = UDim2.new(0.05, 0, 0.15, 0)
-    ToggleButton.Size = UDim2.new(0, 52, 0, 52)
-    ToggleButton.Image = "rbxassetid://82833606157114"
-    ToggleButton.ScaleType = Enum.ScaleType.Fit  -- Đã sửa thành dấu trừ kép chuẩn Lua
-    ToggleButton.Active = true
+    ToggleButton.Size = UDim2.new(0, 50, 0, 50)
+    ToggleButton.Text = "🌊"
+    ToggleButton.TextSize = 24
+    ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ToggleButton.AutoButtonColor = false
 
     local UICorner = Instance.new("UICorner")
-    UICorner.CornerRadius = UDim.new(0, 14)
+    UICorner.CornerRadius = UDim.new(1, 0) -- Bo tròn hoàn hảo kiểu hình tròn
     UICorner.Parent = ToggleButton
 
     local UIStroke = Instance.new("UIStroke")
