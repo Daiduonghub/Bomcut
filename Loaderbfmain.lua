@@ -310,6 +310,7 @@ function Library:CreateTab(name)
     TabFrame.BorderSizePixel = 0
     TabFrame.ScrollBarThickness = 4
     TabFrame.ScrollBarImageColor3 = Color3.fromRGB(140, 60, 255)
+    TabFrame.CanvasSize = UDim2.new(0, 0, 0, 0) -- ВАЖНО: инициализация
     TabFrame.Visible = false
     TabFrame.Parent = ContentArea
     
@@ -322,7 +323,15 @@ function Library:CreateTab(name)
     TabPad.PaddingTop = UDim.new(0, 6)
     TabPad.PaddingLeft = UDim.new(0, 6)
     TabPad.PaddingRight = UDim.new(0, 6)
+    TabPad.PaddingBottom = UDim.new(0, 6)
     TabPad.Parent = TabFrame
+    
+    -- АВТОМАТИЧЕСКОЕ ОБНОВЛЕНИЕ CANVAS SIZE
+    local function updateCanvas()
+        TabFrame.CanvasSize = UDim2.new(0, 0, 0, TabLayout.AbsoluteContentSize.Y + 20)
+    end
+    updateCanvas()
+    TabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateCanvas)
     
     local tabObj = {Button = TabBtn, Frame = TabFrame, Name = name}
     table.insert(Library.Tabs, tabObj)
@@ -353,6 +362,7 @@ function Library:CreateTab(name)
             TextColor3 = Color3.fromRGB(255, 255, 255)
         }):Play()
         Library.CurrentTab = tabObj
+        updateCanvas()
     end)
     
     if #Library.Tabs == 1 then
