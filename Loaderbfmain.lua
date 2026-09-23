@@ -791,9 +791,11 @@ end)
 -- ============================================================
 -- ДЕМОНСТРАЦИЯ (СОЗДАНИЕ ЭЛЕМЕНТОВ)
 -- ============================================================
+local TabStats = Library:CreateTab("Stats & Server")
 local Tab1 = Library:CreateTab("Main")
 local Tab2 = Library:CreateTab("Visual")
 
+-- ---------- TAB MAIN ----------
 Library:CreateLabel(Tab1, "Chao mung den voi AbyssalHub")
 Library:CreateToggle(Tab1, "Auto Farm", false, function(v)
     print("Auto Farm:", v)
@@ -814,11 +816,109 @@ Library:CreateButton(Tab1, "Thong bao demo", function()
     Library:Notify("AbyssalHub", "Day la thong bao sieu dep!", 4)
 end)
 
+-- ---------- TAB VISUAL ----------
 Library:CreateLabel(Tab2, "Cai dat hinh anh")
 Library:CreateImage(Tab2, "rbxassetid://6031091004", 120)
 
+-- ---------- TAB STATS & SERVER ----------
+local Player = Players.LocalPlayer
+local JoinTime = tick()
+
+Library:CreateLabel(TabStats, "── SERVER INFO ──")
+
+local TimeLabel = Library:CreateLabel(TabStats, "Thoi gian trong server: 00:00:00")
+TimeLabel:SetColor(Color3.fromRGB(140, 60, 255))
+
+local ServerIdLabel = Library:CreateLabel(TabStats, "Server ID: ...")
+ServerIdLabel:SetColor(Color3.fromRGB(80, 180, 255))
+
+local PlayerCountLabel = Library:CreateLabel(TabStats, "Nguoi choi: 0/0")
+PlayerCountLabel:SetColor(Color3.fromRGB(180, 180, 200))
+
+local PlayerNameLabel = Library:CreateLabel(TabStats, "Ten: " .. Player.Name)
+PlayerNameLabel:SetColor(Color3.fromRGB(180, 180, 200))
+
+local UserIdLabel = Library:CreateLabel(TabStats, "User ID: " .. Player.UserId)
+UserIdLabel:SetColor(Color3.fromRGB(180, 180, 200))
+
+Library:CreateLabel(TabStats, "── PERFORMANCE ──")
+
+local FpsLabel = Library:CreateLabel(TabStats, "FPS: 0")
+FpsLabel:SetColor(Color3.fromRGB(255, 200, 100))
+
+local PingLabel = Library:CreateLabel(TabStats, "Ping: 0 ms")
+PingLabel:SetColor(Color3.fromRGB(255, 120, 120))
+
+local MemoryLabel = Library:CreateLabel(TabStats, "Memory: 0 MB")
+MemoryLabel:SetColor(Color3.fromRGB(120, 255, 180))
+
+local function FormatTime(seconds)
+    local hours = math.floor(seconds / 3600)
+    local minutes = math.floor((seconds % 3600) / 60)
+    local secs = math.floor(seconds % 60)
+    return string.format("%02d:%02d:%02d", hours, minutes, secs)
+end
+
+task.spawn(function()
+    while TabStats.Frame.Parent do
+        local elapsed = tick() - JoinTime
+        TimeLabel:Set("Time server: " .. FormatTime(elapsed))
+        task.wait(1)
+    end
+end)
+
+pcall(function()
+    local serverId = game.JobId
+    if serverId == "" then serverId = "Studio / Private" end
+    ServerIdLabel:Set("Server ID: " .. serverId)
+end)
+
+task.spawn(function()
+    while TabStats.Frame.Parent do
+        local current = #Players:GetPlayers()
+        local max = Players.MaxPlayers
+        PlayerCountLabel:Set("Players: " .. current .. "/" .. max)
+        task.wait(2)
+    end
+end)
+
+task.spawn(function()
+    local frames = 0
+    local lastTime = tick()
+    RunService.RenderStepped:Connect(function()
+        frames = frames + 1
+    end)
+    while TabStats.Frame.Parent do
+        local now = tick()
+        local elapsed = now - lastTime
+        if elapsed > 0 then
+            local fps = math.floor(frames / elapsed)
+            FpsLabel:Set("FPS: " .. fps)
+        end
+        frames = 0
+        lastTime = now
+        task.wait(0.5)
+    end
+end)
+
+task.spawn(function()
+    while TabStats.Frame.Parent do
+        local ping = math.floor(Player:GetNetworkPing() * 1000)
+        PingLabel:Set("Ping: " .. ping .. " ms")
+        task.wait(2)
+    end
+end)
+
+task.spawn(function()
+    while TabStats.Frame.Parent do
+        local mem = math.floor(game:GetService("Stats"):GetTotalMemoryUsageMb())
+        MemoryLabel:Set("Memory: " .. mem .. " MB")
+        task.wait(3)
+    end
+end)
+
 -- ============================================================
--- АВТОВЫБОР ПЕРВОЙ ВКЛАДКИ (ПОСЛЕ ВСЕХ ЭЛЕМЕНТОВ!)
+-- АВТОВЫБОР ПЕРВОЙ ВКЛАДКИ
 -- ============================================================
 if Library.Tabs[1] then
     Library.Tabs[1].Button.MouseButton1Click:Fire()
