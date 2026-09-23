@@ -157,7 +157,7 @@ MaximizeIcon.Name = "MaximizeIcon"
 MaximizeIcon.Size = UDim2.new(0, 16, 0, 16)
 MaximizeIcon.Position = UDim2.new(0.5, -8, 0.5, -8)
 MaximizeIcon.BackgroundTransparency = 1
-MaximizeIcon.Image = "rbxassetid://8992232141"
+MaximizeIcon.Image = "rbxassetid://82833606157114"
 MaximizeIcon.ImageColor3 = Color3.fromRGB(200, 230, 255)
 MaximizeIcon.Parent = MaximizeBtn
 
@@ -566,16 +566,51 @@ function Library:CreateSlider(tab, name, min, max, default, callback)
     FillCorner.CornerRadius = UDim.new(1, 0)
     FillCorner.Parent = Fill
     
+    -- Градиент на заполненной части
+    local FillGradient = Instance.new("UIGradient")
+    FillGradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(80, 180, 255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(180, 80, 255))
+    }
+    FillGradient.Parent = Fill
+    
+    -- Круглый ползунок (родитель - Bar, НЕ Fill!)
     local Dot = Instance.new("Frame")
-    Dot.Size = UDim2.new(0, 14, 0, 14)
-    Dot.Position = UDim2.new(0, -7, 0.5, -7)
+    Dot.Size = UDim2.new(0, 18, 0, 18)
+    Dot.Position = UDim2.new(0, -9, 0.5, -9)
     Dot.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     Dot.BorderSizePixel = 0
-    Dot.Parent = Fill
+    Dot.ZIndex = 3
+    Dot.Parent = Bar -- ВАЖНО: Bar, а не Fill
     
     local DotCorner = Instance.new("UICorner")
     DotCorner.CornerRadius = UDim.new(1, 0)
     DotCorner.Parent = Dot
+    
+    local DotGradient = Instance.new("UIGradient")
+    DotGradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 180, 255))
+    }
+    DotGradient.Rotation = 90
+    DotGradient.Parent = Dot
+    
+    local DotStroke = Instance.new("UIStroke")
+    DotStroke.Color = Color3.fromRGB(140, 60, 255)
+    DotStroke.Thickness = 2
+    DotStroke.Transparency = 0.1
+    DotStroke.Parent = Dot
+    
+    -- Свечение вокруг ползунка
+    local DotGlow = Instance.new("ImageLabel")
+    DotGlow.Size = UDim2.new(0, 34, 0, 34)
+    DotGlow.Position = UDim2.new(0.5, -17, 0.5, -17)
+    DotGlow.BackgroundTransparency = 1
+    DotGlow.Image = "rbxassetid://5028857084"
+    DotGlow.ImageColor3 = Color3.fromRGB(140, 60, 255)
+    DotGlow.ImageTransparency = 0.3
+    DotGlow.ZIndex = 2
+    DotGlow.Parent = Dot
     
     local value = default
     local dragging = false
@@ -584,6 +619,8 @@ function Library:CreateSlider(tab, name, min, max, default, callback)
         value = math.clamp(v, min, max)
         local alpha = (value - min) / (max - min)
         Fill.Size = UDim2.new(alpha, 0, 1, 0)
+        -- Обновление позиции Dot по alpha
+        Dot.Position = UDim2.new(alpha, -9, 0.5, -9)
         ValueLbl.Text = tostring(math.floor(value * 100) / 100)
         if callback then callback(value) end
     end
@@ -592,6 +629,7 @@ function Library:CreateSlider(tab, name, min, max, default, callback)
     BarBtn.Size = UDim2.new(1, 0, 1, 0)
     BarBtn.BackgroundTransparency = 1
     BarBtn.Text = ""
+    BarBtn.ZIndex = 4
     BarBtn.Parent = Bar
     
     local function updateFromX(x)
@@ -624,6 +662,18 @@ function Library:CreateSlider(tab, name, min, max, default, callback)
             updateFromX(input.Position.X)
         elseif input.UserInputType == Enum.UserInputType.Touch then
             updateFromX(input.Position.X)
+        end
+    end)
+    
+    -- Анимация пульсации ползунка
+    task.spawn(function()
+        while Dot.Parent do
+            TweenService:Create(DotStroke, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Transparency = 0.6}):Play()
+            TweenService:Create(DotGlow, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {ImageTransparency = 0.6}):Play()
+            task.wait(1.2)
+            TweenService:Create(DotStroke, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Transparency = 0.1}):Play()
+            TweenService:Create(DotGlow, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {ImageTransparency = 0.3}):Play()
+            task.wait(1.2)
         end
     end)
     
