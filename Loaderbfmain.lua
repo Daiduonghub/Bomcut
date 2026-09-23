@@ -333,8 +333,17 @@ function Library:CreateTab(name)
     local function updateCanvas()
         TabFrame.CanvasSize = UDim2.new(0, 0, 0, TabLayout.AbsoluteContentSize.Y + 20)
     end
+    
     updateCanvas()
     TabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateCanvas)
+    TabFrame.ChildAdded:Connect(function()
+        task.wait()
+        updateCanvas()
+    end)
+    TabFrame.ChildRemoved:Connect(function()
+        task.wait()
+        updateCanvas()
+    end)
     
     local tabObj = {Button = TabBtn, Frame = TabFrame, Name = name}
     table.insert(Library.Tabs, tabObj)
@@ -365,11 +374,9 @@ function Library:CreateTab(name)
             TextColor3 = Color3.fromRGB(255, 255, 255)
         }):Play()
         Library.CurrentTab = tabObj
+        task.wait()
         updateCanvas()
     end)
-    
-    -- УБРАНО: TabBtn.MouseButton1Click:Fire()
-    -- Первая вкладка будет выбрана вручную в конце скрипта
     
     return tabObj
 end
