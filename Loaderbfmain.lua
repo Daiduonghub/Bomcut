@@ -1,14 +1,10 @@
 -- ============================================================
--- UI LIBRARY "ABYSSALHUB" - THIET KE DOC QUYEN
--- Tac gia: palofsc
--- Tat ca comment bang tieng Nga, thuan ky thuat
+-- UI LIBRARY "ABYSSALHUB"
 -- ============================================================
 
 local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-local Players = game:GetService("Players")
 
 if CoreGui:FindFirstChild("AbyssalHub") then
     CoreGui.AbyssalHub:Destroy()
@@ -20,9 +16,6 @@ ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = CoreGui
 
--- ============================================================
--- ГЛАВНЫЙ КОНТЕЙНЕР
--- ============================================================
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 520, 0, 360)
@@ -63,9 +56,6 @@ task.spawn(function()
     end
 end)
 
--- ============================================================
--- ЗАГОЛОВОК
--- ============================================================
 local Header = Instance.new("Frame")
 Header.Name = "Header"
 Header.Size = UDim2.new(1, 0, 0, 52)
@@ -122,7 +112,6 @@ SubTitle.Font = Enum.Font.Gotham
 SubTitle.TextXAlignment = Enum.TextXAlignment.Left
 SubTitle.Parent = Header
 
--- Кнопка закрытия (только скрывает, не уничтожает)
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Size = UDim2.new(0, 32, 0, 32)
 CloseBtn.Position = UDim2.new(1, -42, 0, 10)
@@ -146,9 +135,6 @@ CloseBtn.MouseLeave:Connect(function()
     TweenService:Create(CloseBtn, TweenInfo.new(0.15), {BackgroundTransparency = 0.85, TextColor3 = Color3.fromRGB(255, 200, 210)}):Play()
 end)
 
--- ============================================================
--- КНОПКА РАЗВОРАЧИВАНИЯ
--- ============================================================
 local MaximizeBtn = Instance.new("TextButton")
 MaximizeBtn.Size = UDim2.new(0, 32, 0, 32)
 MaximizeBtn.Position = UDim2.new(1, -80, 0, 10)
@@ -172,9 +158,6 @@ MaximizeBtn.MouseLeave:Connect(function()
     TweenService:Create(MaximizeBtn, TweenInfo.new(0.15), {BackgroundTransparency = 0.85, TextColor3 = Color3.fromRGB(200, 230, 255)}):Play()
 end)
 
--- ============================================================
--- ЛЕВАЯ ПАНЕЛЬ ВКЛАДОК
--- ============================================================
 local SideBar = Instance.new("Frame")
 SideBar.Name = "SideBar"
 SideBar.Size = UDim2.new(0, 120, 1, -66)
@@ -199,9 +182,6 @@ SidePadding.PaddingLeft = UDim.new(0, 8)
 SidePadding.PaddingRight = UDim.new(0, 8)
 SidePadding.Parent = SideBar
 
--- ============================================================
--- ОБЛАСТЬ КОНТЕНТА
--- ============================================================
 local ContentArea = Instance.new("Frame")
 ContentArea.Name = "ContentArea"
 ContentArea.Size = UDim2.new(1, -140, 1, -74)
@@ -210,7 +190,7 @@ ContentArea.BackgroundTransparency = 1
 ContentArea.Parent = MainFrame
 
 -- ============================================================
--- API БИБЛИОТЕКИ (ОБЪЯВЛЯЕТСЯ ПЕРВЫМ!)
+-- API
 -- ============================================================
 local Library = {}
 Library.Tabs = {}
@@ -218,7 +198,6 @@ Library.CurrentTab = nil
 
 function Library:Notify(title, text, duration)
     duration = duration or 4
-    
     local NotifFrame = Instance.new("Frame")
     NotifFrame.Size = UDim2.new(0, 320, 0, 70)
     NotifFrame.Position = UDim2.new(1, -340, 1, -90)
@@ -310,7 +289,7 @@ function Library:CreateTab(name)
     TabFrame.BorderSizePixel = 0
     TabFrame.ScrollBarThickness = 4
     TabFrame.ScrollBarImageColor3 = Color3.fromRGB(140, 60, 255)
-    TabFrame.CanvasSize = UDim2.new(0, 0, 0, 0) -- ВАЖНО: инициализация
+    TabFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
     TabFrame.Visible = false
     TabFrame.Parent = ContentArea
     
@@ -326,7 +305,6 @@ function Library:CreateTab(name)
     TabPad.PaddingBottom = UDim.new(0, 6)
     TabPad.Parent = TabFrame
     
-    -- АВТОМАТИЧЕСКОЕ ОБНОВЛЕНИЕ CANVAS SIZE
     local function updateCanvas()
         TabFrame.CanvasSize = UDim2.new(0, 0, 0, TabLayout.AbsoluteContentSize.Y + 20)
     end
@@ -365,9 +343,8 @@ function Library:CreateTab(name)
         updateCanvas()
     end)
     
-    if #Library.Tabs == 1 then
-        TabBtn.MouseButton1Click:Fire()
-    end
+    -- УБРАНО: TabBtn.MouseButton1Click:Fire()
+    -- Первая вкладка будет выбрана вручную в конце скрипта
     
     return tabObj
 end
@@ -509,9 +486,6 @@ function Library:CreateLabel(tab, text)
     }
 end
 
--- ============================================================
--- ФУНКЦИЯ СОЗДАНИЯ SLIDER
--- ============================================================
 function Library:CreateSlider(tab, name, min, max, default, callback)
     local SlideFrame = Instance.new("Frame")
     SlideFrame.Size = UDim2.new(1, -12, 0, 54)
@@ -640,13 +614,12 @@ function Library:CreateImage(tab, imageId, height)
 end
 
 -- ============================================================
--- СИСТЕМА ВКЛЮЧЕНИЯ/ВЫКЛЮЧЕНИЯ UI
+-- СИСТЕМА ВКЛ/ВЫКЛ UI
 -- ============================================================
 local UIOpen = true
 local ToggleKey = Enum.KeyCode.RightControl
 
 local OpenButton = Instance.new("TextButton")
-OpenButton.Name = "OpenButton"
 OpenButton.Size = UDim2.new(0, 90, 0, 34)
 OpenButton.Position = UDim2.new(0, 20, 0, 20)
 OpenButton.BackgroundColor3 = Color3.fromRGB(140, 60, 255)
@@ -662,19 +635,6 @@ OpenButton.Parent = ScreenGui
 local OpenCorner = Instance.new("UICorner")
 OpenCorner.CornerRadius = UDim.new(0, 10)
 OpenCorner.Parent = OpenButton
-
-local OpenStroke = Instance.new("UIStroke")
-OpenStroke.Color = Color3.fromRGB(180, 120, 255)
-OpenStroke.Thickness = 1
-OpenStroke.Transparency = 0.4
-OpenStroke.Parent = OpenButton
-
-OpenButton.MouseEnter:Connect(function()
-    TweenService:Create(OpenButton, TweenInfo.new(0.15), {BackgroundTransparency = 0}):Play()
-end)
-OpenButton.MouseLeave:Connect(function()
-    TweenService:Create(OpenButton, TweenInfo.new(0.15), {BackgroundTransparency = 0.15}):Play()
-end)
 
 local OriginalSize = UDim2.new(0, 520, 0, 360)
 local OriginalPos = UDim2.new(0.5, -260, 0.5, -180)
@@ -698,9 +658,6 @@ local function ShowUI()
     UIOpen = true
     OpenButton.Visible = false
     MainFrame.Visible = true
-    MainFrame.Size = UDim2.new(0, 0, 0, 0)
-    MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-    MainFrame.BackgroundTransparency = 1
     local targetSize = IsMaximized and UDim2.new(0, 800, 0, 520) or OriginalSize
     local targetPos = IsMaximized and UDim2.new(0.5, -400, 0.5, -260) or OriginalPos
     TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
@@ -713,11 +670,7 @@ end
 UserInputService.InputBegan:Connect(function(input, gpe)
     if gpe then return end
     if input.KeyCode == ToggleKey then
-        if UIOpen then
-            HideUI()
-        else
-            ShowUI()
-        end
+        if UIOpen then HideUI() else ShowUI() end
     end
 end)
 
@@ -744,7 +697,7 @@ MaximizeBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ============================================================
--- ДЕМОНСТРАЦИЯ
+-- ДЕМОНСТРАЦИЯ (СОЗДАНИЕ ЭЛЕМЕНТОВ)
 -- ============================================================
 local Tab1 = Library:CreateTab("Main")
 local Tab2 = Library:CreateTab("Visual")
@@ -752,6 +705,9 @@ local Tab2 = Library:CreateTab("Visual")
 Library:CreateLabel(Tab1, "Chao mung den voi AbyssalHub")
 Library:CreateToggle(Tab1, "Auto Farm", false, function(v)
     print("Auto Farm:", v)
+end)
+Library:CreateToggle(Tab1, "Kill Aura", false, function(v)
+    print("Kill Aura:", v)
 end)
 
 Library:CreateSlider(Tab1, "Speed", 0, 100, 50, function(v)
@@ -768,6 +724,13 @@ end)
 
 Library:CreateLabel(Tab2, "Cai dat hinh anh")
 Library:CreateImage(Tab2, "rbxassetid://6031091004", 120)
+
+-- ============================================================
+-- АВТОВЫБОР ПЕРВОЙ ВКЛАДКИ (ПОСЛЕ ВСЕХ ЭЛЕМЕНТОВ!)
+-- ============================================================
+if Library.Tabs[1] then
+    Library.Tabs[1].Button.MouseButton1Click:Fire()
+end
 
 Library:Notify("AbyssalHub", "UI da duoc khoi tao thanh cong!", 3)
 
