@@ -135,15 +135,15 @@ CloseBtn.MouseLeave:Connect(function()
     TweenService:Create(CloseBtn, TweenInfo.new(0.15), {BackgroundTransparency = 0.85, TextColor3 = Color3.fromRGB(255, 200, 210)}):Play()
 end)
 
+-- ============================================================
+-- КНОПКА РАЗВОРАЧИВАНИЯ (КРАСИВАЯ ИКОНКА)
+-- ============================================================
 local MaximizeBtn = Instance.new("TextButton")
 MaximizeBtn.Size = UDim2.new(0, 32, 0, 32)
 MaximizeBtn.Position = UDim2.new(1, -80, 0, 10)
 MaximizeBtn.BackgroundColor3 = Color3.fromRGB(80, 180, 255)
 MaximizeBtn.BackgroundTransparency = 0.85
-MaximizeBtn.Text = "□"
-MaximizeBtn.TextColor3 = Color3.fromRGB(200, 230, 255)
-MaximizeBtn.TextSize = 18
-MaximizeBtn.Font = Enum.Font.GothamBold
+MaximizeBtn.Text = ""
 MaximizeBtn.BorderSizePixel = 0
 MaximizeBtn.Parent = Header
 
@@ -151,11 +151,36 @@ local MaxCorner = Instance.new("UICorner")
 MaxCorner.CornerRadius = UDim.new(0, 8)
 MaxCorner.Parent = MaximizeBtn
 
+-- Иконка развернуть (две стрелки в углы)
+local MaximizeIcon = Instance.new("ImageLabel")
+MaximizeIcon.Name = "MaximizeIcon"
+MaximizeIcon.Size = UDim2.new(0, 16, 0, 16)
+MaximizeIcon.Position = UDim2.new(0.5, -8, 0.5, -8)
+MaximizeIcon.BackgroundTransparency = 1
+MaximizeIcon.Image = "rbxassetid://8992232141"
+MaximizeIcon.ImageColor3 = Color3.fromRGB(200, 230, 255)
+MaximizeIcon.Parent = MaximizeBtn
+
+-- Иконка свернуть (две стрелки внутрь)
+local MinimizeIcon = Instance.new("ImageLabel")
+MinimizeIcon.Name = "MinimizeIcon"
+MinimizeIcon.Size = UDim2.new(0, 16, 0, 16)
+MinimizeIcon.Position = UDim2.new(0.5, -8, 0.5, -8)
+MinimizeIcon.BackgroundTransparency = 1
+MinimizeIcon.Image = "rbxassetid://8992232434"
+MinimizeIcon.ImageColor3 = Color3.fromRGB(200, 230, 255)
+MinimizeIcon.Visible = false
+MinimizeIcon.Parent = MaximizeBtn
+
 MaximizeBtn.MouseEnter:Connect(function()
-    TweenService:Create(MaximizeBtn, TweenInfo.new(0.15), {BackgroundTransparency = 0.5, TextColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+    TweenService:Create(MaximizeBtn, TweenInfo.new(0.15), {BackgroundTransparency = 0.5}):Play()
+    TweenService:Create(MaximizeIcon, TweenInfo.new(0.15), {ImageColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+    TweenService:Create(MinimizeIcon, TweenInfo.new(0.15), {ImageColor3 = Color3.fromRGB(255, 255, 255)}):Play()
 end)
 MaximizeBtn.MouseLeave:Connect(function()
-    TweenService:Create(MaximizeBtn, TweenInfo.new(0.15), {BackgroundTransparency = 0.85, TextColor3 = Color3.fromRGB(200, 230, 255)}):Play()
+    TweenService:Create(MaximizeBtn, TweenInfo.new(0.15), {BackgroundTransparency = 0.85}):Play()
+    TweenService:Create(MaximizeIcon, TweenInfo.new(0.15), {ImageColor3 = Color3.fromRGB(200, 230, 255)}):Play()
+    TweenService:Create(MinimizeIcon, TweenInfo.new(0.15), {ImageColor3 = Color3.fromRGB(200, 230, 255)}):Play()
 end)
 
 local SideBar = Instance.new("Frame")
@@ -569,23 +594,36 @@ function Library:CreateSlider(tab, name, min, max, default, callback)
     BarBtn.Text = ""
     BarBtn.Parent = Bar
     
+    local function updateFromX(x)
+        local barPos = Bar.AbsolutePosition.X
+        local barSize = Bar.AbsoluteSize.X
+        local alpha = math.clamp((x - barPos) / barSize, 0, 1)
+        setValue(min + (max - min) * alpha)
+    end
+    
     BarBtn.MouseButton1Down:Connect(function()
         dragging = true
     end)
+    BarBtn.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            updateFromX(input.Position.X)
+        end
+    end)
     
     UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        if input.UserInputType == Enum.UserInputType.MouseButton1 
+        or input.UserInputType == Enum.UserInputType.Touch then
             dragging = false
         end
     end)
     
     UserInputService.InputChanged:Connect(function(input)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            local mouseX = UserInputService:GetMouseLocation().X
-            local barPos = Bar.AbsolutePosition.X
-            local barSize = Bar.AbsoluteSize.X
-            local alpha = math.clamp((mouseX - barPos) / barSize, 0, 1)
-            setValue(min + (max - min) * alpha)
+        if not dragging then return end
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            updateFromX(input.Position.X)
+        elseif input.UserInputType == Enum.UserInputType.Touch then
+            updateFromX(input.Position.X)
         end
     end)
     
@@ -684,14 +722,18 @@ MaximizeBtn.MouseButton1Click:Connect(function()
             Size = UDim2.new(0, 800, 0, 520),
             Position = UDim2.new(0.5, -400, 0.5, -260)
         }):Play()
-        MaximizeBtn.Text = "❐"
+        -- Переключение иконок
+        MaximizeIcon.Visible = false
+        MinimizeIcon.Visible = true
         Library:Notify("AbyssalHub", "Da phong to UI", 2)
     else
         TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
             Size = OriginalSize,
             Position = OriginalPos
         }):Play()
-        MaximizeBtn.Text = "□"
+        -- Переключение иконок
+        MaximizeIcon.Visible = true
+        MinimizeIcon.Visible = false
         Library:Notify("AbyssalHub", "Da thu nho UI", 2)
     end
 end)
