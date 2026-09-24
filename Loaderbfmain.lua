@@ -868,12 +868,14 @@ local MemoryLabel = Library:CreateLabel(TabStats, "Memory: 0 MB")
 MemoryLabel:SetColor(Color3.fromRGB(120, 255, 180))
 
 -- ⬇️ QUAN TRỌNG: ÉP UPDATE CANVAS THỦ CÔNG ⬇️
-task.wait(0.1)
+TabStats.Frame.Visible = true
+task.wait(0.15)
 local layout = TabStats.Frame:FindFirstChildOfClass("UIListLayout")
 if layout then
     TabStats.Frame.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 20)
 end
 
+TabStats.Frame.Visible = false
 local function FormatTime(seconds)
     local hours = math.floor(seconds / 3600)
     local minutes = math.floor((seconds % 3600) / 60)
