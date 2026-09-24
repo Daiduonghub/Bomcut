@@ -806,30 +806,22 @@ local Tab2 = Library:CreateTab("Visual")
 
 -- ---------- TAB MAIN ----------
 Library:CreateLabel(Tab1, "Chao mung den voi AbyssalHub")
--- ============================================================
--- UI CONTROL TRONG TAB MAIN
--- ============================================================
--- (Giả sử Tab1 là tab Main đã được tạo)
-local AutoFarmToggle = Library:CreateToggle(Tab1, "Auto Farm Blox Fruits", false, function(v)
+
+--  ---------UI CONTROL---------
+
+Library:CreateToggle(Tab1, "Auto Farm Blox Fruits", false, function(v)
     AutoFarm = v
-    SetStatus(v and "Auto Farm: BẬT" or "Auto Farm: TẮT")
 end)
-
--- Slider chọn bán kính đánh
-Library:CreateSlider(Tab1, "Attack Radius", 10, 200, 50, function(v)
-    AttackRadius = v
-end)
-
--- Slider offset Y
-Library:CreateSlider(Tab1, "Teleport Height", 0, 50, 5, function(v)
-    TeleportOffsetY = v
+Library:CreateSlider(Tab1, "Attack Radius", 10, 200, 50, function(v) AttackRadius = v end)
+Library:CreateSlider(Tab1, "Teleport Height", 0, 50, 5, function(v) TeleportOffsetY = v end)
+Library:CreateSlider(Tab1, "Attack Delay", 0.1, 2, 0.5, function(v) AttackDelay = v end)
+Library:CreateSlider(Tab1, "Hit Count", 1, 10, 3, function(v) HitCount = math.floor(v) end)
+Library:CreateButton(Tab1, "Đổi mob: Monkey → Bandit", function()
+    if MobName == "Monkey" then MobName = "Bandit" else MobName = "Monkey" end
+    Library:Notify("AbyssalHub", "Đã đổi mob: " .. MobName, 2)
 end)
 
 Library:Notify("AbyssalHub", "Auto Farm Blox Fruits da san sang", 3)
-
-Library:CreateButton(Tab1, "Thong bao demo", function()
-    Library:Notify("AbyssalHub", "Day la thong bao sieu dep!", 4)
-end)
 
 -- ---------- TAB VISUAL ----------
 Library:CreateLabel(Tab2, "Cai dat hinh anh")
@@ -1082,38 +1074,6 @@ task.spawn(function()
             SetStatus("Không tìm thấy: " .. MobName)
         end
     end
-end)
-
--- ============================================================
--- UI CONTROL
--- ============================================================
-Library:CreateToggle(Tab1, "Auto Farm Blox Fruits", false, function(v)
-    AutoFarm = v
-end)
-
-Library:CreateSlider(Tab1, "Attack Radius", 10, 200, 50, function(v)
-    AttackRadius = v
-end)
-
-Library:CreateSlider(Tab1, "Teleport Height", 0, 50, 5, function(v)
-    TeleportOffsetY = v
-end)
-
-Library:CreateSlider(Tab1, "Attack Delay", 0.1, 2, 0.5, function(v)
-    AttackDelay = v
-end)
-
-Library:CreateSlider(Tab1, "Hit Count", 1, 10, 3, function(v)
-    HitCount = math.floor(v)
-end)
-
-Library:CreateButton(Tab1, "Đổi mob: Monkey → Bandit", function()
-    if MobName == "Monkey" then
-        MobName = "Bandit"
-    else
-        MobName = "Monkey"
-    end
-    Library:Notify("AbyssalHub", "Đã đổi mob: " .. MobName, 2)
 end)
 
 -- ============================================================
