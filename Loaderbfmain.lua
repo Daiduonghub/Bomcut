@@ -867,6 +867,13 @@ PingLabel:SetColor(Color3.fromRGB(255, 120, 120))
 local MemoryLabel = Library:CreateLabel(TabStats, "Memory: 0 MB")
 MemoryLabel:SetColor(Color3.fromRGB(120, 255, 180))
 
+-- ⬇️ QUAN TRỌNG: ÉP UPDATE CANVAS THỦ CÔNG ⬇️
+task.wait(0.1)
+local layout = TabStats.Frame:FindFirstChildOfClass("UIListLayout")
+if layout then
+    TabStats.Frame.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 20)
+end
+
 local function FormatTime(seconds)
     local hours = math.floor(seconds / 3600)
     local minutes = math.floor((seconds % 3600) / 60)
@@ -933,24 +940,29 @@ task.spawn(function()
 end)
 
 -- ============================================================
--- AUTO FARM BLOX FRUITS (FIND MOB + FIRE REMOTE)
+-- AUTO FARM BLOX FRUITS (ĐÃ SỬA THEO REMOTE THẬT)
 -- ============================================================
--- Обслуживание сервисов
+
 local RS = game:GetService("ReplicatedStorage")
-local RunSvc = game:GetService("RunService")
-local Players = game:GetService("Players")
 local LP = Players.LocalPlayer
 
--- Ожидание загрузки игры
+-- Đợi game load xong
 repeat task.wait() until game:IsLoaded() and LP.Character
 
--- Обнаружение remote-событий Blox Fruits
-local Remotes = RS:WaitForChild("Remotes", 30)
-local CommF_ = Remotes:WaitForChild("CommF_", 30)
-local CommE = Remotes:FindFirstChild("CommE")
-local CombatRemote = Remotes:FindFirstChild("Combat")
+-- Lấy 2 remote thật từ game
+local Net = RS:WaitForChild("Modules"):WaitForChild("Net")
+local RegisterAttack = Net:WaitForChild("RE/RegisterAttack")
+local RegisterHit = Net:WaitForChild("RE/RegisterHit")
 
--- Функция телепортации персонажа к цели
+-- Biến cấu hình (sẽ bị thay đổi bởi toggle/slider)
+AutoFarm = false
+MobName = "Monkey"
+AttackRadius = 50
+TeleportOffsetY = 5
+AttackDelay = 0.5
+HitCount = 3
+
+-- Hàm teleport tới mục tiêu
 local function TeleportTo(targetPart, offsetY)
     offsetY = offsetY or 0
     local char = LP.Character
@@ -960,23 +972,19 @@ local function TeleportTo(targetPart, offsetY)
     root.CFrame = targetPart.CFrame * CFrame.new(0, offsetY, 0)
 end
 
--- Функция поиска ближайшего моба/босса по имени
-local function FindNearestMob(mobName, radius)
-    radius = radius or 500
+-- Hàm tìm mob gần nhất trong workspace.Enemies
+local function FindNearestMob(name)
     local char = LP.Character
     if not char then return nil end
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return nil end
     
-    local closest = nil
-    local closestDist = radius
-    
-    -- Поиск в Workspace.Enemies
-    local enemiesFolder = workspace:FindFirstChild("Enemies") or workspace:FindFirstChild("NPCs")
+    local enemiesFolder = workspace:FindFirstChild("Enemies")
     if not enemiesFolder then return nil end
     
+    local closest, closestDist = nil, 1000
     for _, mob in ipairs(enemiesFolder:GetChildren()) do
-        if mob.Name == mobName or mob.Name:lower():find(mobName:lower()) then
+        if mob.Name == name then
             local hum = mob:FindFirstChild("Humanoid")
             local mroot = mob:FindFirstChild("HumanoidRootPart")
             if hum and mroot and hum.Health > 0 then
@@ -988,88 +996,122 @@ local function FindNearestMob(mobName, radius)
             end
         end
     end
-    
     return closest, closestDist
 end
 
--- Функция отправки атаки через remote (re/hit / re/attack)
-local function FireAttack(target)
-    local char = LP.Character
-    if not char then return end
-    local root = char:FindFirstChild("HumanoidRootPart")
-    if not root then return end
-    
-    -- Вариант 1: через CommF_ с параметром Attack
-    local ok1 = pcall(function()
-        CommF_:InvokeServer("Attack")
+-- Hàm bắn remote RegisterAttack (bắt đầu đánh)
+local function FireRegisterAttack()
+    pcall(function()
+        RegisterAttack:FireServer(AttackDelay, HitCount)
     end)
-    
-    -- Вариант 2: через CombatRemote
-    if not ok1 and CombatRemote then
-        pcall(function()
-            CombatRemote:FireServer(target)
-        end)
-    end
-    
-    -- Вариант 3: прямой вызов hit-эффекта через оружие
-    local tool = char:FindFirstChildWhichIsA("Tool")
-    if tool then
-        pcall(function()
-            tool:Activate()
-        end)
-    end
 end
 
--- Основной цикл авто-фарма
-local AutoFarm = true
-local MobName = "Bandit" -- имя моба для фарма
-local AttackRadius = 50 -- радиус атаки
-local TeleportOffsetY = 5 -- смещение по Y при телепорте
+-- Hàm bắn remote RegisterHit (đánh trúng mob)
+local function FireRegisterHit(targetPart)
+    pcall(function()
+        RegisterHit:FireServer(targetPart, {}, "168716de")
+    end)
+end
 
--- Обновление статистики в UI
-local StatusLabel = nil
+-- Hàm lấy part ngẫu nhiên trên mob để hit
+local function GetHitPart(mob)
+    local parts = {}
+    for _, p in ipairs(mob:GetDescendants()) do
+        if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then
+            table.insert(parts, p)
+        end
+    end
+    if #parts == 0 then
+        return mob:FindFirstChild("HumanoidRootPart")
+    end
+    return parts[math.random(1, #parts)]
+end
+
+-- Label hiển thị trạng thái (tạo trong tab Main)
+local StatusLabel = Library:CreateLabel(Tab1, "Auto Farm: TẮT")
+StatusLabel:SetColor(Color3.fromRGB(255, 200, 100))
+
 local function SetStatus(text)
-    if StatusLabel then
-        StatusLabel:Set(text)
-    end
+    StatusLabel:Set(text)
 end
 
+-- Vòng lặp auto farm
 task.spawn(function()
-    while AutoFarm and LP.Character do
-        local char = LP.Character
-        local root = char:FindFirstChild("HumanoidRootPart")
-        local hum = char:FindFirstChild("Humanoid")
-        
-        if not root or not hum or hum.Health <= 0 then
-            task.wait(1)
+    while task.wait(0.1) do
+        if not AutoFarm then
+            SetStatus("Auto Farm: TẮT")
             continue
         end
         
-        -- Поиск ближайшего моба
-        local target, dist = FindNearestMob(MobName, 1000)
+        local char = LP.Character
+        if not char then continue end
+        local root = char:FindFirstChild("HumanoidRootPart")
+        local hum = char:FindFirstChild("Humanoid")
+        if not root or not hum or hum.Health <= 0 then
+            task.wait(0.5)
+            continue
+        end
+        
+        local target, dist = FindNearestMob(MobName)
         
         if target then
             local tHum = target:FindFirstChild("Humanoid")
-            local tRoot = target:FindFirstChild("HumanoidRootPart")
-            
-            if tHum and tRoot and tHum.Health > 0 then
-                -- Телепорт к цели если далеко
+            if tHum and tHum.Health > 0 then
+                -- Teleport tới mob nếu xa
                 if dist > AttackRadius then
-                    TeleportTo(tRoot, TeleportOffsetY)
-                    SetStatus("Đang bay tới: " .. target.Name .. " (" .. math.floor(dist) .. " studs)")
+                    TeleportTo(target:FindFirstChild("HumanoidRootPart"), TeleportOffsetY)
+                    SetStatus("Đang bay tới: " .. MobName .. " (" .. math.floor(dist) .. " studs)")
                     task.wait(0.1)
                 end
                 
-                -- Атака по цели
-                FireAttack(target)
-                SetStatus("Đang đánh: " .. target.Name .. " | HP: " .. math.floor(tHum.Health))
+                -- Đánh: RegisterAttack + RegisterHit nhiều lần
+                FireRegisterAttack()
+                for i = 1, HitCount do
+                    local hitPart = GetHitPart(target)
+                    if hitPart then
+                        FireRegisterHit(hitPart)
+                    end
+                    task.wait(AttackDelay / HitCount)
+                end
+                
+                SetStatus("Đang đánh: " .. MobName .. " | HP: " .. math.floor(tHum.Health))
             end
         else
-            SetStatus("Không tìm thấy mục tiêu: " .. MobName)
+            SetStatus("Không tìm thấy: " .. MobName)
         end
-        
-        task.wait(0.15)
     end
+end)
+
+-- ============================================================
+-- UI CONTROL
+-- ============================================================
+Library:CreateToggle(Tab1, "Auto Farm Blox Fruits", false, function(v)
+    AutoFarm = v
+end)
+
+Library:CreateSlider(Tab1, "Attack Radius", 10, 200, 50, function(v)
+    AttackRadius = v
+end)
+
+Library:CreateSlider(Tab1, "Teleport Height", 0, 50, 5, function(v)
+    TeleportOffsetY = v
+end)
+
+Library:CreateSlider(Tab1, "Attack Delay", 0.1, 2, 0.5, function(v)
+    AttackDelay = v
+end)
+
+Library:CreateSlider(Tab1, "Hit Count", 1, 10, 3, function(v)
+    HitCount = math.floor(v)
+end)
+
+Library:CreateButton(Tab1, "Đổi mob: Monkey → Bandit", function()
+    if MobName == "Monkey" then
+        MobName = "Bandit"
+    else
+        MobName = "Monkey"
+    end
+    Library:Notify("AbyssalHub", "Đã đổi mob: " .. MobName, 2)
 end)
 
 -- ============================================================
