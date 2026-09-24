@@ -806,20 +806,26 @@ local Tab2 = Library:CreateTab("Visual")
 
 -- ---------- TAB MAIN ----------
 Library:CreateLabel(Tab1, "Chao mung den voi AbyssalHub")
-Library:CreateToggle(Tab1, "Auto Farm", false, function(v)
-    print("Auto Farm:", v)
-end)
-Library:CreateToggle(Tab1, "Kill Aura", false, function(v)
-    print("Kill Aura:", v)
-end)
-
-Library:CreateSlider(Tab1, "Speed", 0, 100, 50, function(v)
-    print("Speed:", v)
+-- ============================================================
+-- UI CONTROL TRONG TAB MAIN
+-- ============================================================
+-- (Giả sử Tab1 là tab Main đã được tạo)
+local AutoFarmToggle = Library:CreateToggle(Tab1, "Auto Farm Blox Fruits", false, function(v)
+    AutoFarm = v
+    SetStatus(v and "Auto Farm: BẬT" or "Auto Farm: TẮT")
 end)
 
-Library:CreateSlider(Tab1, "Jump Power", 50, 500, 100, function(v)
-    print("Jump:", v)
+-- Slider chọn bán kính đánh
+Library:CreateSlider(Tab1, "Attack Radius", 10, 200, 50, function(v)
+    AttackRadius = v
 end)
+
+-- Slider offset Y
+Library:CreateSlider(Tab1, "Teleport Height", 0, 50, 5, function(v)
+    TeleportOffsetY = v
+end)
+
+Library:Notify("AbyssalHub", "Auto Farm Blox Fruits da san sang", 3)
 
 Library:CreateButton(Tab1, "Thong bao demo", function()
     Library:Notify("AbyssalHub", "Day la thong bao sieu dep!", 4)
@@ -923,6 +929,146 @@ task.spawn(function()
         local mem = math.floor(game:GetService("Stats"):GetTotalMemoryUsageMb())
         MemoryLabel:Set("Memory: " .. mem .. " MB")
         task.wait(3)
+    end
+end)
+
+-- ============================================================
+-- AUTO FARM BLOX FRUITS (FIND MOB + FIRE REMOTE)
+-- ============================================================
+-- Обслуживание сервисов
+local RS = game:GetService("ReplicatedStorage")
+local RunSvc = game:GetService("RunService")
+local Players = game:GetService("Players")
+local LP = Players.LocalPlayer
+
+-- Ожидание загрузки игры
+repeat task.wait() until game:IsLoaded() and LP.Character
+
+-- Обнаружение remote-событий Blox Fruits
+local Remotes = RS:WaitForChild("Remotes", 30)
+local CommF_ = Remotes:WaitForChild("CommF_", 30)
+local CommE = Remotes:FindFirstChild("CommE")
+local CombatRemote = Remotes:FindFirstChild("Combat")
+
+-- Функция телепортации персонажа к цели
+local function TeleportTo(targetPart, offsetY)
+    offsetY = offsetY or 0
+    local char = LP.Character
+    if not char then return end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    root.CFrame = targetPart.CFrame * CFrame.new(0, offsetY, 0)
+end
+
+-- Функция поиска ближайшего моба/босса по имени
+local function FindNearestMob(mobName, radius)
+    radius = radius or 500
+    local char = LP.Character
+    if not char then return nil end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return nil end
+    
+    local closest = nil
+    local closestDist = radius
+    
+    -- Поиск в Workspace.Enemies
+    local enemiesFolder = workspace:FindFirstChild("Enemies") or workspace:FindFirstChild("NPCs")
+    if not enemiesFolder then return nil end
+    
+    for _, mob in ipairs(enemiesFolder:GetChildren()) do
+        if mob.Name == mobName or mob.Name:lower():find(mobName:lower()) then
+            local hum = mob:FindFirstChild("Humanoid")
+            local mroot = mob:FindFirstChild("HumanoidRootPart")
+            if hum and mroot and hum.Health > 0 then
+                local dist = (root.Position - mroot.Position).Magnitude
+                if dist < closestDist then
+                    closestDist = dist
+                    closest = mob
+                end
+            end
+        end
+    end
+    
+    return closest, closestDist
+end
+
+-- Функция отправки атаки через remote (re/hit / re/attack)
+local function FireAttack(target)
+    local char = LP.Character
+    if not char then return end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    
+    -- Вариант 1: через CommF_ с параметром Attack
+    local ok1 = pcall(function()
+        CommF_:InvokeServer("Attack")
+    end)
+    
+    -- Вариант 2: через CombatRemote
+    if not ok1 and CombatRemote then
+        pcall(function()
+            CombatRemote:FireServer(target)
+        end)
+    end
+    
+    -- Вариант 3: прямой вызов hit-эффекта через оружие
+    local tool = char:FindFirstChildWhichIsA("Tool")
+    if tool then
+        pcall(function()
+            tool:Activate()
+        end)
+    end
+end
+
+-- Основной цикл авто-фарма
+local AutoFarm = true
+local MobName = "Bandit" -- имя моба для фарма
+local AttackRadius = 50 -- радиус атаки
+local TeleportOffsetY = 5 -- смещение по Y при телепорте
+
+-- Обновление статистики в UI
+local StatusLabel = nil
+local function SetStatus(text)
+    if StatusLabel then
+        StatusLabel:Set(text)
+    end
+end
+
+task.spawn(function()
+    while AutoFarm and LP.Character do
+        local char = LP.Character
+        local root = char:FindFirstChild("HumanoidRootPart")
+        local hum = char:FindFirstChild("Humanoid")
+        
+        if not root or not hum or hum.Health <= 0 then
+            task.wait(1)
+            continue
+        end
+        
+        -- Поиск ближайшего моба
+        local target, dist = FindNearestMob(MobName, 1000)
+        
+        if target then
+            local tHum = target:FindFirstChild("Humanoid")
+            local tRoot = target:FindFirstChild("HumanoidRootPart")
+            
+            if tHum and tRoot and tHum.Health > 0 then
+                -- Телепорт к цели если далеко
+                if dist > AttackRadius then
+                    TeleportTo(tRoot, TeleportOffsetY)
+                    SetStatus("Đang bay tới: " .. target.Name .. " (" .. math.floor(dist) .. " studs)")
+                    task.wait(0.1)
+                end
+                
+                -- Атака по цели
+                FireAttack(target)
+                SetStatus("Đang đánh: " .. target.Name .. " | HP: " .. math.floor(tHum.Health))
+            end
+        else
+            SetStatus("Không tìm thấy mục tiêu: " .. MobName)
+        end
+        
+        task.wait(0.15)
     end
 end)
 
