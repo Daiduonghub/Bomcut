@@ -804,15 +804,20 @@ local TabStats = Library:CreateTab("Stats & Server")
 local Tab1 = Library:CreateTab("Main")
 
 --  ---------UI CONTROL---------
-
 Library:CreateToggle(Tab1, "Auto Farm Level", false, function(v)
     AutoFarm = v
     if v then
-        -- Reset quest key để tự nhận quest theo level khi bật
         CurrentQuestName = nil
         QuestCooldown = 0
         Library:Notify("AbyssalHub", "Auto Farm: ON", 2)
     else
+        currentTarget = nil
+        StopActiveTween()
+        local char = LP.Character
+        if char then
+            local root = char:FindFirstChild("HumanoidRootPart")
+            if root then root.Anchored = false end
+        end
         Library:Notify("AbyssalHub", "Auto Farm: OFF", 2)
     end
 end)
@@ -1211,25 +1216,44 @@ end)
 -- Dùng STEPPED (chạy TRƯỚC physics) thay vì HEARTBEAT (chạy SAU physics)
 -- Stepped: chỉ chống knockback, KHÔNG snap CFrame
 RunService.Stepped:Connect(function()
-    if not AutoFarm then return end
-    if not currentTarget then return end
-    
     local char = LP.Character
     if not char then return end
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return end
     
+    -- Không farm / không target → unanchor
+    if not AutoFarm or not currentTarget then
+        if root.Anchored then root.Anchored = false end
+        return
+    end
+    
     local mobRoot = currentTarget:FindFirstChild("HumanoidRootPart")
-    if not mobRoot then return end
+    local mobHum = currentTarget:FindFirstChild("Humanoid")
+    if not mobRoot or not mobHum or mobHum.Health <= 0 then
+        currentTarget = nil
+        root.Anchored = false
+        return
+    end
     
     local dist = (root.Position - mobRoot.Position).Magnitude
     
-    -- Khi đã ở gần → reset velocity để không bị knockback
     if dist <= 15 then
-        root.Velocity = Vector3.new(0, 0, 0)
-        root.RotVelocity = Vector3.new(0, 0, 0)
+        -- ✅ ĐÃ Ở TRÊN ĐẦU MOB → ANCHOR CỨNG
+        if activeTween then
+            activeTween:Cancel()
+            activeTween = nil
+        end
+        
+        root.Anchored = true
+        root.CFrame = CFrame.new(mobRoot.Position + Vector3.new(0, 10, 0))
+        root.Velocity = Vector3.zero
+        root.RotVelocity = Vector3.zero
+    else
+        -- ⚠️ ĐANG BAY → UNANCHOR ĐỂ TWEEN HOẠT ĐỘNG
+        if root.Anchored then root.Anchored = false end
     end
 end)
+
 -- ============================================================
 -- АВТОВЫБОР ПЕРВОЙ ВКЛАДКИ
 -- ============================================================
