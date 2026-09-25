@@ -1115,15 +1115,29 @@ local function FindQuestByLevel(level)
     return FirstSeaQuests[1]
 end
 
+local function GetCurrentQuest()
+    local ok, result = pcall(function()
+        return CommF_:InvokeServer("GetQuest")
+    end)
+    if ok and result and result ~= "" then
+        return result
+    end
+    return nil
+end
+
 local function AutoAcceptQuest()
     local level = LP.Data.Level.Value
     local questData = FindQuestByLevel(level)
     if not questData then return nil end
     
-    -- Key unique cho mỗi quest part
     local questKey = questData.QuestName .. "|" .. tostring(questData.QuestId)
     
-    if CurrentQuestName ~= questKey then
+    -- Check quest hiện tại từ server
+    local serverQuest = GetCurrentQuest()
+    local hasQuest = serverQuest and serverQuest ~= ""
+    
+    -- Nếu chưa có quest HOẶC quest khác level → nhận lại
+    if CurrentQuestName ~= questKey or not hasQuest then
         if tick() < QuestCooldown then return nil end
         
         pcall(function()
@@ -1153,7 +1167,6 @@ task.spawn(function()
         local ok, err = pcall(function()
             if not AutoFarm then
                 StopTween()
-                currentTarget = nil
                 return
             end
             
@@ -1166,21 +1179,22 @@ task.spawn(function()
                 return
             end
             
-            -- Bọc riêng AutoAcceptQuest
-            pcall(function()
-                AutoAcceptQuest()
-            end)
+            -- Check + nhận quest
+            pcall(AutoAcceptQuest)
             
-            local target, dist = FindNearestMob(CurrentMobName, 800)
-            currentTarget = target
+            -- Tìm mob trong bán kính rộng
+            local target = FindNearestMob(CurrentMobName, 500)
             
             if target then
                 local tHum = target:FindFirstChild("Humanoid")
                 if tHum and tHum.Health > 0 then
-                    if dist > 30 then
-                        TweenOnTopOfMob(target)
+                    -- ĐỨNG YÊN TẠI VỊ TRÍ MOB SPAWN CỐ ĐỊNH
+                    local distToSpawn = (root.Position - QuestCFrame.Position).Magnitude
+                    if distToSpawn > 15 then
+                        TweenTo(QuestCFrame, 5)
                     end
                     
+                    -- Đánh mob
                     FireRegisterAttack()
                     for i = 1, HitCount do
                         local hitPart = GetHitPart(target)
@@ -1191,17 +1205,16 @@ task.spawn(function()
                     end
                 end
             else
-                currentTarget = nil
+                -- Không có mob → bay về vị trí spawn
                 if QuestCFrame then
-                    local distToQuest = (root.Position - QuestCFrame.Position).Magnitude
-                    if distToQuest > 50 then
-                        TweenTo(QuestCFrame)
+                    local distToSpawn = (root.Position - QuestCFrame.Position).Magnitude
+                    if distToSpawn > 15 then
+                        TweenTo(QuestCFrame, 5)
                     end
                 end
             end
         end)
         
-        -- In lỗi ra console (chỉ khi có lỗi)
         if not ok then
             warn("[AbyssalHub] Farm error: " .. tostring(err))
         end
@@ -1209,30 +1222,16 @@ task.spawn(function()
 end)
 
 -- Heartbeat: giữ nhân vật dính trên đầu quái mỗi frame (chống rớt)
+-- Heartbeat: chỉ freeze velocity, KHÔNG set CFrame
 RunService.Heartbeat:Connect(function()
     if not AutoFarm then return end
-    if not currentTarget then return end
     
     local char = LP.Character
     if not char then return end
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return end
     
-    local mobRoot = currentTarget:FindFirstChild("HumanoidRootPart")
-    if not mobRoot then return end
-    
-    local mobHum = currentTarget:FindFirstChild("Humanoid")
-    if not mobHum or mobHum.Health <= 0 then
-        currentTarget = nil
-        return
-    end
-    
-    local dist = (root.Position - mobRoot.Position).Magnitude
-    -- CHỈ bám trực tiếp khi ĐÃ TỚI GẦN (dist < 8)
-    -- Còn xa hơn → để tween tự bay
-    if dist > 8 then return end
-    
-    root.CFrame = mobRoot.CFrame * CFrame.new(0, 5, 0)
+    -- Giữ nhân vật đứng yên, không bị đẩy khi bị đánh
     root.Velocity = Vector3.new(0, 0, 0)
     root.RotVelocity = Vector3.new(0, 0, 0)
 end)
