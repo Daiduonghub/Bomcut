@@ -803,6 +803,15 @@ end)
 local TabStats = Library:CreateTab("Stats & Server")
 local Tab1 = Library:CreateTab("Main")
 
+-- ============================================================
+-- АВТОВЫБОР ПЕРВОЙ ВКЛАДКИ
+-- ============================================================
+if Library.Tabs[1] then
+    Library.Tabs[1].Button.MouseButton1Click:Fire()
+end
+
+Library:Notify("AbyssalHub", "The GUI library has been initialized; thank you for your purchase !", 5)
+
 --  ---------UI CONTROL---------
 
 Library:CreateToggle(Tab1, "Auto Farm Level", false, function(v)
@@ -1163,12 +1172,16 @@ local function AutoAcceptQuest()
 end
 
 -- ============================================================
--- VÒNG LẶP AUTO FARM
+-- VÒNG LẶP AUTO FARM (DÙNG HEARTBEAT - MƯỢT, KHÔNG RỚT)
 -- ============================================================
+local currentTarget = nil
+
+-- Loop chính: tìm quest + tìm mob + đánh
 task.spawn(function()
     while task.wait(0.1) do
         if not AutoFarm then
             StopTween()
+            currentTarget = nil
             continue
         end
         
@@ -1184,27 +1197,17 @@ task.spawn(function()
         -- Nhận quest theo level
         AutoAcceptQuest()
         
-        -- Tìm mob trong bán kính 800 studs
+        -- Tìm mob gần nhất
         local target, dist = FindNearestMob(CurrentMobName, 800)
+        currentTarget = target
         
         if target then
             local tHum = target:FindFirstChild("Humanoid")
             if tHum and tHum.Health > 0 then
-                local mobRoot = target:FindFirstChild("HumanoidRootPart")
-                
-                if dist > 12 then
-                    -- Xa quái → tween tới
+                if dist > 30 then
                     TweenOnTopOfMob(target)
-                else
-                    -- Gần quái → bám trực tiếp
-                    if mobRoot then
-                        StopTween()
-                        root.CFrame = mobRoot.CFrame * CFrame.new(0, 5, 0)
-                        root.Velocity = Vector3.new(0, 0, 0)
-                    end
                 end
                 
-                -- Đánh
                 FireRegisterAttack()
                 for i = 1, HitCount do
                     local hitPart = GetHitPart(target)
@@ -1215,7 +1218,7 @@ task.spawn(function()
                 end
             end
         else
-            -- Không có mob trong 800 studs → tween về vị trí quest
+            currentTarget = nil
             if QuestCFrame then
                 local distToQuest = (root.Position - QuestCFrame.Position).Magnitude
                 if distToQuest > 50 then
@@ -1226,13 +1229,35 @@ task.spawn(function()
     end
 end)
 
--- ============================================================
--- АВТОВЫБОР ПЕРВОЙ ВКЛАДКИ
--- ============================================================
-if Library.Tabs[1] then
-    Library.Tabs[1].Button.MouseButton1Click:Fire()
-end
-
-Library:Notify("AbyssalHub", "The GUI library has been initialized; thank you for your purchase !", 5)
+-- Heartbeat: giữ nhân vật dính trên đầu quái mỗi frame (chống rớt)
+RunService.Heartbeat:Connect(function()
+    if not AutoFarm then return end
+    if not currentTarget then return end
+    
+    local char = LP.Character
+    if not char then return end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    
+    local mobRoot = currentTarget:FindFirstChild("HumanoidRootPart")
+    if not mobRoot then return end
+    
+    local mobHum = currentTarget:FindFirstChild("Humanoid")
+    if not mobHum or mobHum.Health <= 0 then
+        currentTarget = nil
+        return
+    end
+    
+    -- Nếu đang tween tới xa → không can thiệp
+    local dist = (root.Position - mobRoot.Position).Magnitude
+    if dist > 30 then return end
+    
+    -- Bám trực tiếp lên đầu quái mỗi frame
+    StopTween()
+    root.CFrame = mobRoot.CFrame * CFrame.new(0, 5, 0)
+    root.Velocity = Vector3.new(0, 0, 0)
+    root.RotVelocity = Vector3.new(0, 0, 0)
+    root.Anchored = false
+end)
 
 return Library
