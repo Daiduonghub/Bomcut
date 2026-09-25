@@ -922,16 +922,16 @@ task.spawn(function()
     end
 end)
 
---- ============================================================
--- AUTO FARM LEVEL - BLOX FRUITS SEA 1 (TWEEN MƯỢT)
+-- ============================================================
+-- AUTO FARM LEVEL - BLOX FRUITS SEA 1 (FIX TWEEN + QUEST)
 -- ============================================================
 
 local RS = game:GetService("ReplicatedStorage")
 local LP = Players.LocalPlayer
+local TweenService = game:GetService("TweenService")
 
 repeat task.wait() until game:IsLoaded() and LP.Character
 
--- Lấy remote
 local Net = RS:WaitForChild("Modules"):WaitForChild("Net")
 local RegisterAttack = Net:WaitForChild("RE/RegisterAttack")
 local RegisterHit = Net:WaitForChild("RE/RegisterHit")
@@ -939,61 +939,96 @@ local Remotes = RS:WaitForChild("Remotes")
 local CommF_ = Remotes:WaitForChild("CommF_")
 
 -- ============================================================
--- DATABASE QUEST SEA 1
+-- DATABASE QUEST SEA 1 (MIN/MAX LEVEL)
 -- ============================================================
 Sea1Quests = {
-    {Level = 1,   Quest = "BanditQuest1",        Mob = "Bandit",             CFrame = CFrame.new(1059, 16, 1547)},
-    {Level = 10,  Quest = "MonkeyQuest1",        Mob = "Monkey",             CFrame = CFrame.new(-1400, 25, 47)},
-    {Level = 15,  Quest = "BountyQuest1",        Mob = "Bounty Hunter",      CFrame = CFrame.new(-2850, 7, 5310)},
-    {Level = 20,  Quest = "BountyQuest2",        Mob = "Bounty Hunter",      CFrame = CFrame.new(-2850, 7, 5310)},
-    {Level = 30,  Quest = "PirateQuest1",        Mob = "Pirate",             CFrame = CFrame.new(-1325, 5, 3850)},
-    {Level = 40,  Quest = "BruteQuest1",         Mob = "Brute",              CFrame = CFrame.new(-1153, 7, 3827)},
-    {Level = 55,  Quest = "PirateQuest2",        Mob = "Pirate",             CFrame = CFrame.new(-1325, 5, 3850)},
-    {Level = 65,  Quest = "GorillaQuest1",       Mob = "Gorilla",            CFrame = CFrame.new(-1156, 20, 3484)},
-    {Level = 75,  Quest = "DesertBanditQuest1",  Mob = "Desert Bandit",      CFrame = CFrame.new(1045, 22, 4307)},
-    {Level = 90,  Quest = "DesertOfficerQuest1", Mob = "Desert Officer",     CFrame = CFrame.new(1524, 10, 4174)},
-    {Level = 120, Quest = "SnowBanditQuest1",    Mob = "Snow Bandit",        CFrame = CFrame.new(1284, 41, -1535)},
-    {Level = 140, Quest = "SnowmanQuest1",       Mob = "Snowman",            CFrame = CFrame.new(1172, 27, -1480)},
-    {Level = 150, Quest = "MarineQuest1",        Mob = "Marine",             CFrame = CFrame.new(-2325, 7, -2960)},
-    {Level = 180, Quest = "SkyBanditQuest1",     Mob = "Sky Bandit",         CFrame = CFrame.new(-4757, 313, -3590)},
-    {Level = 200, Quest = "GodGuardQuest1",      Mob = "God's Guard",        CFrame = CFrame.new(-4570, 151, -3090)},
-    {Level = 220, Quest = "GalleyPirateQuest1",  Mob = "Galley Pirate",      CFrame = CFrame.new(5432, 22, -3580)},
-    {Level = 250, Quest = "ColosseumQuest1",     Mob = "Gladiator",          CFrame = CFrame.new(-1720, 5, -3550)},
-    {Level = 300, Quest = "MilitaryQuest1",      Mob = "Military Soldier",   CFrame = CFrame.new(-5060, 30, -4490)},
-    {Level = 350, Quest = "MilitaryQuest2",      Mob = "Military Spy",       CFrame = CFrame.new(-5060, 30, -4490)},
-    {Level = 375, Quest = "FishmanQuest1",       Mob = "Fishman Warrior",    CFrame = CFrame.new(61100, 20, 1560)},
-    {Level = 450, Quest = "FishmanQuest2",       Mob = "Fishman Commando",   CFrame = CFrame.new(61100, 20, 1560)},
-    {Level = 500, Quest = "SkyQuest1",           Mob = "God's Guard",        CFrame = CFrame.new(-4940, 655, -3080)},
-    {Level = 600, Quest = "SkyQuest2",           Mob = "Shanda",             CFrame = CFrame.new(-4940, 655, -3080)},
-    {Level = 625, Quest = "FountainQuest1",      Mob = "Royal Soldier",      CFrame = CFrame.new(4995, 40, 4010)},
-    {Level = 750, Quest = "CursedShipQuest1",    Mob = "Living Zombie",      CFrame = CFrame.new(3110, 45, -3300)},
-    {Level = 850, Quest = "CursedShipQuest2",    Mob = "Demonic Soul",       CFrame = CFrame.new(3110, 45, -3300)},
-    {Level = 1000,Quest = "IceCastleQuest1",     Mob = "Snow Trooper",       CFrame = CFrame.new(5610, 45, -3400)},
-    {Level = 1100,Quest = "IceCastleQuest2",     Mob = "Ice Admiral",        CFrame = CFrame.new(5610, 45, -3400)},
-    {Level = 1200,Quest = "ForgottenQuest1",     Mob = "Pirate Millionaire", CFrame = CFrame.new(-210, 30, 5000)},
-    {Level = 1350,Quest = "HauntedQuest1",       Mob = "Reborn Skeleton",    CFrame = CFrame.new(-9600, 145, 5800)},
-    {Level = 1500,Quest = "GraveyardQuest1",     Mob = "Zombie",             CFrame = CFrame.new(-9500, 5, 6000)},
-    {Level = 1750,Quest = "SnowMountainQuest1",  Mob = "Snow Trooper",       CFrame = CFrame.new(1970, 55, -5440)},
-    {Level = 1900,Quest = "HotColdQuest1",       Mob = "Snow Commando",      CFrame = CFrame.new(-2800, 5, -7600)},
-    {Level = 2050,Quest = "KingdomQuest1",       Mob = "Raider",             CFrame = CFrame.new(-110, 30, 6190)},
+    -- Starter Island
+    {Min = 1,    Max = 4,    Quest = "BanditQuest1",        Mob = "Bandit",             CFrame = CFrame.new(1059, 16, 1547)},
+    {Min = 5,    Max = 9,    Quest = "BanditQuest2",        Mob = "Bandit",             CFrame = CFrame.new(1059, 16, 1547)},
+    -- Marine Fort (Monkey)
+    {Min = 10,   Max = 14,   Quest = "MonkeyQuest1",        Mob = "Monkey",             CFrame = CFrame.new(-1400, 25, 47)},
+    {Min = 15,   Max = 19,   Quest = "MonkeyQuest2",        Mob = "Monkey",             CFrame = CFrame.new(-1400, 25, 47)},
+    -- Middle Town (Bounty Hunter)
+    {Min = 20,   Max = 29,   Quest = "BountyQuest1",        Mob = "Bounty Hunter",      CFrame = CFrame.new(-2850, 7, 5310)},
+    {Min = 30,   Max = 39,   Quest = "BountyQuest2",        Mob = "Bounty Hunter",      CFrame = CFrame.new(-2850, 7, 5310)},
+    -- Jungle (Pirate + Brute)
+    {Min = 40,   Max = 54,   Quest = "PirateQuest1",        Mob = "Pirate",             CFrame = CFrame.new(-1325, 5, 3850)},
+    {Min = 55,   Max = 64,   Quest = "PirateQuest2",        Mob = "Pirate",             CFrame = CFrame.new(-1325, 5, 3850)},
+    {Min = 65,   Max = 74,   Quest = "GorillaQuest1",       Mob = "Gorilla",            CFrame = CFrame.new(-1156, 20, 3484)},
+    -- Desert
+    {Min = 75,   Max = 89,   Quest = "DesertBanditQuest1",  Mob = "Desert Bandit",      CFrame = CFrame.new(1045, 22, 4307)},
+    {Min = 90,   Max = 104,  Quest = "DesertOfficerQuest1", Mob = "Desert Officer",     CFrame = CFrame.new(1524, 10, 4174)},
+    -- Frozen Village
+    {Min = 105,  Max = 119,  Quest = "SnowBanditQuest1",    Mob = "Snow Bandit",        CFrame = CFrame.new(1284, 41, -1535)},
+    {Min = 120,  Max = 149,  Quest = "SnowmanQuest1",       Mob = "Snowman",            CFrame = CFrame.new(1172, 27, -1480)},
+    -- Marine Ford
+    {Min = 150,  Max = 174,  Quest = "MarineQuest1",        Mob = "Marine",             CFrame = CFrame.new(-2325, 7, -2960)},
+    -- Skylands
+    {Min = 175,  Max = 189,  Quest = "SkyBanditQuest1",     Mob = "Sky Bandit",         CFrame = CFrame.new(-4757, 313, -3590)},
+    -- Upper Skylands
+    {Min = 190,  Max = 209,  Quest = "GodGuardQuest1",      Mob = "God's Guard",        CFrame = CFrame.new(-4570, 151, -3090)},
+    -- Fountain City
+    {Min = 210,  Max = 249,  Quest = "GalleyPirateQuest1",  Mob = "Galley Pirate",      CFrame = CFrame.new(5432, 22, -3580)},
+    -- Colosseum
+    {Min = 250,  Max = 299,  Quest = "ColosseumQuest1",     Mob = "Gladiator",          CFrame = CFrame.new(-1720, 5, -3550)},
+    -- Magma Village
+    {Min = 300,  Max = 329,  Quest = "MilitaryQuest1",      Mob = "Military Soldier",   CFrame = CFrame.new(-5060, 30, -4490)},
+    {Min = 330,  Max = 374,  Quest = "MilitaryQuest2",      Mob = "Military Spy",       CFrame = CFrame.new(-5060, 30, -4490)},
+    -- Underwater City
+    {Min = 375,  Max = 399,  Quest = "FishmanQuest1",       Mob = "Fishman Warrior",    CFrame = CFrame.new(61100, 20, 1560)},
+    {Min = 400,  Max = 449,  Quest = "FishmanQuest2",       Mob = "Fishman Commando",   CFrame = CFrame.new(61100, 20, 1560)},
+    -- Upper Skylands (God's Guard 2 + Shanda)
+    {Min = 450,  Max = 524,  Quest = "SkyQuest1",           Mob = "God's Guard",        CFrame = CFrame.new(-4940, 655, -3080)},
+    {Min = 525,  Max = 624,  Quest = "SkyQuest2",           Mob = "Shanda",             CFrame = CFrame.new(-4940, 655, -3080)},
+    -- Fountain City (Royal Soldier)
+    {Min = 625,  Max = 699,  Quest = "FountainQuest1",      Mob = "Royal Soldier",      CFrame = CFrame.new(4995, 40, 4010)},
+    -- Cursed Ship
+    {Min = 700,  Max = 774,  Quest = "CursedShipQuest1",    Mob = "Living Zombie",      CFrame = CFrame.new(3110, 45, -3300)},
+    {Min = 775,  Max = 849,  Quest = "CursedShipQuest2",    Mob = "Demonic Soul",       CFrame = CFrame.new(3110, 45, -3300)},
+    -- Ice Castle
+    {Min = 850,  Max = 949,  Quest = "IceCastleQuest1",     Mob = "Snow Trooper",       CFrame = CFrame.new(5610, 45, -3400)},
+    {Min = 950,  Max = 1099, Quest = "IceCastleQuest2",     Mob = "Ice Admiral",        CFrame = CFrame.new(5610, 45, -3400)},
+    -- Forgotten Island
+    {Min = 1100, Max = 1249, Quest = "ForgottenQuest1",     Mob = "Pirate Millionaire", CFrame = CFrame.new(-210, 30, 5000)},
+    -- Haunted Castle
+    {Min = 1250, Max = 1349, Quest = "HauntedQuest1",       Mob = "Reborn Skeleton",    CFrame = CFrame.new(-9600, 145, 5800)},
+    {Min = 1350, Max = 1499, Quest = "HauntedQuest2",       Mob = "Living Zombie",      CFrame = CFrame.new(-9600, 145, 5800)},
+    -- Graveyard
+    {Min = 1500, Max = 1749, Quest = "GraveyardQuest1",     Mob = "Zombie",             CFrame = CFrame.new(-9500, 5, 6000)},
+    -- Snow Mountain
+    {Min = 1750, Max = 1899, Quest = "SnowMountainQuest1",  Mob = "Snow Trooper",       CFrame = CFrame.new(1970, 55, -5440)},
+    -- Hot and Cold
+    {Min = 1900, Max = 2049, Quest = "HotColdQuest1",       Mob = "Snow Commando",      CFrame = CFrame.new(-2800, 5, -7600)},
+    -- Kingdom of Rose
+    {Min = 2050, Max = 9999, Quest = "KingdomQuest1",       Mob = "Raider",             CFrame = CFrame.new(-110, 30, 6190)},
 }
 
 -- ============================================================
 -- BIẾN CẤU HÌNH
 -- ============================================================
 AutoFarm = false
-MobName = "Bandit"
+CurrentQuestName = nil
+CurrentMobName = "Bandit"
+QuestCFrame = CFrame.new(1059, 16, 1547)
 AttackDelay = 0.5
 HitCount = 3
-QuestCFrame = CFrame.new(1059, 16, 1547)
-TweenSpeed = 350 -- studs/s, càng cao càng nhanh
+TweenSpeed = 350
+QuestCooldown = 0
 
 -- ============================================================
--- HÀM TWEEN DI CHUYỂN (MƯỢT)
+-- TWEEN CONTROLLER (chống giật)
 -- ============================================================
-local TweenService = game:GetService("TweenService")
+local activeTween = nil
+local activeDest = nil
 
--- Tween tới 1 CFrame đích
+local function StopTween()
+    if activeTween then
+        activeTween:Cancel()
+        activeTween = nil
+        activeDest = nil
+    end
+end
+
 local function TweenTo(targetCFrame, offsetY)
     local char = LP.Character
     if not char then return end
@@ -1001,28 +1036,40 @@ local function TweenTo(targetCFrame, offsetY)
     if not root then return end
     
     local dest = targetCFrame + Vector3.new(0, offsetY or 0, 0)
+    
+    -- Nếu đích mới gần đích cũ (< 8 studs) và tween đang chạy → bỏ qua
+    if activeTween and activeDest then
+        if (activeDest.Position - dest.Position).Magnitude < 8 then
+            if activeTween.PlaybackState == Enum.PlaybackState.Playing then
+                return
+            end
+        end
+    end
+    
+    StopTween()
+    
     local distance = (root.Position - dest.Position).Magnitude
     local duration = math.clamp(distance / TweenSpeed, 0.1, 5)
     
-    local tween = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
+    activeTween = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
         CFrame = dest
     })
-    tween:Play()
-    return tween
+    activeDest = dest
+    activeTween:Play()
 end
 
--- Tween tới đầu quái
 local function TweenOnTopOfMob(mob)
     if not mob then return end
     local mobRoot = mob:FindFirstChild("HumanoidRootPart")
     if not mobRoot then return end
-    return TweenTo(mobRoot.CFrame * CFrame.new(0, 5, 0), 0)
+    TweenTo(mobRoot.CFrame * CFrame.new(0, 5, 0))
 end
 
 -- ============================================================
--- HÀM TÌM MOB
+-- TÌM MOB
 -- ============================================================
-local function FindNearestMob(name)
+local function FindNearestMob(name, maxDist)
+    maxDist = maxDist or 5000
     local char = LP.Character
     if not char then return nil end
     local root = char:FindFirstChild("HumanoidRootPart")
@@ -1031,7 +1078,7 @@ local function FindNearestMob(name)
     local enemiesFolder = workspace:FindFirstChild("Enemies")
     if not enemiesFolder then return nil end
     
-    local closest, closestDist = nil, 99999
+    local closest, closestDist = nil, maxDist
     for _, mob in ipairs(enemiesFolder:GetChildren()) do
         if mob.Name == name then
             local hum = mob:FindFirstChild("Humanoid")
@@ -1048,7 +1095,6 @@ local function FindNearestMob(name)
     return closest, closestDist
 end
 
--- Lấy part random của quái để hit
 local function GetHitPart(mob)
     local parts = {}
     for _, p in ipairs(mob:GetDescendants()) do
@@ -1078,18 +1124,16 @@ local function FireRegisterHit(targetPart)
 end
 
 -- ============================================================
--- QUEST SYSTEM
+-- QUEST SYSTEM (so sánh theo TÊN QUEST, không phải Mob)
 -- ============================================================
 local function FindQuestByLevel(level)
-    local best = nil
     for _, q in ipairs(Sea1Quests) do
-        if level >= q.Level then
-            if not best or q.Level > best.Level then
-                best = q
-            end
+        if level >= q.Min and level <= q.Max then
+            return q
         end
     end
-    return best
+    -- Nếu level vượt quá Max của tất cả → trả về quest cuối
+    return Sea1Quests[#Sea1Quests]
 end
 
 local function AutoAcceptQuest()
@@ -1097,14 +1141,22 @@ local function AutoAcceptQuest()
     local questData = FindQuestByLevel(level)
     if not questData then return nil end
     
-    -- Chỉ nhận quest mới khi mob khác
-    if MobName ~= questData.Mob then
+    -- Chỉ nhận quest mới nếu TÊN QUEST khác (fix lỗi 2 đảo)
+    if CurrentQuestName ~= questData.Quest then
+        if tick() < QuestCooldown then return nil end
+        
         pcall(function()
             CommF_:InvokeServer("StartQuest", questData.Quest, questData.Level)
         end)
-        task.wait(0.3)
-        MobName = questData.Mob
+        
+        CurrentQuestName = questData.Quest
+        CurrentMobName = questData.Mob
         QuestCFrame = questData.CFrame
+        QuestCooldown = tick() + 2 -- Cooldown 2s tránh spam quest
+        
+        -- Dừng tween cũ khi đổi quest
+        StopTween()
+        task.wait(0.2)
     end
     
     return questData
@@ -1115,7 +1167,10 @@ end
 -- ============================================================
 task.spawn(function()
     while task.wait(0.1) do
-        if not AutoFarm then continue end
+        if not AutoFarm then
+            StopTween()
+            continue
+        end
         
         local char = LP.Character
         if not char then continue end
@@ -1126,24 +1181,26 @@ task.spawn(function()
             continue
         end
         
-        -- Tự động nhận quest theo level
+        -- Nhận quest theo level
         AutoAcceptQuest()
         
-        -- Tìm mob
-        local target, dist = FindNearestMob(MobName)
+        -- Tìm mob trong bán kính 800 studs
+        local target, dist = FindNearestMob(CurrentMobName, 800)
         
         if target then
             local tHum = target:FindFirstChild("Humanoid")
             if tHum and tHum.Health > 0 then
-                -- Tween lên đầu quái nếu xa
-                if dist > 15 then
+                local mobRoot = target:FindFirstChild("HumanoidRootPart")
+                
+                if dist > 12 then
+                    -- Xa quái → tween tới
                     TweenOnTopOfMob(target)
-                    task.wait(0.05)
                 else
-                    -- Giữ vị trí trên đầu quái (bám theo khi quái di chuyển)
-                    local mobRoot = target:FindFirstChild("HumanoidRootPart")
+                    -- Gần quái → bám trực tiếp
                     if mobRoot then
+                        StopTween()
                         root.CFrame = mobRoot.CFrame * CFrame.new(0, 5, 0)
+                        root.Velocity = Vector3.new(0, 0, 0)
                     end
                 end
                 
@@ -1158,10 +1215,12 @@ task.spawn(function()
                 end
             end
         else
-            -- Không có mob → tween về vị trí quest
+            -- Không có mob trong 800 studs → tween về vị trí quest
             if QuestCFrame then
-                TweenTo(QuestCFrame)
-                task.wait(1)
+                local distToQuest = (root.Position - QuestCFrame.Position).Magnitude
+                if distToQuest > 50 then
+                    TweenTo(QuestCFrame)
+                end
             end
         end
     end
@@ -1174,6 +1233,6 @@ if Library.Tabs[1] then
     Library.Tabs[1].Button.MouseButton1Click:Fire()
 end
 
-Library:Notify("AbyssalHub", "The GUI library has been initialized; thank you for your purchase !", 3)
+Library:Notify("AbyssalHub", "The GUI library has been initialized; thank you for your purchase !", 5)
 
 return Library
