@@ -803,15 +803,6 @@ end)
 local TabStats = Library:CreateTab("Stats & Server")
 local Tab1 = Library:CreateTab("Main")
 
--- ============================================================
--- АВТОВЫБОР ПЕРВОЙ ВКЛАДКИ
--- ============================================================
-if Library.Tabs[1] then
-    Library.Tabs[1].Button.MouseButton1Click:Fire()
-end
-
-Library:Notify("AbyssalHub", "The GUI library has been initialized; thank you for your purchase !", 5)
-
 --  ---------UI CONTROL---------
 
 Library:CreateToggle(Tab1, "Auto Farm Level", false, function(v)
@@ -1259,5 +1250,14 @@ RunService.Heartbeat:Connect(function()
     root.RotVelocity = Vector3.new(0, 0, 0)
     root.Anchored = false
 end)
+
+-- ============================================================
+-- АВТОВЫБОР ПЕРВОЙ ВКЛАДКИ
+-- ============================================================
+if Library.Tabs[1] then
+    Library.Tabs[1].Button.MouseButton1Click:Fire()
+end
+
+Library:Notify("AbyssalHub", "The GUI library has been initialized; thank you for your purchase !", 5)
 
 return Library
