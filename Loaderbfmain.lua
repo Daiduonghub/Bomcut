@@ -996,56 +996,6 @@ if TweenSpeed == nil then TweenSpeed = 350 end
 if QuestCooldown == nil then QuestCooldown = 0 end
 
 -- ============================================================
--- TWEEN CONTROLLER (chống giật)
--- ============================================================
-local activeTween = nil
-local activeDest = nil
-
-local function StopTween()
-    if activeTween then
-        activeTween:Cancel()
-        activeTween = nil
-        activeDest = nil
-    end
-end
-
-local function TweenTo(targetCFrame, offsetY)
-    local char = LP.Character
-    if not char then return end
-    local root = char:FindFirstChild("HumanoidRootPart")
-    if not root then return end
-    
-    local dest = targetCFrame + Vector3.new(0, offsetY or 0, 0)
-    
-    -- Nếu đích mới gần đích cũ (< 8 studs) và tween đang chạy → bỏ qua
-    if activeTween and activeDest then
-        if (activeDest.Position - dest.Position).Magnitude < 8 then
-            if activeTween.PlaybackState == Enum.PlaybackState.Playing then
-                return
-            end
-        end
-    end
-    
-    StopTween()
-    
-    local distance = (root.Position - dest.Position).Magnitude
-    local duration = math.clamp(distance / TweenSpeed, 0.1, 5)
-    
-    activeTween = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
-        CFrame = dest
-    })
-    activeDest = dest
-    activeTween:Play()
-end
-
-local function TweenOnTopOfMob(mob)
-    if not mob then return end
-    local mobRoot = mob:FindFirstChild("HumanoidRootPart")
-    if not mobRoot then return end
-    TweenTo(mobRoot.CFrame * CFrame.new(0, 5, 0))
-end
-
--- ============================================================
 -- TÌM MOB
 -- ============================================================
 local function FindNearestMob(name, maxDist)
@@ -1164,14 +1114,16 @@ end
 -- ============================================================
 -- VÒNG LẶP AUTO FARM (DÙNG HEARTBEAT - MƯỢT, KHÔNG RỚT)
 -- ============================================================
+-- ============================================================
+-- VÒNG LẶP AUTO FARM
+-- ============================================================
 local currentTarget = nil
 
--- Loop chính: tìm quest + tìm mob + đánh
 task.spawn(function()
     while task.wait(0.1) do
         local ok, err = pcall(function()
             if not AutoFarm then
-                StopTween()
+                currentTarget = nil
                 return
             end
             
@@ -1184,47 +1136,24 @@ task.spawn(function()
                 return
             end
             
-            -- Check + nhận quest
             pcall(AutoAcceptQuest)
             
-            -- Tìm mob trong bán kính rộng
             local target = FindNearestMob(CurrentMobName, 500)
+            currentTarget = target
             
-if target then
-    local tHum = target:FindFirstChild("Humanoid")
-    local mobRoot = target:FindFirstChild("HumanoidRootPart")
-    
-    if tHum and tHum.Health > 0 and mobRoot then
-        local distToMob = (root.Position - mobRoot.Position).Magnitude
-        
-        if distToMob > 15 then
-            -- Xa mob → tween tới đầu mob
-            TweenTo(mobRoot.CFrame, 5)
-        else
-            -- Gần mob → đứng yên trên đầu mob (không tween)
-            StopTween()
-            root.CFrame = mobRoot.CFrame * CFrame.new(0, 5, 0)
-        end
-        
-        -- Đánh mob
-        FireRegisterAttack()
-        for i = 1, HitCount do
-            local hitPart = GetHitPart(target)
-            if hitPart then
-                FireRegisterHit(hitPart)
+            if target then
+                local tHum = target:FindFirstChild("Humanoid")
+                if tHum and tHum.Health > 0 then
+                    FireRegisterAttack()
+                    for i = 1, HitCount do
+                        local hitPart = GetHitPart(target)
+                        if hitPart then
+                            FireRegisterHit(hitPart)
+                        end
+                        task.wait(AttackDelay / HitCount)
+                    end
+                end
             end
-            task.wait(AttackDelay / HitCount)
-        end
-    end
-else
-    -- Không có mob trong 500 studs → tween về spawn chờ
-    if QuestCFrame then
-        local distToSpawn = (root.Position - QuestCFrame.Position).Magnitude
-        if distToSpawn > 50 then
-            TweenTo(QuestCFrame, 5)
-        end
-    end
-end
         end)
         
         if not ok then
@@ -1233,19 +1162,49 @@ end
     end
 end)
 
--- Heartbeat: giữ nhân vật dính trên đầu quái mỗi frame (chống rớt)
--- Heartbeat: chỉ freeze velocity, KHÔNG set CFrame
-RunService.Heartbeat:Connect(function()
-    if not AutoFarm then return end
-    
+-- Dùng STEPPED (chạy TRƯỚC physics) thay vì HEARTBEAT (chạy SAU physics)
+RunService.Stepped:Connect(function(deltaTime)
     local char = LP.Character
     if not char then return end
     local root = char:FindFirstChild("HumanoidRootPart")
-    if not root then return end
+    local hum = char:FindFirstChild("Humanoid")
+    if not root or not hum then return end
     
-    -- Giữ nhân vật đứng yên, không bị đẩy khi bị đánh
-    root.Velocity = Vector3.new(0, 0, 0)
-    root.RotVelocity = Vector3.new(0, 0, 0)
+    -- Không farm hoặc không target → thả tự do
+    if not AutoFarm or not currentTarget then
+        if root.Anchored then root.Anchored = false end
+        if hum.PlatformStand then hum.PlatformStand = false end
+        return
+    end
+    
+    local mobRoot = currentTarget:FindFirstChild("HumanoidRootPart")
+    local mobHum = currentTarget:FindFirstChild("Humanoid")
+    if not mobRoot or not mobHum or mobHum.Health <= 0 then
+        currentTarget = nil
+        root.Anchored = false
+        hum.PlatformStand = false
+        return
+    end
+    
+    -- LUÔN khóa cứng nhân vật → không bao giờ rớt
+    root.Anchored = true
+    hum.PlatformStand = true
+    
+    local targetPos = mobRoot.Position + Vector3.new(0, 5, 0)
+    local currentPos = root.Position
+    local dist = (currentPos - targetPos).Magnitude
+    
+    if dist < 2 then
+        -- Đã ở đầu mob → snap chính xác
+        root.CFrame = CFrame.new(targetPos)
+    else
+        -- Bay dần tới mob bằng lerp
+        local speed = TweenSpeed * deltaTime
+        local moveAmount = math.min(speed, dist)
+        local moveDir = (targetPos - currentPos).Unit
+        local newPos = currentPos + moveDir * moveAmount
+        root.CFrame = CFrame.new(newPos)
+    end
 end)
 
 -- ============================================================
