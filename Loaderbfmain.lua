@@ -804,26 +804,20 @@ local TabStats = Library:CreateTab("Stats & Server")
 local Tab1 = Library:CreateTab("Main")
 
 --  ---------UI CONTROL---------
+-- Placeholder ban đầu
+AutoFarm = false
+currentTarget = nil
+StopActiveTween = function() end -- hàm rỗng, sẽ bị ghi đè sau
 
+-- Tạo toggle bình thường, KHÔNG gọi StopActiveTween
 Library:CreateToggle(Tab1, "Auto Farm Level", false, function(v)
     AutoFarm = v
     if v then
-        currentTarget = nil
-        StopActiveTween()
         Library:Notify("AbyssalHub", "Auto Farm: ON", 2)
     else
-        currentTarget = nil
-        StopActiveTween()
-        local char = LP.Character
-        if char then
-            local root = char:FindFirstChild("HumanoidRootPart")
-            if root then root.Anchored = false end
-        end
         Library:Notify("AbyssalHub", "Auto Farm: OFF", 2)
     end
 end)
-
-Library:Notify("AbyssalHub", "Hello buyer", 3)
 
 -- ---------- TAB STATS & SERVER ----------
 local Player = Players.LocalPlayer
@@ -1120,11 +1114,11 @@ end
 -- ============================================================
 -- VÒNG LẶP AUTO FARM (TWEEN VERSION - SMOOTH)
 -- ============================================================
-local currentTarget = nil
-local activeTween = nil
+currentTarget = nil
+activeTween = nil
 local HitHash = "168716de" -- Đổi nếu hash hết hạn
 
-local function StopActiveTween()
+StopActiveTween = function()
     if activeTween then
         activeTween:Cancel()
         activeTween = nil
