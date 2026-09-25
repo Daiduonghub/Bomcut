@@ -985,14 +985,15 @@ FirstSeaQuests = {
 -- ============================================================
 -- BIẾN CẤU HÌNH
 -- ============================================================
-AutoFarm = false
-CurrentQuestName = nil
-CurrentMobName = "Bandit"
-QuestCFrame = CFrame.new(1059, 16, 1547)
-AttackDelay = 0.5
-HitCount = 3
-TweenSpeed = 350
-QuestCooldown = 0
+-- Chỉ set nếu chưa tồn tại (không ghi đè toggle)
+if AutoFarm == nil then AutoFarm = false end
+if CurrentQuestName == nil then CurrentQuestName = nil end
+if CurrentMobName == nil then CurrentMobName = "Bandit" end
+if QuestCFrame == nil then QuestCFrame = CFrame.new(1059, 16, 1547) end
+if AttackDelay == nil then AttackDelay = 0.5 end
+if HitCount == nil then HitCount = 3 end
+if TweenSpeed == nil then TweenSpeed = 350 end
+if QuestCooldown == nil then QuestCooldown = 0 end
 
 -- ============================================================
 -- TWEEN CONTROLLER (chống giật)
@@ -1149,52 +1150,60 @@ local currentTarget = nil
 -- Loop chính: tìm quest + tìm mob + đánh
 task.spawn(function()
     while task.wait(0.1) do
-        if not AutoFarm then
-            StopTween()
-            currentTarget = nil
-            continue
-        end
-        
-        local char = LP.Character
-        if not char then continue end
-        local root = char:FindFirstChild("HumanoidRootPart")
-        local hum = char:FindFirstChild("Humanoid")
-        if not root or not hum or hum.Health <= 0 then
-            task.wait(0.5)
-            continue
-        end
-        
-        -- Nhận quest theo level
-        AutoAcceptQuest()
-        
-        -- Tìm mob gần nhất
-        local target, dist = FindNearestMob(CurrentMobName, 800)
-        currentTarget = target
-        
-        if target then
-            local tHum = target:FindFirstChild("Humanoid")
-            if tHum and tHum.Health > 0 then
-                if dist > 30 then
-                    TweenOnTopOfMob(target)
-                end
-                
-                FireRegisterAttack()
-                for i = 1, HitCount do
-                    local hitPart = GetHitPart(target)
-                    if hitPart then
-                        FireRegisterHit(hitPart)
+        local ok, err = pcall(function()
+            if not AutoFarm then
+                StopTween()
+                currentTarget = nil
+                return
+            end
+            
+            local char = LP.Character
+            if not char then return end
+            local root = char:FindFirstChild("HumanoidRootPart")
+            local hum = char:FindFirstChild("Humanoid")
+            if not root or not hum or hum.Health <= 0 then
+                task.wait(0.5)
+                return
+            end
+            
+            -- Bọc riêng AutoAcceptQuest
+            pcall(function()
+                AutoAcceptQuest()
+            end)
+            
+            local target, dist = FindNearestMob(CurrentMobName, 800)
+            currentTarget = target
+            
+            if target then
+                local tHum = target:FindFirstChild("Humanoid")
+                if tHum and tHum.Health > 0 then
+                    if dist > 30 then
+                        TweenOnTopOfMob(target)
                     end
-                    task.wait(AttackDelay / HitCount)
+                    
+                    FireRegisterAttack()
+                    for i = 1, HitCount do
+                        local hitPart = GetHitPart(target)
+                        if hitPart then
+                            FireRegisterHit(hitPart)
+                        end
+                        task.wait(AttackDelay / HitCount)
+                    end
+                end
+            else
+                currentTarget = nil
+                if QuestCFrame then
+                    local distToQuest = (root.Position - QuestCFrame.Position).Magnitude
+                    if distToQuest > 50 then
+                        TweenTo(QuestCFrame)
+                    end
                 end
             end
-        else
-            currentTarget = nil
-            if QuestCFrame then
-                local distToQuest = (root.Position - QuestCFrame.Position).Magnitude
-                if distToQuest > 50 then
-                    TweenTo(QuestCFrame)
-                end
-            end
+        end)
+        
+        -- In lỗi ra console (chỉ khi có lỗi)
+        if not ok then
+            warn("[AbyssalHub] Farm error: " .. tostring(err))
         end
     end
 end)
@@ -1218,16 +1227,14 @@ RunService.Heartbeat:Connect(function()
         return
     end
     
-    -- Nếu đang tween tới xa → không can thiệp
     local dist = (root.Position - mobRoot.Position).Magnitude
-    if dist > 30 then return end
+    -- CHỈ bám trực tiếp khi ĐÃ TỚI GẦN (dist < 8)
+    -- Còn xa hơn → để tween tự bay
+    if dist > 8 then return end
     
-    -- Bám trực tiếp lên đầu quái mỗi frame
-    StopTween()
     root.CFrame = mobRoot.CFrame * CFrame.new(0, 5, 0)
     root.Velocity = Vector3.new(0, 0, 0)
     root.RotVelocity = Vector3.new(0, 0, 0)
-    root.Anchored = false
 end)
 
 -- ============================================================
