@@ -1106,13 +1106,12 @@ end
 -- QUEST SYSTEM (so sánh theo TÊN QUEST, không phải Mob)
 -- ============================================================
 local function FindQuestByLevel(level)
-    for _, q in ipairs(Sea1Quests) do
-        if level >= q.Min and level <= q.Max then
+    for _, q in ipairs(FirstSeaQuests) do
+        if level >= q.MinLevel and level <= q.MaxLevel then
             return q
         end
     end
-    -- Nếu level vượt quá Max của tất cả → trả về quest cuối
-    return Sea1Quests[#Sea1Quests]
+    return FirstSeaQuests[1]
 end
 
 local function AutoAcceptQuest()
@@ -1120,20 +1119,21 @@ local function AutoAcceptQuest()
     local questData = FindQuestByLevel(level)
     if not questData then return nil end
     
-    -- Chỉ nhận quest mới nếu TÊN QUEST khác (fix lỗi 2 đảo)
-    if CurrentQuestName ~= questData.Quest then
+    -- Key unique cho mỗi quest part
+    local questKey = questData.QuestName .. "|" .. tostring(questData.QuestId)
+    
+    if CurrentQuestName ~= questKey then
         if tick() < QuestCooldown then return nil end
         
         pcall(function()
-            CommF_:InvokeServer("StartQuest", questData.Quest, questData.Level)
+            CommF_:InvokeServer("StartQuest", questData.QuestName, questData.QuestId)
         end)
         
-        CurrentQuestName = questData.Quest
-        CurrentMobName = questData.Mob
-        QuestCFrame = questData.CFrame
-        QuestCooldown = tick() + 2 -- Cooldown 2s tránh spam quest
+        CurrentQuestName = questKey
+        CurrentMobName = questData.MobName
+        QuestCFrame = questData.MobSpawn
+        QuestCooldown = tick() + 2
         
-        -- Dừng tween cũ khi đổi quest
         StopTween()
         task.wait(0.2)
     end
