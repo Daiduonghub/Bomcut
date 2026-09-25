@@ -802,30 +802,19 @@ end)
 -- ============================================================
 local TabStats = Library:CreateTab("Stats & Server")
 local Tab1 = Library:CreateTab("Main")
-local Tab2 = Library:CreateTab("Visual")
-
--- ---------- TAB MAIN ----------
-Library:CreateLabel(Tab1, "Chao mung den voi AbyssalHub")
 
 --  ---------UI CONTROL---------
 
-Library:CreateToggle(Tab1, "Auto Farm Blox Fruits", false, function(v)
+Library:CreateToggle(Tab1, "Auto Farm Level", false, function(v)
     AutoFarm = v
-end)
-Library:CreateSlider(Tab1, "Attack Radius", 10, 200, 50, function(v) AttackRadius = v end)
-Library:CreateSlider(Tab1, "Teleport Height", 0, 50, 5, function(v) TeleportOffsetY = v end)
-Library:CreateSlider(Tab1, "Attack Delay", 0.1, 2, 0.5, function(v) AttackDelay = v end)
-Library:CreateSlider(Tab1, "Hit Count", 1, 10, 3, function(v) HitCount = math.floor(v) end)
-Library:CreateButton(Tab1, "Đổi mob: Monkey → Bandit", function()
-    if MobName == "Monkey" then MobName = "Bandit" else MobName = "Monkey" end
-    Library:Notify("AbyssalHub", "Đã đổi mob: " .. MobName, 2)
+    if v then
+        Library:Notify("AbyssalHub", "Auto Farm: ON", 2)
+    else
+        Library:Notify("AbyssalHub", "Auto Farm: OFF", 2)
+    end
 end)
 
-Library:Notify("AbyssalHub", "Auto Farm Blox Fruits da san sang", 3)
-
--- ---------- TAB VISUAL ----------
-Library:CreateLabel(Tab2, "Cai dat hinh anh")
-Library:CreateImage(Tab2, "rbxassetid://6031091004", 120)
+Library:Notify("AbyssalHub", "Hello buyer", 3)
 
 -- ---------- TAB STATS & SERVER ----------
 local Player = Players.LocalPlayer
@@ -933,40 +922,106 @@ task.spawn(function()
     end
 end)
 
--- ============================================================
--- AUTO FARM BLOX FRUITS (ĐÃ SỬA THEO REMOTE THẬT)
+--- ============================================================
+-- AUTO FARM LEVEL - BLOX FRUITS SEA 1 (TWEEN MƯỢT)
 -- ============================================================
 
 local RS = game:GetService("ReplicatedStorage")
 local LP = Players.LocalPlayer
 
--- Đợi game load xong
 repeat task.wait() until game:IsLoaded() and LP.Character
 
--- Lấy 2 remote thật từ game
+-- Lấy remote
 local Net = RS:WaitForChild("Modules"):WaitForChild("Net")
 local RegisterAttack = Net:WaitForChild("RE/RegisterAttack")
 local RegisterHit = Net:WaitForChild("RE/RegisterHit")
+local Remotes = RS:WaitForChild("Remotes")
+local CommF_ = Remotes:WaitForChild("CommF_")
 
--- Biến cấu hình (sẽ bị thay đổi bởi toggle/slider)
+-- ============================================================
+-- DATABASE QUEST SEA 1
+-- ============================================================
+Sea1Quests = {
+    {Level = 1,   Quest = "BanditQuest1",        Mob = "Bandit",             CFrame = CFrame.new(1059, 16, 1547)},
+    {Level = 10,  Quest = "MonkeyQuest1",        Mob = "Monkey",             CFrame = CFrame.new(-1400, 25, 47)},
+    {Level = 15,  Quest = "BountyQuest1",        Mob = "Bounty Hunter",      CFrame = CFrame.new(-2850, 7, 5310)},
+    {Level = 20,  Quest = "BountyQuest2",        Mob = "Bounty Hunter",      CFrame = CFrame.new(-2850, 7, 5310)},
+    {Level = 30,  Quest = "PirateQuest1",        Mob = "Pirate",             CFrame = CFrame.new(-1325, 5, 3850)},
+    {Level = 40,  Quest = "BruteQuest1",         Mob = "Brute",              CFrame = CFrame.new(-1153, 7, 3827)},
+    {Level = 55,  Quest = "PirateQuest2",        Mob = "Pirate",             CFrame = CFrame.new(-1325, 5, 3850)},
+    {Level = 65,  Quest = "GorillaQuest1",       Mob = "Gorilla",            CFrame = CFrame.new(-1156, 20, 3484)},
+    {Level = 75,  Quest = "DesertBanditQuest1",  Mob = "Desert Bandit",      CFrame = CFrame.new(1045, 22, 4307)},
+    {Level = 90,  Quest = "DesertOfficerQuest1", Mob = "Desert Officer",     CFrame = CFrame.new(1524, 10, 4174)},
+    {Level = 120, Quest = "SnowBanditQuest1",    Mob = "Snow Bandit",        CFrame = CFrame.new(1284, 41, -1535)},
+    {Level = 140, Quest = "SnowmanQuest1",       Mob = "Snowman",            CFrame = CFrame.new(1172, 27, -1480)},
+    {Level = 150, Quest = "MarineQuest1",        Mob = "Marine",             CFrame = CFrame.new(-2325, 7, -2960)},
+    {Level = 180, Quest = "SkyBanditQuest1",     Mob = "Sky Bandit",         CFrame = CFrame.new(-4757, 313, -3590)},
+    {Level = 200, Quest = "GodGuardQuest1",      Mob = "God's Guard",        CFrame = CFrame.new(-4570, 151, -3090)},
+    {Level = 220, Quest = "GalleyPirateQuest1",  Mob = "Galley Pirate",      CFrame = CFrame.new(5432, 22, -3580)},
+    {Level = 250, Quest = "ColosseumQuest1",     Mob = "Gladiator",          CFrame = CFrame.new(-1720, 5, -3550)},
+    {Level = 300, Quest = "MilitaryQuest1",      Mob = "Military Soldier",   CFrame = CFrame.new(-5060, 30, -4490)},
+    {Level = 350, Quest = "MilitaryQuest2",      Mob = "Military Spy",       CFrame = CFrame.new(-5060, 30, -4490)},
+    {Level = 375, Quest = "FishmanQuest1",       Mob = "Fishman Warrior",    CFrame = CFrame.new(61100, 20, 1560)},
+    {Level = 450, Quest = "FishmanQuest2",       Mob = "Fishman Commando",   CFrame = CFrame.new(61100, 20, 1560)},
+    {Level = 500, Quest = "SkyQuest1",           Mob = "God's Guard",        CFrame = CFrame.new(-4940, 655, -3080)},
+    {Level = 600, Quest = "SkyQuest2",           Mob = "Shanda",             CFrame = CFrame.new(-4940, 655, -3080)},
+    {Level = 625, Quest = "FountainQuest1",      Mob = "Royal Soldier",      CFrame = CFrame.new(4995, 40, 4010)},
+    {Level = 750, Quest = "CursedShipQuest1",    Mob = "Living Zombie",      CFrame = CFrame.new(3110, 45, -3300)},
+    {Level = 850, Quest = "CursedShipQuest2",    Mob = "Demonic Soul",       CFrame = CFrame.new(3110, 45, -3300)},
+    {Level = 1000,Quest = "IceCastleQuest1",     Mob = "Snow Trooper",       CFrame = CFrame.new(5610, 45, -3400)},
+    {Level = 1100,Quest = "IceCastleQuest2",     Mob = "Ice Admiral",        CFrame = CFrame.new(5610, 45, -3400)},
+    {Level = 1200,Quest = "ForgottenQuest1",     Mob = "Pirate Millionaire", CFrame = CFrame.new(-210, 30, 5000)},
+    {Level = 1350,Quest = "HauntedQuest1",       Mob = "Reborn Skeleton",    CFrame = CFrame.new(-9600, 145, 5800)},
+    {Level = 1500,Quest = "GraveyardQuest1",     Mob = "Zombie",             CFrame = CFrame.new(-9500, 5, 6000)},
+    {Level = 1750,Quest = "SnowMountainQuest1",  Mob = "Snow Trooper",       CFrame = CFrame.new(1970, 55, -5440)},
+    {Level = 1900,Quest = "HotColdQuest1",       Mob = "Snow Commando",      CFrame = CFrame.new(-2800, 5, -7600)},
+    {Level = 2050,Quest = "KingdomQuest1",       Mob = "Raider",             CFrame = CFrame.new(-110, 30, 6190)},
+}
+
+-- ============================================================
+-- BIẾN CẤU HÌNH
+-- ============================================================
 AutoFarm = false
-MobName = "Monkey"
-AttackRadius = 50
-TeleportOffsetY = 5
+MobName = "Bandit"
 AttackDelay = 0.5
 HitCount = 3
+QuestCFrame = CFrame.new(1059, 16, 1547)
+TweenSpeed = 350 -- studs/s, càng cao càng nhanh
 
--- Hàm teleport tới mục tiêu
-local function TeleportTo(targetPart, offsetY)
-    offsetY = offsetY or 0
+-- ============================================================
+-- HÀM TWEEN DI CHUYỂN (MƯỢT)
+-- ============================================================
+local TweenService = game:GetService("TweenService")
+
+-- Tween tới 1 CFrame đích
+local function TweenTo(targetCFrame, offsetY)
     local char = LP.Character
     if not char then return end
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return end
-    root.CFrame = targetPart.CFrame * CFrame.new(0, offsetY, 0)
+    
+    local dest = targetCFrame + Vector3.new(0, offsetY or 0, 0)
+    local distance = (root.Position - dest.Position).Magnitude
+    local duration = math.clamp(distance / TweenSpeed, 0.1, 5)
+    
+    local tween = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
+        CFrame = dest
+    })
+    tween:Play()
+    return tween
 end
 
--- Hàm tìm mob gần nhất trong workspace.Enemies
+-- Tween tới đầu quái
+local function TweenOnTopOfMob(mob)
+    if not mob then return end
+    local mobRoot = mob:FindFirstChild("HumanoidRootPart")
+    if not mobRoot then return end
+    return TweenTo(mobRoot.CFrame * CFrame.new(0, 5, 0), 0)
+end
+
+-- ============================================================
+-- HÀM TÌM MOB
+-- ============================================================
 local function FindNearestMob(name)
     local char = LP.Character
     if not char then return nil end
@@ -976,7 +1031,7 @@ local function FindNearestMob(name)
     local enemiesFolder = workspace:FindFirstChild("Enemies")
     if not enemiesFolder then return nil end
     
-    local closest, closestDist = nil, 1000
+    local closest, closestDist = nil, 99999
     for _, mob in ipairs(enemiesFolder:GetChildren()) do
         if mob.Name == name then
             local hum = mob:FindFirstChild("Humanoid")
@@ -993,21 +1048,7 @@ local function FindNearestMob(name)
     return closest, closestDist
 end
 
--- Hàm bắn remote RegisterAttack (bắt đầu đánh)
-local function FireRegisterAttack()
-    pcall(function()
-        RegisterAttack:FireServer(AttackDelay, HitCount)
-    end)
-end
-
--- Hàm bắn remote RegisterHit (đánh trúng mob)
-local function FireRegisterHit(targetPart)
-    pcall(function()
-        RegisterHit:FireServer(targetPart, {}, "168716de")
-    end)
-end
-
--- Hàm lấy part ngẫu nhiên trên mob để hit
+-- Lấy part random của quái để hit
 local function GetHitPart(mob)
     local parts = {}
     for _, p in ipairs(mob:GetDescendants()) do
@@ -1021,21 +1062,60 @@ local function GetHitPart(mob)
     return parts[math.random(1, #parts)]
 end
 
--- Label hiển thị trạng thái (tạo trong tab Main)
-local StatusLabel = Library:CreateLabel(Tab1, "Auto Farm: TẮT")
-StatusLabel:SetColor(Color3.fromRGB(255, 200, 100))
-
-local function SetStatus(text)
-    StatusLabel:Set(text)
+-- ============================================================
+-- FIRE REMOTE
+-- ============================================================
+local function FireRegisterAttack()
+    pcall(function()
+        RegisterAttack:FireServer(AttackDelay, HitCount)
+    end)
 end
 
--- Vòng lặp auto farm
+local function FireRegisterHit(targetPart)
+    pcall(function()
+        RegisterHit:FireServer(targetPart, {}, "168716de")
+    end)
+end
+
+-- ============================================================
+-- QUEST SYSTEM
+-- ============================================================
+local function FindQuestByLevel(level)
+    local best = nil
+    for _, q in ipairs(Sea1Quests) do
+        if level >= q.Level then
+            if not best or q.Level > best.Level then
+                best = q
+            end
+        end
+    end
+    return best
+end
+
+local function AutoAcceptQuest()
+    local level = LP.Data.Level.Value
+    local questData = FindQuestByLevel(level)
+    if not questData then return nil end
+    
+    -- Chỉ nhận quest mới khi mob khác
+    if MobName ~= questData.Mob then
+        pcall(function()
+            CommF_:InvokeServer("StartQuest", questData.Quest, questData.Level)
+        end)
+        task.wait(0.3)
+        MobName = questData.Mob
+        QuestCFrame = questData.CFrame
+    end
+    
+    return questData
+end
+
+-- ============================================================
+-- VÒNG LẶP AUTO FARM
+-- ============================================================
 task.spawn(function()
     while task.wait(0.1) do
-        if not AutoFarm then
-            SetStatus("Auto Farm: TẮT")
-            continue
-        end
+        if not AutoFarm then continue end
         
         local char = LP.Character
         if not char then continue end
@@ -1046,19 +1126,28 @@ task.spawn(function()
             continue
         end
         
+        -- Tự động nhận quest theo level
+        AutoAcceptQuest()
+        
+        -- Tìm mob
         local target, dist = FindNearestMob(MobName)
         
         if target then
             local tHum = target:FindFirstChild("Humanoid")
             if tHum and tHum.Health > 0 then
-                -- Teleport tới mob nếu xa
-                if dist > AttackRadius then
-                    TeleportTo(target:FindFirstChild("HumanoidRootPart"), TeleportOffsetY)
-                    SetStatus("Đang bay tới: " .. MobName .. " (" .. math.floor(dist) .. " studs)")
-                    task.wait(0.1)
+                -- Tween lên đầu quái nếu xa
+                if dist > 15 then
+                    TweenOnTopOfMob(target)
+                    task.wait(0.05)
+                else
+                    -- Giữ vị trí trên đầu quái (bám theo khi quái di chuyển)
+                    local mobRoot = target:FindFirstChild("HumanoidRootPart")
+                    if mobRoot then
+                        root.CFrame = mobRoot.CFrame * CFrame.new(0, 5, 0)
+                    end
                 end
                 
-                -- Đánh: RegisterAttack + RegisterHit nhiều lần
+                -- Đánh
                 FireRegisterAttack()
                 for i = 1, HitCount do
                     local hitPart = GetHitPart(target)
@@ -1067,11 +1156,13 @@ task.spawn(function()
                     end
                     task.wait(AttackDelay / HitCount)
                 end
-                
-                SetStatus("Đang đánh: " .. MobName .. " | HP: " .. math.floor(tHum.Health))
             end
         else
-            SetStatus("Không tìm thấy: " .. MobName)
+            -- Không có mob → tween về vị trí quest
+            if QuestCFrame then
+                TweenTo(QuestCFrame)
+                task.wait(1)
+            end
         end
     end
 end)
@@ -1083,6 +1174,6 @@ if Library.Tabs[1] then
     Library.Tabs[1].Button.MouseButton1Click:Fire()
 end
 
-Library:Notify("AbyssalHub", "UI da duoc khoi tao thanh cong!", 3)
+Library:Notify("AbyssalHub", "The GUI library has been initialized; thank you for your purchase !", 3)
 
 return Library
