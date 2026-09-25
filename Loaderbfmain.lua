@@ -1115,14 +1115,20 @@ local function FindQuestByLevel(level)
     return FirstSeaQuests[1]
 end
 
-local function GetCurrentQuest()
-    local ok, result = pcall(function()
-        return CommF_:InvokeServer("GetQuest")
-    end)
-    if ok and result and result ~= "" then
-        return result
+local function HasQuest()
+    local playerGui = LP:FindFirstChild("PlayerGui")
+    if not playerGui then return false end
+    
+    local trackedQuest = playerGui:FindFirstChild("TrackedQuestFrame")
+    if not trackedQuest then return false end
+    
+    -- Kiểm tra có quest đang active không
+    local questName = trackedQuest:FindFirstChild("QuestName", true)
+    if questName and questName.Text and questName.Text ~= "" then
+        return true
     end
-    return nil
+    
+    return false
 end
 
 local function AutoAcceptQuest()
@@ -1132,12 +1138,11 @@ local function AutoAcceptQuest()
     
     local questKey = questData.QuestName .. "|" .. tostring(questData.QuestId)
     
-    -- Check quest hiện tại từ server
-    local serverQuest = GetCurrentQuest()
-    local hasQuest = serverQuest and serverQuest ~= ""
+    -- Check xem player có quest chưa qua PlayerGui
+    local hasQuest = HasQuest()
     
-    -- Nếu chưa có quest HOẶC quest khác level → nhận lại
-    if CurrentQuestName ~= questKey or not hasQuest then
+    -- Nếu CHƯA có quest HOẶC quest khác level → nhận lại
+    if not hasQuest or CurrentQuestName ~= questKey then
         if tick() < QuestCooldown then return nil end
         
         pcall(function()
