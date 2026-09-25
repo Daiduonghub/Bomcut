@@ -857,6 +857,7 @@ if layout then
 end
 
 TabStats.Frame.Visible = false
+-- Hàm format HH:MM:SS
 local function FormatTime(seconds)
     local hours = math.floor(seconds / 3600)
     local minutes = math.floor((seconds % 3600) / 60)
@@ -864,9 +865,24 @@ local function FormatTime(seconds)
     return string.format("%02d:%02d:%02d", hours, minutes, secs)
 end
 
+local Player = Players.LocalPlayer
+
+-- Mốc thời gian script bắt đầu chạy
+local JoinTime = tick()
+
+-- Ước lượng thời gian player đã ở trong server TRƯỚC khi script chạy
+local InitialOffset = 0
+pcall(function()
+    local serverUptime = workspace.DistributedGameTime
+    if serverUptime < 300 then
+        InitialOffset = serverUptime
+    end
+end)
+
+-- Loop update mỗi 1 giây
 task.spawn(function()
     while TabStats.Frame.Parent do
-        local elapsed = tick() - JoinTime
+        local elapsed = (tick() - JoinTime) + InitialOffset
         TimeLabel:Set("Time server: " .. FormatTime(elapsed))
         task.wait(1)
     end
