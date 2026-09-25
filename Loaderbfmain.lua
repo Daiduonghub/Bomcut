@@ -804,15 +804,13 @@ local TabStats = Library:CreateTab("Stats & Server")
 local Tab1 = Library:CreateTab("Main")
 
 --  ---------UI CONTROL---------
--- Placeholder ban đầu
-AutoFarm = false
-currentTarget = nil
-StopActiveTween = function() end -- hàm rỗng, sẽ bị ghi đè sau
 
--- Tạo toggle bình thường, KHÔNG gọi StopActiveTween
 Library:CreateToggle(Tab1, "Auto Farm Level", false, function(v)
     AutoFarm = v
     if v then
+        -- Reset quest key để tự nhận quest theo level khi bật
+        CurrentQuestName = nil
+        QuestCooldown = 0
         Library:Notify("AbyssalHub", "Auto Farm: ON", 2)
     else
         Library:Notify("AbyssalHub", "Auto Farm: OFF", 2)
@@ -1068,22 +1066,6 @@ local function FindQuestByLevel(level)
     return FirstSeaQuests[1]
 end
 
-local function HasQuest()
-    local playerGui = LP:FindFirstChild("PlayerGui")
-    if not playerGui then return false end
-    
-    local trackedQuest = playerGui:FindFirstChild("TrackedQuestFrame")
-    if not trackedQuest then return false end
-    
-    -- Kiểm tra có quest đang active không
-    local questName = trackedQuest:FindFirstChild("QuestName", true)
-    if questName and questName.Text and questName.Text ~= "" then
-        return true
-    end
-    
-    return false
-end
-
 local function AutoAcceptQuest()
     local level = LP.Data.Level.Value
     local questData = FindQuestByLevel(level)
@@ -1091,11 +1073,9 @@ local function AutoAcceptQuest()
     
     local questKey = questData.QuestName .. "|" .. tostring(questData.QuestId)
     
-    -- Check xem player có quest chưa qua PlayerGui
-    local hasQuest = HasQuest()
-    
-    -- Nếu CHƯA có quest HOẶC quest khác level → nhận lại
-    if not hasQuest or CurrentQuestName ~= questKey then
+    -- CHỈ nhận quest khi quest key KHÁC (level đổi hoặc đổi quest part)
+    -- KHÔNG check HasQuest() → tránh spam
+    if CurrentQuestName ~= questKey then
         if tick() < QuestCooldown then return nil end
         
         pcall(function()
@@ -1105,18 +1085,20 @@ local function AutoAcceptQuest()
         CurrentQuestName = questKey
         CurrentMobName = questData.MobName
         QuestCFrame = questData.MobSpawn
-        QuestCooldown = tick() + 2
+        QuestCooldown = tick() + 5 -- Cooldown 5s, tránh spam
+        
+        return questData
     end
     
     return questData
 end
 
 -- ============================================================
--- VÒNG LẶP AUTO FARM (TWEEN VERSION - SMOOTH)
+-- VÒNG LẶP AUTO FARM (FIX - TỰ BAY TỚI SPAWN KHI KHÔNG CÓ MOB)
 -- ============================================================
 currentTarget = nil
 activeTween = nil
-local HitHash = "168716de" -- Đổi nếu hash hết hạn
+local HitHash = "168716de"
 
 StopActiveTween = function()
     if activeTween then
@@ -1145,7 +1127,8 @@ task.spawn(function()
             
             pcall(AutoAcceptQuest)
             
-            local target = FindNearestMob(CurrentMobName, 500)
+            -- Tìm mob bán kính RỘNG 2000 studs
+            local target = FindNearestMob(CurrentMobName, 2000)
             currentTarget = target
             
             if target then
@@ -1155,12 +1138,12 @@ task.spawn(function()
                 if tHum and tHum.Health > 0 and mobRoot then
                     local distToMob = (root.Position - mobRoot.Position).Magnitude
                     
-                    -- Bay tới mob bằng Tween (offset 10 studs để không dính hitbox)
                     if distToMob > 15 then
+                        -- Xa mob → tween tới
                         if not activeTween or activeTween.PlaybackState ~= Enum.PlaybackState.Playing then
                             local dest = CFrame.new(mobRoot.Position + Vector3.new(0, 10, 0))
                             local dist = (root.Position - dest.Position).Magnitude
-                            local duration = math.clamp(dist / TweenSpeed, 0.1, 3)
+                            local duration = math.clamp(dist / TweenSpeed, 0.1, 8)
                             activeTween = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
                                 CFrame = dest
                             })
@@ -1170,26 +1153,22 @@ task.spawn(function()
                             end)
                         end
                     else
-                        -- Đã gần mob → dừng tween, snap lên đầu
                         StopActiveTween()
                         root.CFrame = CFrame.new(mobRoot.Position + Vector3.new(0, 10, 0))
                     end
                     
-                    -- Attack nếu đủ gần
+                    -- Đánh
                     if distToMob <= 15 then
-                        -- Fire RegisterAttack (animation)
                         pcall(function()
                             RegisterAttack:FireServer(AttackDelay, HitCount)
                         end)
                         
-                        -- Fire RegisterHit LÊN TẤT CẢ PART của mob
                         for i = 1, HitCount do
                             for _, p in ipairs(target:GetDescendants()) do
                                 if p:IsA("BasePart") then
                                     pcall(function()
                                         RegisterHit:FireServer(p, {}, HitHash)
                                     end)
-                                    -- Fallback: thử hash rỗng
                                     pcall(function()
                                         RegisterHit:FireServer(p, {})
                                     end)
@@ -1200,8 +1179,26 @@ task.spawn(function()
                     end
                 end
             else
+                -- Không có mob → bay tới vị trí spawn chờ
                 currentTarget = nil
-                StopActiveTween()
+                
+                if QuestCFrame then
+                    local distToSpawn = (root.Position - QuestCFrame.Position).Magnitude
+                    if distToSpawn > 20 then
+                        if not activeTween or activeTween.PlaybackState ~= Enum.PlaybackState.Playing then
+                            local dest = QuestCFrame + Vector3.new(0, 10, 0)
+                            local dist = (root.Position - dest.Position).Magnitude
+                            local duration = math.clamp(dist / TweenSpeed, 0.1, 8)
+                            activeTween = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
+                                CFrame = dest
+                            })
+                            activeTween:Play()
+                            activeTween.Completed:Connect(function()
+                                activeTween = nil
+                            end)
+                        end
+                    end
+                end
             end
         end)
         
