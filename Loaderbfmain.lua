@@ -1190,34 +1190,41 @@ task.spawn(function()
             -- Tìm mob trong bán kính rộng
             local target = FindNearestMob(CurrentMobName, 500)
             
-            if target then
-                local tHum = target:FindFirstChild("Humanoid")
-                if tHum and tHum.Health > 0 then
-                    -- ĐỨNG YÊN TẠI VỊ TRÍ MOB SPAWN CỐ ĐỊNH
-                    local distToSpawn = (root.Position - QuestCFrame.Position).Magnitude
-                    if distToSpawn > 15 then
-                        TweenTo(QuestCFrame, 5)
-                    end
-                    
-                    -- Đánh mob
-                    FireRegisterAttack()
-                    for i = 1, HitCount do
-                        local hitPart = GetHitPart(target)
-                        if hitPart then
-                            FireRegisterHit(hitPart)
-                        end
-                        task.wait(AttackDelay / HitCount)
-                    end
-                end
-            else
-                -- Không có mob → bay về vị trí spawn
-                if QuestCFrame then
-                    local distToSpawn = (root.Position - QuestCFrame.Position).Magnitude
-                    if distToSpawn > 15 then
-                        TweenTo(QuestCFrame, 5)
-                    end
-                end
+if target then
+    local tHum = target:FindFirstChild("Humanoid")
+    local mobRoot = target:FindFirstChild("HumanoidRootPart")
+    
+    if tHum and tHum.Health > 0 and mobRoot then
+        local distToMob = (root.Position - mobRoot.Position).Magnitude
+        
+        if distToMob > 15 then
+            -- Xa mob → tween tới đầu mob
+            TweenTo(mobRoot.CFrame, 5)
+        else
+            -- Gần mob → đứng yên trên đầu mob (không tween)
+            StopTween()
+            root.CFrame = mobRoot.CFrame * CFrame.new(0, 5, 0)
+        end
+        
+        -- Đánh mob
+        FireRegisterAttack()
+        for i = 1, HitCount do
+            local hitPart = GetHitPart(target)
+            if hitPart then
+                FireRegisterHit(hitPart)
             end
+            task.wait(AttackDelay / HitCount)
+        end
+    end
+else
+    -- Không có mob trong 500 studs → tween về spawn chờ
+    if QuestCFrame then
+        local distToSpawn = (root.Position - QuestCFrame.Position).Magnitude
+        if distToSpawn > 50 then
+            TweenTo(QuestCFrame, 5)
+        end
+    end
+end
         end)
         
         if not ok then
