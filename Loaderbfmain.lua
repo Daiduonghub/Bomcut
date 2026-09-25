@@ -1103,9 +1103,6 @@ local function AutoAcceptQuest()
         CurrentMobName = questData.MobName
         QuestCFrame = questData.MobSpawn
         QuestCooldown = tick() + 2
-        
-        StopTween()
-        task.wait(0.2)
     end
     
     return questData
@@ -1118,12 +1115,14 @@ end
 -- VÒNG LẶP AUTO FARM
 -- ============================================================
 local currentTarget = nil
+local moveTarget = nil -- CFrame để bay tới khi không có mob
 
 task.spawn(function()
     while task.wait(0.1) do
         local ok, err = pcall(function()
             if not AutoFarm then
                 currentTarget = nil
+                moveTarget = nil
                 return
             end
             
@@ -1142,6 +1141,7 @@ task.spawn(function()
             currentTarget = target
             
             if target then
+                moveTarget = nil
                 local tHum = target:FindFirstChild("Humanoid")
                 if tHum and tHum.Health > 0 then
                     FireRegisterAttack()
@@ -1152,6 +1152,13 @@ task.spawn(function()
                         end
                         task.wait(AttackDelay / HitCount)
                     end
+                end
+            else
+                -- Không tìm thấy mob → set target bay về spawn
+                if QuestCFrame then
+                    moveTarget = QuestCFrame + Vector3.new(0, 5, 0)
+                else
+                    moveTarget = nil
                 end
             end
         end)
@@ -1170,40 +1177,51 @@ RunService.Stepped:Connect(function(deltaTime)
     local hum = char:FindFirstChild("Humanoid")
     if not root or not hum then return end
     
-    -- Không farm hoặc không target → thả tự do
-    if not AutoFarm or not currentTarget then
+    -- Không farm → thả tự do
+    if not AutoFarm then
         if root.Anchored then root.Anchored = false end
         if hum.PlatformStand then hum.PlatformStand = false end
         return
     end
     
-    local mobRoot = currentTarget:FindFirstChild("HumanoidRootPart")
-    local mobHum = currentTarget:FindFirstChild("Humanoid")
-    if not mobRoot or not mobHum or mobHum.Health <= 0 then
-        currentTarget = nil
-        root.Anchored = false
-        hum.PlatformStand = false
+    -- Xác định đích đến
+    local destination = nil
+    
+    if currentTarget then
+        local mobRoot = currentTarget:FindFirstChild("HumanoidRootPart")
+        local mobHum = currentTarget:FindFirstChild("Humanoid")
+        if mobRoot and mobHum and mobHum.Health > 0 then
+            destination = mobRoot.Position + Vector3.new(0, 5, 0)
+        else
+            currentTarget = nil
+        end
+    end
+    
+    if not destination and moveTarget then
+        destination = moveTarget.Position
+    end
+    
+    -- Không có đích → thả tự do
+    if not destination then
+        if root.Anchored then root.Anchored = false end
+        if hum.PlatformStand then hum.PlatformStand = false end
         return
     end
     
-    -- LUÔN khóa cứng nhân vật → không bao giờ rớt
+    -- Khóa cứng
     root.Anchored = true
     hum.PlatformStand = true
     
-    local targetPos = mobRoot.Position + Vector3.new(0, 5, 0)
     local currentPos = root.Position
-    local dist = (currentPos - targetPos).Magnitude
+    local dist = (currentPos - destination).Magnitude
     
     if dist < 2 then
-        -- Đã ở đầu mob → snap chính xác
-        root.CFrame = CFrame.new(targetPos)
+        root.CFrame = CFrame.new(destination)
     else
-        -- Bay dần tới mob bằng lerp
         local speed = TweenSpeed * deltaTime
         local moveAmount = math.min(speed, dist)
-        local moveDir = (targetPos - currentPos).Unit
-        local newPos = currentPos + moveDir * moveAmount
-        root.CFrame = CFrame.new(newPos)
+        local moveDir = (destination - currentPos).Unit
+        root.CFrame = CFrame.new(currentPos + moveDir * moveAmount)
     end
 end)
 
