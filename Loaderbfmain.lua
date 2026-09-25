@@ -808,8 +808,17 @@ local Tab1 = Library:CreateTab("Main")
 Library:CreateToggle(Tab1, "Auto Farm Level", false, function(v)
     AutoFarm = v
     if v then
+        currentTarget = nil
+        StopActiveTween()
         Library:Notify("AbyssalHub", "Auto Farm: ON", 2)
     else
+        currentTarget = nil
+        StopActiveTween()
+        local char = LP.Character
+        if char then
+            local root = char:FindFirstChild("HumanoidRootPart")
+            if root then root.Anchored = false end
+        end
         Library:Notify("AbyssalHub", "Auto Farm: OFF", 2)
     end
 end)
@@ -1109,20 +1118,25 @@ local function AutoAcceptQuest()
 end
 
 -- ============================================================
--- VÒNG LẶP AUTO FARM (DÙNG HEARTBEAT - MƯỢT, KHÔNG RỚT)
--- ============================================================
--- ============================================================
--- VÒNG LẶP AUTO FARM
+-- VÒNG LẶP AUTO FARM (TWEEN VERSION - SMOOTH)
 -- ============================================================
 local currentTarget = nil
-local moveTarget = nil -- CFrame để bay tới khi không có mob
+local activeTween = nil
+local HitHash = "168716de" -- Đổi nếu hash hết hạn
+
+local function StopActiveTween()
+    if activeTween then
+        activeTween:Cancel()
+        activeTween = nil
+    end
+end
 
 task.spawn(function()
     while task.wait(0.1) do
         local ok, err = pcall(function()
             if not AutoFarm then
                 currentTarget = nil
-                moveTarget = nil
+                StopActiveTween()
                 return
             end
             
@@ -1141,25 +1155,59 @@ task.spawn(function()
             currentTarget = target
             
             if target then
-                moveTarget = nil
                 local tHum = target:FindFirstChild("Humanoid")
-                if tHum and tHum.Health > 0 then
-                    FireRegisterAttack()
-                    for i = 1, HitCount do
-                        local hitPart = GetHitPart(target)
-                        if hitPart then
-                            FireRegisterHit(hitPart)
+                local mobRoot = target:FindFirstChild("HumanoidRootPart")
+                
+                if tHum and tHum.Health > 0 and mobRoot then
+                    local distToMob = (root.Position - mobRoot.Position).Magnitude
+                    
+                    -- Bay tới mob bằng Tween (offset 10 studs để không dính hitbox)
+                    if distToMob > 15 then
+                        if not activeTween or activeTween.PlaybackState ~= Enum.PlaybackState.Playing then
+                            local dest = CFrame.new(mobRoot.Position + Vector3.new(0, 10, 0))
+                            local dist = (root.Position - dest.Position).Magnitude
+                            local duration = math.clamp(dist / TweenSpeed, 0.1, 3)
+                            activeTween = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
+                                CFrame = dest
+                            })
+                            activeTween:Play()
+                            activeTween.Completed:Connect(function()
+                                activeTween = nil
+                            end)
                         end
-                        task.wait(AttackDelay / HitCount)
+                    else
+                        -- Đã gần mob → dừng tween, snap lên đầu
+                        StopActiveTween()
+                        root.CFrame = CFrame.new(mobRoot.Position + Vector3.new(0, 10, 0))
+                    end
+                    
+                    -- Attack nếu đủ gần
+                    if distToMob <= 15 then
+                        -- Fire RegisterAttack (animation)
+                        pcall(function()
+                            RegisterAttack:FireServer(AttackDelay, HitCount)
+                        end)
+                        
+                        -- Fire RegisterHit LÊN TẤT CẢ PART của mob
+                        for i = 1, HitCount do
+                            for _, p in ipairs(target:GetDescendants()) do
+                                if p:IsA("BasePart") then
+                                    pcall(function()
+                                        RegisterHit:FireServer(p, {}, HitHash)
+                                    end)
+                                    -- Fallback: thử hash rỗng
+                                    pcall(function()
+                                        RegisterHit:FireServer(p, {})
+                                    end)
+                                end
+                            end
+                            task.wait(AttackDelay / HitCount)
+                        end
                     end
                 end
             else
-                -- Không tìm thấy mob → set target bay về spawn
-                if QuestCFrame then
-                    moveTarget = QuestCFrame + Vector3.new(0, 5, 0)
-                else
-                    moveTarget = nil
-                end
+                currentTarget = nil
+                StopActiveTween()
             end
         end)
         
@@ -1170,61 +1218,27 @@ task.spawn(function()
 end)
 
 -- Dùng STEPPED (chạy TRƯỚC physics) thay vì HEARTBEAT (chạy SAU physics)
-RunService.Stepped:Connect(function(deltaTime)
+-- Stepped: chỉ chống knockback, KHÔNG snap CFrame
+RunService.Stepped:Connect(function()
+    if not AutoFarm then return end
+    if not currentTarget then return end
+    
     local char = LP.Character
     if not char then return end
     local root = char:FindFirstChild("HumanoidRootPart")
-    local hum = char:FindFirstChild("Humanoid")
-    if not root or not hum then return end
+    if not root then return end
     
-    -- Không farm → thả tự do
-    if not AutoFarm then
-        if root.Anchored then root.Anchored = false end
-        if hum.PlatformStand then hum.PlatformStand = false end
-        return
-    end
+    local mobRoot = currentTarget:FindFirstChild("HumanoidRootPart")
+    if not mobRoot then return end
     
-    -- Xác định đích đến
-    local destination = nil
+    local dist = (root.Position - mobRoot.Position).Magnitude
     
-    if currentTarget then
-        local mobRoot = currentTarget:FindFirstChild("HumanoidRootPart")
-        local mobHum = currentTarget:FindFirstChild("Humanoid")
-        if mobRoot and mobHum and mobHum.Health > 0 then
-            destination = mobRoot.Position + Vector3.new(0, 5, 0)
-        else
-            currentTarget = nil
-        end
-    end
-    
-    if not destination and moveTarget then
-        destination = moveTarget.Position
-    end
-    
-    -- Không có đích → thả tự do
-    if not destination then
-        if root.Anchored then root.Anchored = false end
-        if hum.PlatformStand then hum.PlatformStand = false end
-        return
-    end
-    
-    -- Khóa cứng
-    root.Anchored = true
-    hum.PlatformStand = true
-    
-    local currentPos = root.Position
-    local dist = (currentPos - destination).Magnitude
-    
-    if dist < 2 then
-        root.CFrame = CFrame.new(destination)
-    else
-        local speed = TweenSpeed * deltaTime
-        local moveAmount = math.min(speed, dist)
-        local moveDir = (destination - currentPos).Unit
-        root.CFrame = CFrame.new(currentPos + moveDir * moveAmount)
+    -- Khi đã ở gần → reset velocity để không bị knockback
+    if dist <= 15 then
+        root.Velocity = Vector3.new(0, 0, 0)
+        root.RotVelocity = Vector3.new(0, 0, 0)
     end
 end)
-
 -- ============================================================
 -- АВТОВЫБОР ПЕРВОЙ ВКЛАДКИ
 -- ============================================================
