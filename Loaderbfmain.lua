@@ -933,13 +933,13 @@ LP.CharacterAdded:Connect(function(char)
 end)
 
 -- Fast Attack toggle
-Library:CreateToggle(TabSettings, "Fast Attack", false, function(v)
-    FastAttack = v
-end)
+--Library:CreateToggle(TabSettings, "Fast Attack", false, function(v)
+    --FastAttack = v
+--end)
 
-Library:CreateSlider(TabSettings, "Fast Attack Delay", 0.01, 0.2, 0.03, function(v)
-    FastAttackDelay = v
-end)
+--Library:CreateSlider(TabSettings, "Fast Attack Delay", 0.01, 0.2, 0.03, function(v)
+    --FastAttackDelay = v
+--end)
 -- ---------- TAB STATS & SERVER ----------
 local Player = Players.LocalPlayer
 local JoinTime = tick()
