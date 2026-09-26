@@ -406,6 +406,7 @@ function Library:CreateTab(name)
     TabFrame.BorderSizePixel = 0
     TabFrame.ScrollBarThickness = 4
     TabFrame.ScrollBarImageColor3 = Color3.fromRGB(140, 60, 255)
+    TabFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y -- THAY BẰNG DÒNG NÀY
     TabFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
     TabFrame.Visible = false
     TabFrame.Parent = ContentArea
@@ -421,21 +422,6 @@ function Library:CreateTab(name)
     TabPad.PaddingRight = UDim.new(0, 6)
     TabPad.PaddingBottom = UDim.new(0, 6)
     TabPad.Parent = TabFrame
-    
-    local function updateCanvas()
-        TabFrame.CanvasSize = UDim2.new(0, 0, 0, TabLayout.AbsoluteContentSize.Y + 20)
-    end
-    
-    updateCanvas()
-    TabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateCanvas)
-    TabFrame.ChildAdded:Connect(function()
-        task.wait()
-        updateCanvas()
-    end)
-    TabFrame.ChildRemoved:Connect(function()
-        task.wait()
-        updateCanvas()
-    end)
     
     local tabObj = {Button = TabBtn, Frame = TabFrame, Name = name}
     table.insert(Library.Tabs, tabObj)
@@ -972,14 +958,6 @@ PingLabel:SetColor(Color3.fromRGB(255, 120, 120))
 local MemoryLabel = Library:CreateLabel(TabStats, "Memory: 0 MB")
 MemoryLabel:SetColor(Color3.fromRGB(120, 255, 180))
 
--- ⬇️ QUAN TRỌNG: ÉP UPDATE CANVAS THỦ CÔNG ⬇️
-TabStats.Frame.Visible = true
-task.wait(0.15)
-local layout = TabStats.Frame:FindFirstChildOfClass("UIListLayout")
-if layout then
-    TabStats.Frame.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 20)
-end
-
 TabStats.Frame.Visible = false
 -- Hàm format HH:MM:SS
 local function FormatTime(seconds)
@@ -1411,12 +1389,6 @@ pcall(function()
             BackgroundTransparency = 0.2,
             TextColor3 = Color3.fromRGB(255, 255, 255)
         }):Play()
-        
-        -- Force update CanvasSize
-        local layout = Library.Tabs[1].Frame:FindFirstChildOfClass("UIListLayout")
-        if layout then
-            Library.Tabs[1].Frame.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 20)
-        end
     end
 end)
 
