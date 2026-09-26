@@ -1042,7 +1042,6 @@ end)
 -- ============================================================
 
 local RS = game:GetService("ReplicatedStorage")
-local TweenService = game:GetService("TweenService")
 
 repeat task.wait() until game:IsLoaded() and LP.Character
 
