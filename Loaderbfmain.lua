@@ -1383,10 +1383,21 @@ end)
 -- ============================================================
 -- АВТОВЫБОР ПЕРВОЙ ВКЛАДКИ
 -- ============================================================
-if Library.Tabs[1] then
-    Library.Tabs[1].Button.MouseButton1Click:Fire()
-end
+if Library:Notify("AbyssalHub", "Script loaded successfully!", 5)
 
-Library:Notify("AbyssalHub", "The GUI library has been initialized; thank you for your purchase !", 5)
+-- Tự chọn tab đầu tiên không dùng Fire()
+if Library.Tabs[1] then
+    for _, t in ipairs(Library.Tabs) do
+        t.Frame.Visible = false
+    end
+    Library.Tabs[1].Frame.Visible = true
+    Library.CurrentTab = Library.Tabs[1]
+    
+    TweenService:Create(Library.Tabs[1].Button, TweenInfo.new(0.2), {
+        BackgroundColor3 = Color3.fromRGB(140, 60, 255),
+        BackgroundTransparency = 0.2,
+        TextColor3 = Color3.fromRGB(255, 255, 255)
+    }):Play()
+end
 
 return Library
