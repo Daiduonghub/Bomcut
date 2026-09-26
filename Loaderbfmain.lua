@@ -1383,8 +1383,6 @@ end)
 -- ============================================================
 -- АВТОВЫБОР ПЕРВОЙ ВКЛАДКИ
 -- ============================================================
-if Library:Notify("AbyssalHub", "Script loaded successfully!", 5)
-
 -- Tự chọn tab đầu tiên không dùng Fire()
 if Library.Tabs[1] then
     for _, t in ipairs(Library.Tabs) do
@@ -1399,5 +1397,7 @@ if Library.Tabs[1] then
         TextColor3 = Color3.fromRGB(255, 255, 255)
     }):Play()
 end
+
+Library:Notify("AbyssalHub", "Script loaded successfully!", 5)
 
 return Library
