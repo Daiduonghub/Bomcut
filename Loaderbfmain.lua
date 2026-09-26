@@ -932,15 +932,6 @@ LP.CharacterAdded:Connect(function(char)
     end
 end)
 
--- Fast Attack toggle
-Library:CreateToggle(TabSettings, "Fast Attack", false, function(v)
-    FastAttack = v
-end)
-
-Library:CreateSlider(TabSettings, "Fast Attack Delay", 0.01, 0.2, 0.03, function(v)
-    FastAttackDelay = v
-end)
-
 -- ---------- TAB STATS & SERVER ----------
 local Player = Players.LocalPlayer
 local JoinTime = tick()
@@ -1306,18 +1297,27 @@ if distToMob <= 15 then
         RegisterAttack:FireServer(AttackDelay, HitCount)
     end)
     
-    for i = 1, HitCount do
-        for _, p in ipairs(target:GetDescendants()) do
-            if p:IsA("BasePart") then
-                pcall(function()
-                    RegisterHit:FireServer(p, {}, HitHash)
-                end)
-                pcall(function()
-                    RegisterHit:FireServer(p, {})
-                end)
+    if FastAttack then
+        local fastDelay = FastAttackDelay or 0.03
+        for i = 1, 15 do
+            for _, p in ipairs(target:GetDescendants()) do
+                if p:IsA("BasePart") then
+                    pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
+                    pcall(function() RegisterHit:FireServer(p, {}) end)
+                end
             end
+            task.wait(fastDelay)
         end
-        task.wait(AttackDelay / HitCount)
+    else
+        for i = 1, HitCount do
+            for _, p in ipairs(target:GetDescendants()) do
+                if p:IsA("BasePart") then
+                    pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
+                    pcall(function() RegisterHit:FireServer(p, {}) end)
+                end
+            end
+            task.wait(AttackDelay / HitCount)
+        end
     end
 end
             else
