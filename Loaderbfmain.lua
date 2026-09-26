@@ -820,6 +820,7 @@ Library:CreateToggle(Tab1, "Auto Farm Level", false, function(v)
     if v then
         CurrentQuestName = nil
         QuestCooldown = 0
+        AddHighlight()
         Library:Notify("AbyssalHub", "Auto Farm: ON", 2)
     else
         currentTarget = nil
@@ -828,7 +829,16 @@ Library:CreateToggle(Tab1, "Auto Farm Level", false, function(v)
             local root = LP.Character:FindFirstChild("HumanoidRootPart")
             if root then root.Anchored = false end
         end
+        RemoveHighlight()
         Library:Notify("AbyssalHub", "Auto Farm: OFF", 2)
+    end
+end)
+
+-- Re-add highlight khi player respawn
+LP.CharacterAdded:Connect(function(char)
+    if AutoFarm then
+        task.wait(0.5) -- Chờ character load xong
+        AddHighlight()
     end
 end)
 
@@ -1283,6 +1293,69 @@ RunService.Stepped:Connect(function()
         if root.Anchored then root.Anchored = false end
     end
 end)
+
+-- ============================================================
+-- HIGHLIGHT PLAYER KHI BẬT AUTO FARM
+-- ============================================================
+local PlayerHighlight = nil
+local PlayerSelectionBox = nil
+
+local function AddHighlight()
+    local char = LP.Character
+    if not char then return end
+    
+    -- Xóa cũ nếu có
+    if PlayerHighlight then
+        pcall(function() PlayerHighlight:Destroy() end)
+        PlayerHighlight = nil
+    end
+    if PlayerSelectionBox then
+        pcall(function() PlayerSelectionBox:Destroy() end)
+        PlayerSelectionBox = nil
+    end
+    
+    -- Tạo Highlight (màu fill)
+    PlayerHighlight = Instance.new("Highlight")
+    PlayerHighlight.Name = "AbyssalHighlight"
+    PlayerHighlight.FillColor = Color3.fromRGB(140, 60, 255)
+    PlayerHighlight.OutlineColor = Color3.fromRGB(200, 180, 255)
+    PlayerHighlight.FillTransparency = 0.5
+    PlayerHighlight.OutlineTransparency = 0
+    PlayerHighlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    PlayerHighlight.Adornee = char
+    PlayerHighlight.Parent = char
+    
+    -- Tạo SelectionBox (viền box)
+    PlayerSelectionBox = Instance.new("SelectionBox")
+    PlayerSelectionBox.Name = "AbyssalBox"
+    PlayerSelectionBox.Adornee = char
+    PlayerSelectionBox.Color3 = Color3.fromRGB(140, 60, 255)
+    PlayerSelectionBox.LineThickness = 0.05
+    PlayerSelectionBox.Transparency = 0.3
+    PlayerSelectionBox.SurfaceTransparency = 1 -- ẩn mặt, chỉ hiện viền
+    PlayerSelectionBox.Parent = char
+end
+
+local function RemoveHighlight()
+    if PlayerHighlight then
+        pcall(function() PlayerHighlight:Destroy() end)
+        PlayerHighlight = nil
+    end
+    if PlayerSelectionBox then
+        pcall(function() PlayerSelectionBox:Destroy() end)
+        PlayerSelectionBox = nil
+    end
+    
+    -- Xóa hết còn sót
+    local char = LP.Character
+    if char then
+        for _, child in ipairs(char:GetChildren()) do
+            if child.Name == "AbyssalHighlight" or child.Name == "AbyssalBox" then
+                pcall(function() child:Destroy() end)
+            end
+        end
+    end
+end
 
 -- ============================================================
 -- АВТОВЫБОР ПЕРВОЙ ВКЛАДКИ
