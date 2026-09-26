@@ -1277,27 +1277,34 @@ task.spawn(function()
                         root.CFrame = CFrame.new(mobRoot.Position + Vector3.new(0, 10, 0))
                     end
                     
-                    -- Đánh
-                    if distToMob <= 15 then
-                        pcall(function()
-                            RegisterAttack:FireServer(AttackDelay, HitCount)
-                        end)
-                        
-                        for i = 1, HitCount do
-                            for _, p in ipairs(target:GetDescendants()) do
-                                if p:IsA("BasePart") then
-                                    pcall(function()
-                                        RegisterHit:FireServer(p, {}, HitHash)
-                                    end)
-                                    pcall(function()
-                                        RegisterHit:FireServer(p, {})
-                                    end)
-                                end
-                            end
-                            task.wait(AttackDelay / HitCount)
-                        end
-                    end
+-- Danh
+if distToMob <= 15 then
+    pcall(function()
+        RegisterAttack:FireServer(AttackDelay, HitCount)
+    end)
+    
+    if FA_On then
+        for i = 1, 15 do
+            for _, p in ipairs(target:GetDescendants()) do
+                if p:IsA("BasePart") then
+                    pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
+                    pcall(function() RegisterHit:FireServer(p, {}) end)
                 end
+            end
+            task.wait(FA_Delay or 0.03)
+        end
+    else
+        for i = 1, HitCount do
+            for _, p in ipairs(target:GetDescendants()) do
+                if p:IsA("BasePart") then
+                    pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
+                    pcall(function() RegisterHit:FireServer(p, {}) end)
+                end
+            end
+            task.wait(AttackDelay / HitCount)
+        end
+    end
+end
             else
                 -- Không có mob → bay tới vị trí spawn chờ
                 currentTarget = nil
