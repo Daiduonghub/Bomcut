@@ -933,24 +933,13 @@ LP.CharacterAdded:Connect(function(char)
 end)
 
 -- Fast Attack toggle
-local FirstFastAttackInit = true
 Library:CreateToggle(TabSettings, "Fast Attack", false, function(v)
     FastAttack = v
-    if FirstFastAttackInit then
-        FirstFastAttackInit = false
-        return
-    end
-    if v then
-        Library:Notify("AbyssalHub", "Fast Attack: ON", 2)
-    else
-        Library:Notify("AbyssalHub", "Fast Attack: OFF", 2)
-    end
 end)
 
 Library:CreateSlider(TabSettings, "Fast Attack Delay", 0.01, 0.2, 0.03, function(v)
     FastAttackDelay = v
 end)
-
 -- ---------- TAB STATS & SERVER ----------
 local Player = Players.LocalPlayer
 local JoinTime = tick()
