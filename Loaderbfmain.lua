@@ -235,8 +235,6 @@ activeTween = nil
 StopActiveTween = function() end
 AddHighlight = function() end
 RemoveHighlight = function() end
-FastAttack = false
-FastAttackDelay = 0.03
 
 -- ============================================================
 -- HIGHLIGHT PLAYER KHI BẬT AUTO FARM
