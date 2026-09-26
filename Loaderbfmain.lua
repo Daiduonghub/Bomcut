@@ -1383,21 +1383,30 @@ end)
 -- ============================================================
 -- АВТОВЫБОР ПЕРВОЙ ВКЛАДКИ
 -- ============================================================
--- Tự chọn tab đầu tiên không dùng Fire()
-if Library.Tabs[1] then
-    for _, t in ipairs(Library.Tabs) do
-        t.Frame.Visible = false
-    end
-    Library.Tabs[1].Frame.Visible = true
-    Library.CurrentTab = Library.Tabs[1]
-    
-    TweenService:Create(Library.Tabs[1].Button, TweenInfo.new(0.2), {
-        BackgroundColor3 = Color3.fromRGB(140, 60, 255),
-        BackgroundTransparency = 0.2,
-        TextColor3 = Color3.fromRGB(255, 255, 255)
-    }):Play()
-end
+pcall(function()
+    Library:Notify("AbyssalHub", "Script loaded successfully!", 5)
+end)
 
-Library:Notify("AbyssalHub", "Script loaded successfully!", 5)
+pcall(function()
+    if Library.Tabs[1] then
+        for _, t in ipairs(Library.Tabs) do
+            t.Frame.Visible = false
+        end
+        Library.Tabs[1].Frame.Visible = true
+        Library.CurrentTab = Library.Tabs[1]
+        
+        TweenService:Create(Library.Tabs[1].Button, TweenInfo.new(0.2), {
+            BackgroundColor3 = Color3.fromRGB(140, 60, 255),
+            BackgroundTransparency = 0.2,
+            TextColor3 = Color3.fromRGB(255, 255, 255)
+        }):Play()
+        
+        -- Force update CanvasSize
+        local layout = Library.Tabs[1].Frame:FindFirstChildOfClass("UIListLayout")
+        if layout then
+            Library.Tabs[1].Frame.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 20)
+        end
+    end
+end)
 
 return Library
