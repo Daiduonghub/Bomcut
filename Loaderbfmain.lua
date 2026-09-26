@@ -437,24 +437,22 @@ function Library:CreateTab(name)
         end
     end)
     TabBtn.MouseButton1Click:Connect(function()
-        for _, t in ipairs(Library.Tabs) do
-            t.Frame.Visible = false
-            TweenService:Create(t.Button, TweenInfo.new(0.2), {
-                BackgroundColor3 = Color3.fromRGB(28, 22, 45),
-                BackgroundTransparency = 0.5,
-                TextColor3 = Color3.fromRGB(180, 180, 200)
-            }):Play()
-        end
-        TabFrame.Visible = true
-        TweenService:Create(TabBtn, TweenInfo.new(0.2), {
-            BackgroundColor3 = Color3.fromRGB(140, 60, 255),
-            BackgroundTransparency = 0.2,
-            TextColor3 = Color3.fromRGB(255, 255, 255)
+    for _, t in ipairs(Library.Tabs) do
+        t.Frame.Visible = false
+        TweenService:Create(t.Button, TweenInfo.new(0.2), {
+            BackgroundColor3 = Color3.fromRGB(28, 22, 45),
+            BackgroundTransparency = 0.5,
+            TextColor3 = Color3.fromRGB(180, 180, 200)
         }):Play()
-        Library.CurrentTab = tabObj
-        task.wait()
-        updateCanvas()
-    end)
+    end
+    TabFrame.Visible = true
+    TweenService:Create(TabBtn, TweenInfo.new(0.2), {
+        BackgroundColor3 = Color3.fromRGB(140, 60, 255),
+        BackgroundTransparency = 0.2,
+        TextColor3 = Color3.fromRGB(255, 255, 255)
+    }):Play()
+    Library.CurrentTab = tabObj
+end)
     
     return tabObj
 end
