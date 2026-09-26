@@ -1215,7 +1215,7 @@ local function AutoAcceptQuest()
 end
 
 -- ============================================================
--- VÒNG LẶP AUTO FARM (FIX - TỰ BAY TỚI SPAWN KHI KHÔNG CÓ MOB)
+-- VÒNG LẶP AUTO FARM (FIXED - FULL BLOCK)
 -- ============================================================
 currentTarget = nil
 activeTween = nil
@@ -1260,14 +1260,14 @@ task.spawn(function()
                     local distToMob = (root.Position - mobRoot.Position).Magnitude
                     
                     if distToMob > 20 then
-                        -- Xa mob → tween tới
+                        -- Xa mob -> tween tới
                         if not activeTween or activeTween.PlaybackState ~= Enum.PlaybackState.Playing then
                             local dest = CFrame.new(mobRoot.Position + Vector3.new(0, 10, 0))
                             local dist = (root.Position - dest.Position).Magnitude
                             local duration = math.clamp(dist / TweenSpeed, 0.1, 15)
                             activeTween = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Sine), {
-    CFrame = dest
-})
+                                CFrame = dest
+                            })
                             activeTween:Play()
                             activeTween.Completed:Connect(function()
                                 activeTween = nil
@@ -1278,59 +1278,55 @@ task.spawn(function()
                         root.CFrame = CFrame.new(mobRoot.Position + Vector3.new(0, 10, 0))
                     end
                     
--- Danh
-if distToMob <= 15 then
-    pcall(function()
-        RegisterAttack:FireServer(AttackDelay, HitCount)
-        
-        local hitParts = {}
-        for _, p in ipairs(target:GetDescendants()) do
-            if p:IsA("BasePart") then
-                table.insert(hitParts, p)
-            end
-        end
-        
-        if #hitParts == 0 then return end
-        
-        if FA_On then
-            for i = 1, 15 do
-                for _, p in ipairs(hitParts) do
-                    pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
-                    pcall(function() RegisterHit:FireServer(p, {}) end)
+                    -- Đánh
+                    if distToMob <= 15 then
+                        pcall(function()
+                            RegisterAttack:FireServer(AttackDelay, HitCount)
+                            
+                            local hitParts = {}
+                            for _, p in ipairs(target:GetDescendants()) do
+                                if p:IsA("BasePart") then
+                                    table.insert(hitParts, p)
+                                end
+                            end
+                            
+                            if #hitParts == 0 then return end
+                            
+                            if FA_On then
+                                for i = 1, 15 do
+                                    for _, p in ipairs(hitParts) do
+                                        pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
+                                        pcall(function() RegisterHit:FireServer(p, {}) end)
+                                    end
+                                    task.wait(FA_Delay or 0.03)
+                                end
+                            else
+                                for i = 1, HitCount do
+                                    for _, p in ipairs(hitParts) do
+                                        pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
+                                        pcall(function() RegisterHit:FireServer(p, {}) end)
+                                    end
+                                    task.wait(AttackDelay / HitCount)
+                                end
+                            end
+                        end)
+                    end
                 end
-                task.wait(FA_Delay or 0.03)
-            end
-        else
-            for i = 1, HitCount do
-                for _, p in ipairs(hitParts) do
-                    pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
-                    pcall(function() RegisterHit:FireServer(p, {}) end)
-                end
-                task.wait(AttackDelay / HitCount)
-            end
-        end
-    end)
-end
             else
-                -- Không có mob → bay tới vị trí spawn chờ
+                -- Không có mob -> bay tới vị trí spawn chờ
                 currentTarget = nil
                 
                 if QuestCFrame then
                     local distToSpawn = (root.Position - QuestCFrame.Position).Magnitude
-                                        if distToSpawn > 20 then
+                    if distToSpawn > 20 then
                         if not activeTween or activeTween.PlaybackState ~= Enum.PlaybackState.Playing then
                             local dest = QuestCFrame + Vector3.new(0, 10, 0)
                             local dist = (root.Position - dest.Position).Magnitude
                             local duration = math.clamp(dist / TweenSpeed, 0.1, 15)
-
-                            activeTween = TweenService:Create(
-                                root,
-                                TweenInfo.new(duration, Enum.EasingStyle.Sine),
-                                {CFrame = dest}
-                            )
-
+                            activeTween = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Sine), {
+                                CFrame = dest
+                            })
                             activeTween:Play()
-
                             activeTween.Completed:Connect(function()
                                 activeTween = nil
                             end)
@@ -1339,9 +1335,6 @@ end
                 end
             end
         end)
-
-    end
-end)
         
         if not ok then
             warn("[AbyssalHub] Farm error: " .. tostring(err))
