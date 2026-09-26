@@ -1019,7 +1019,7 @@ if CurrentMobName == nil then CurrentMobName = "Bandit" end
 if QuestCFrame == nil then QuestCFrame = CFrame.new(1059, 16, 1547) end
 if AttackDelay == nil then AttackDelay = 0.5 end
 if HitCount == nil then HitCount = 3 end
-if TweenSpeed == nil then TweenSpeed = 350 end
+if TweenSpeed == nil then TweenSpeed = 150 end
 if QuestCooldown == nil then QuestCooldown = 0 end
 
 -- ============================================================
