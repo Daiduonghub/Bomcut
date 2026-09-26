@@ -7,6 +7,7 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
+local LP = Players.LocalPlayer
 
 if CoreGui:FindFirstChild("AbyssalHub") then
     CoreGui.AbyssalHub:Destroy()
@@ -823,15 +824,13 @@ Library:CreateToggle(Tab1, "Auto Farm Level", false, function(v)
     else
         currentTarget = nil
         if StopActiveTween then StopActiveTween() end
-        local char = LP.Character
-        if char then
-            local root = char:FindFirstChild("HumanoidRootPart")
+        if LP and LP.Character then
+            local root = LP.Character:FindFirstChild("HumanoidRootPart")
             if root then root.Anchored = false end
         end
         Library:Notify("AbyssalHub", "Auto Farm: OFF", 2)
     end
 end)
-
 
 -- ---------- TAB STATS & SERVER ----------
 local Player = Players.LocalPlayer
