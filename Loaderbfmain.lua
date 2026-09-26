@@ -224,7 +224,7 @@ local Library = {}
 Library.Tabs = {}
 Library.CurrentTab = nil
 
---- ============================================================
+-- ============================================================
 -- GLOBAL VARS (KHAI BÁO TRƯỚC ĐỂ TOGGLE KHÔNG LỖI)
 -- ============================================================
 AutoFarm = false
@@ -233,8 +233,9 @@ QuestCooldown = 0
 currentTarget = nil
 activeTween = nil
 StopActiveTween = function() end
-AddHighlight = function() end    -- ⬅️ THÊM
-RemoveHighlight = function() end -- ⬅️ THÊM
+AddHighlight = function() end
+RemoveHighlight = function() end
+FastAttack = false -- ⬅️ THÊM DÒNG NÀY
 
 -- ============================================================
 -- HIGHLIGHT PLAYER KHI BẬT AUTO FARM
@@ -889,6 +890,7 @@ end)
 -- ДЕМОНСТРАЦИЯ (СОЗДАНИЕ ЭЛЕМЕНТОВ)
 -- ============================================================
 local TabStats = Library:CreateTab("Stats & Server")
+local TabSettings = Library:CreateTab("Settings") -- ⬅️ THÊM
 local Tab1 = Library:CreateTab("Main")
 
 --  ---------UI CONTROL---------
@@ -927,6 +929,21 @@ LP.CharacterAdded:Connect(function(char)
         task.wait(0.5) -- Chờ character load xong
         AddHighlight()
     end
+end)
+
+-- Fast Attack toggle
+Library:CreateToggle(TabSettings, "Fast Attack (Đánh siêu nhanh)", false, function(v)
+    FastAttack = v
+    if v then
+        Library:Notify("AbyssalHub", "Fast Attack: ON", 2)
+    else
+        Library:Notify("AbyssalHub", "Fast Attack: OFF", 2)
+    end
+end)
+
+-- Slider điều chỉnh tốc độ
+Library:CreateSlider(TabSettings, "Fast Attack Delay", 0.01, 0.2, 0.03, function(v)
+    FastAttackDelay = v
 end)
 
 -- ---------- TAB STATS & SERVER ----------
@@ -1289,26 +1306,36 @@ task.spawn(function()
                     end
                     
                     -- Đánh
-                    if distToMob <= 15 then
-                        pcall(function()
-                            RegisterAttack:FireServer(AttackDelay, HitCount)
-                        end)
-                        
-                        for i = 1, HitCount do
-                            for _, p in ipairs(target:GetDescendants()) do
-                                if p:IsA("BasePart") then
-                                    pcall(function()
-                                        RegisterHit:FireServer(p, {}, HitHash)
-                                    end)
-                                    pcall(function()
-                                        RegisterHit:FireServer(p, {})
-                                    end)
-                                end
-                            end
-                            task.wait(AttackDelay / HitCount)
-                        end
-                    end
+if distToMob <= 15 then
+    pcall(function()
+        RegisterAttack:FireServer(AttackDelay, HitCount)
+    end)
+    
+    if FastAttack then
+        -- ⚡ FAST MODE: fire liên tục, delay nhỏ
+        local fastDelay = FastAttackDelay or 0.03
+        for i = 1, 15 do
+            for _, p in ipairs(target:GetDescendants()) do
+                if p:IsA("BasePart") then
+                    pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
+                    pcall(function() RegisterHit:FireServer(p, {}) end)
                 end
+            end
+            task.wait(fastDelay)
+        end
+    else
+        -- Bình thường
+        for i = 1, HitCount do
+            for _, p in ipairs(target:GetDescendants()) do
+                if p:IsA("BasePart") then
+                    pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
+                    pcall(function() RegisterHit:FireServer(p, {}) end)
+                end
+            end
+            task.wait(AttackDelay / HitCount)
+        end
+    end
+end
             else
                 -- Không có mob → bay tới vị trí spawn chờ
                 currentTarget = nil
