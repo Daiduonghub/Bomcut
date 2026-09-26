@@ -236,6 +236,9 @@ AddHighlight = function() end
 RemoveHighlight = function() end
 FA_On = false
 FA_Delay = 0.03
+BM_On = false
+BM_Range = 300
+BM_Offset = 8
 
 -- ============================================================
 -- HIGHLIGHT PLAYER KHI BẬT AUTO FARM
@@ -923,6 +926,18 @@ Library:CreateSlider(TabSettings, "AtkSpeed", 0.01, 0.2, 0.03, function(v)
     FA_Delay = v
 end)
 
+Library:CreateToggle(TabSettings, "BringMob", false, function(v)
+    BM_On = v
+end)
+
+Library:CreateSlider(TabSettings, "BM_Range", 100, 1000, 300, function(v)
+    BM_Range = v
+end)
+
+Library:CreateSlider(TabSettings, "BM_Spread", 3, 20, 8, function(v)
+    BM_Offset = v
+end)
+
 -- ---------- TAB STATS & SERVER ----------
 local Player = Players.LocalPlayer
 local JoinTime = tick()
@@ -1248,6 +1263,31 @@ task.spawn(function()
             
             pcall(AutoAcceptQuest)
             
+            -- Bring Mob: kéo quái trong bán kính về gần player
+            if BM_On then
+                pcall(function()
+                    local enemiesFolder = workspace:FindFirstChild("Enemies")
+                    if enemiesFolder then
+                        for _, mob in ipairs(enemiesFolder:GetChildren()) do
+                            if mob.Name == CurrentMobName then
+                                local mHum = mob:FindFirstChild("Humanoid")
+                                local mRoot = mob:FindFirstChild("HumanoidRootPart")
+                                if mHum and mRoot and mHum.Health > 0 then
+                                    local mDist = (root.Position - mRoot.Position).Magnitude
+                                    if mDist <= BM_Range and mDist > 8 then
+                                        mRoot.CFrame = root.CFrame * CFrame.new(
+                                            math.random(-BM_Offset, BM_Offset),
+                                            0,
+                                            math.random(-BM_Offset, BM_Offset)
+                                        )
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end)
+            end
+            
             -- Tìm mob bán kính RỘNG 2000 studs
             local target = FindNearestMob(CurrentMobName, 2000)
             currentTarget = target
@@ -1283,28 +1323,50 @@ task.spawn(function()
                         pcall(function()
                             RegisterAttack:FireServer(AttackDelay, HitCount)
                             
-                            local hitParts = {}
-                            for _, p in ipairs(target:GetDescendants()) do
-                                if p:IsA("BasePart") then
-                                    table.insert(hitParts, p)
+                            -- Lấy TẤT CẢ mob cùng loại đang ở gần (đã bị bring mob kéo về)
+                            local allTargets = {}
+                            local enemiesFolder = workspace:FindFirstChild("Enemies")
+                            if enemiesFolder then
+                                for _, mob in ipairs(enemiesFolder:GetChildren()) do
+                                    if mob.Name == CurrentMobName then
+                                        local mHum = mob:FindFirstChild("Humanoid")
+                                        local mRoot = mob:FindFirstChild("HumanoidRootPart")
+                                        if mHum and mRoot and mHum.Health > 0 then
+                                            local mDist = (root.Position - mRoot.Position).Magnitude
+                                            if mDist <= (BM_On and (BM_Range + 20) or 20) then
+                                                table.insert(allTargets, mob)
+                                            end
+                                        end
+                                    end
                                 end
                             end
                             
-                            if #hitParts == 0 then return end
+                            -- Nếu không có mob nào trong list (fallback) -> dùng target gốc
+                            if #allTargets == 0 then
+                                table.insert(allTargets, target)
+                            end
                             
                             if FA_On then
                                 for i = 1, 15 do
-                                    for _, p in ipairs(hitParts) do
-                                        pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
-                                        pcall(function() RegisterHit:FireServer(p, {}) end)
+                                    for _, mob in ipairs(allTargets) do
+                                        for _, p in ipairs(mob:GetDescendants()) do
+                                            if p:IsA("BasePart") then
+                                                pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
+                                                pcall(function() RegisterHit:FireServer(p, {}) end)
+                                            end
+                                        end
                                     end
                                     task.wait(FA_Delay or 0.03)
                                 end
                             else
                                 for i = 1, HitCount do
-                                    for _, p in ipairs(hitParts) do
-                                        pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
-                                        pcall(function() RegisterHit:FireServer(p, {}) end)
+                                    for _, mob in ipairs(allTargets) do
+                                        for _, p in ipairs(mob:GetDescendants()) do
+                                            if p:IsA("BasePart") then
+                                                pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
+                                                pcall(function() RegisterHit:FireServer(p, {}) end)
+                                            end
+                                        end
                                     end
                                     task.wait(AttackDelay / HitCount)
                                 end
