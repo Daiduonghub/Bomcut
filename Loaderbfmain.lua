@@ -1052,7 +1052,7 @@ local RegisterHit = Net:WaitForChild("RE/RegisterHit")
 local Remotes = RS:WaitForChild("Remotes")
 local CommF_ = Remotes:WaitForChild("CommF_")
 
-FirstSeaQuests = {
+local FirstSeaQuests = {
     { MinLevel = 650, MaxLevel = 700, QuestName = "FountainQuest", QuestId = 2, NpcName = "Hero", NpcPosition = CFrame.new(5257, 39, 4051), MobName = "Galley Captain", MobSpawn = CFrame.new(5790, 60, 4975) },
     { MinLevel = 625, MaxLevel = 649, QuestName = "FountainQuest", QuestId = 1, NpcName = "Hero", NpcPosition = CFrame.new(5257, 39, 4051), MobName = "Galley Pirate", MobSpawn = CFrame.new(5554, 82, 3971) },
     { MinLevel = 550, MaxLevel = 624, QuestName = "SkyExp2Quest", QuestId = 2, NpcName = "Conylee", NpcPosition = CFrame.new(-7903, 5635, -1411), MobName = "Nomadic Pirate", MobSpawn = CFrame.new(-7819, 5545, -1727) },
@@ -1184,29 +1184,34 @@ local function FindQuestByLevel(level)
 end
 
 local function AutoAcceptQuest()
-    local level = LP.Data.Level.Value
+    local level = 1
+    pcall(function()
+        if LP:FindFirstChild("Data") and LP.Data:FindFirstChild("Level") then
+            level = LP.Data.Level.Value
+        end
+    end)
+
     local questData = FindQuestByLevel(level)
     if not questData then return nil end
-    
+
     local questKey = questData.QuestName .. "|" .. tostring(questData.QuestId)
     local hasQuest = HasActiveQuest()
-    
-    -- Nếu CHƯA có quest HOẶC quest khác level → nhận lại
+
     if not hasQuest or CurrentQuestName ~= questKey then
         if tick() < QuestCooldown then return nil end
-        
+
         pcall(function()
             CommF_:InvokeServer("StartQuest", questData.QuestName, questData.QuestId)
         end)
-        
+
         CurrentQuestName = questKey
         CurrentMobName = questData.MobName
         QuestCFrame = questData.MobSpawn
         QuestCooldown = tick() + 3
-        
+
         return questData
     end
-    
+
     return questData
 end
 
