@@ -932,6 +932,14 @@ LP.CharacterAdded:Connect(function(char)
     end
 end)
 
+Library:CreateToggle(TabSettings, "FastAtk", false, function(v)
+    FA_On = v
+end)
+
+Library:CreateSlider(TabSettings, "AtkSpeed", 0.01, 0.2, 0.03, function(v)
+    FA_Delay = v
+end)
+
 -- ---------- TAB STATS & SERVER ----------
 local Player = Players.LocalPlayer
 local JoinTime = tick()
