@@ -235,7 +235,8 @@ activeTween = nil
 StopActiveTween = function() end
 AddHighlight = function() end
 RemoveHighlight = function() end
-FastAttack = false -- ⬅️ THÊM DÒNG NÀY
+FastAttack = false
+FastAttackDelay = 0.03 -- ⬅️ THÊM DÒNG NÀY
 
 -- ============================================================
 -- HIGHLIGHT PLAYER KHI BẬT AUTO FARM
@@ -932,8 +933,16 @@ LP.CharacterAdded:Connect(function(char)
 end)
 
 -- Fast Attack toggle
+local FirstFastAttackInit = true
 Library:CreateToggle(TabSettings, "Fast Attack (Đánh siêu nhanh)", false, function(v)
     FastAttack = v
+    
+    -- Chặn notify lần init đầu tiên
+    if FirstFastAttackInit then
+        FirstFastAttackInit = false
+        return
+    end
+    
     if v then
         Library:Notify("AbyssalHub", "Fast Attack: ON", 2)
     else
