@@ -1,7 +1,6 @@
 -- ============================================================
 -- UI LIBRARY "ABYSSALHUB"
 -- ============================================================
-print("TEST 1")
 
 local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
@@ -236,8 +235,8 @@ activeTween = nil
 StopActiveTween = function() end
 AddHighlight = function() end
 RemoveHighlight = function() end
-FastAttack = false
-FastAttackDelay = 0.03
+FA_On = false
+FA_Delay = 0.03
 
 -- ============================================================
 -- HIGHLIGHT PLAYER KHI BẬT AUTO FARM
@@ -891,10 +890,8 @@ end)
 -- ============================================================
 -- ДЕМОНСТРАЦИЯ (СОЗДАНИЕ ЭЛЕМЕНТОВ)
 -- ============================================================
-print("TEST 2")
 local TabStats = Library:CreateTab("Stats & Server")
 local TabSettings = Library:CreateTab("Settings")
-print("TEST 3")
 local Tab1 = Library:CreateTab("Main")
 
 --  ---------UI CONTROL---------
@@ -935,16 +932,6 @@ LP.CharacterAdded:Connect(function(char)
     end
 end)
 
-print("TEST 4")
--- Fast Attack toggle
-Library:CreateToggle(TabSettings, "Fast Attack", false, function(v)
-    FastAttack = v
-end)
-
-Library:CreateSlider(TabSettings, "Fast Attack Delay", 0.01, 0.2, 0.03, function(v)
-    FastAttackDelay = v
-end)
-print("TEST 5")
 -- ---------- TAB STATS & SERVER ----------
 local Player = Players.LocalPlayer
 local JoinTime = tick()
@@ -1304,35 +1291,27 @@ task.spawn(function()
                         root.CFrame = CFrame.new(mobRoot.Position + Vector3.new(0, 10, 0))
                     end
                     
--- Đánh
-if distToMob <= 15 then
-    pcall(function()
-        RegisterAttack:FireServer(AttackDelay, HitCount)
-    end)
-    
-    if FastAttack then
-        local fastDelay = FastAttackDelay or 0.03
-        for i = 1, 15 do
-            for _, p in ipairs(target:GetDescendants()) do
-                if p:IsA("BasePart") then
-                    pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
-                    pcall(function() RegisterHit:FireServer(p, {}) end)
+                    -- Đánh
+                    if distToMob <= 15 then
+                        pcall(function()
+                            RegisterAttack:FireServer(AttackDelay, HitCount)
+                        end)
+                        
+                        for i = 1, HitCount do
+                            for _, p in ipairs(target:GetDescendants()) do
+                                if p:IsA("BasePart") then
+                                    pcall(function()
+                                        RegisterHit:FireServer(p, {}, HitHash)
+                                    end)
+                                    pcall(function()
+                                        RegisterHit:FireServer(p, {})
+                                    end)
+                                end
+                            end
+                            task.wait(AttackDelay / HitCount)
+                        end
+                    end
                 end
-            end
-            task.wait(fastDelay)
-        end
-    else
-        for i = 1, HitCount do
-            for _, p in ipairs(target:GetDescendants()) do
-                if p:IsA("BasePart") then
-                    pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
-                    pcall(function() RegisterHit:FireServer(p, {}) end)
-                end
-            end
-            task.wait(AttackDelay / HitCount)
-        end
-    end
-end
             else
                 -- Không có mob → bay tới vị trí spawn chờ
                 currentTarget = nil
@@ -1433,5 +1412,4 @@ pcall(function()
     end
 end)
 
-print("TEST 6")
 return Library
