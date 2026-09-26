@@ -971,7 +971,6 @@ end)
 -- ============================================================
 
 local RS = game:GetService("ReplicatedStorage")
-local LP = Players.LocalPlayer
 local TweenService = game:GetService("TweenService")
 
 repeat task.wait() until game:IsLoaded() and LP.Character
@@ -1296,13 +1295,13 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- ============================================================
+--- ============================================================
 -- HIGHLIGHT PLAYER KHI BẬT AUTO FARM
 -- ============================================================
 local PlayerHighlight = nil
 local PlayerSelectionBox = nil
 
-AddHighlight()
+AddHighlight = function()
     local char = LP.Character
     if not char then return end
     
@@ -1334,11 +1333,11 @@ AddHighlight()
     PlayerSelectionBox.Color3 = Color3.fromRGB(140, 60, 255)
     PlayerSelectionBox.LineThickness = 0.05
     PlayerSelectionBox.Transparency = 0.3
-    PlayerSelectionBox.SurfaceTransparency = 1 -- ẩn mặt, chỉ hiện viền
+    PlayerSelectionBox.SurfaceTransparency = 1
     PlayerSelectionBox.Parent = char
 end
 
-RemoveHighlight()
+RemoveHighlight = function()
     if PlayerHighlight then
         pcall(function() PlayerHighlight:Destroy() end)
         PlayerHighlight = nil
@@ -1348,7 +1347,6 @@ RemoveHighlight()
         PlayerSelectionBox = nil
     end
     
-    -- Xóa hết còn sót
     local char = LP.Character
     if char then
         for _, child in ipairs(char:GetChildren()) do
