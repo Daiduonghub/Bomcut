@@ -1317,15 +1317,20 @@ end
                 
                 if QuestCFrame then
                     local distToSpawn = (root.Position - QuestCFrame.Position).Magnitude
-                    if distToSpawn > 20 then
+                                        if distToSpawn > 20 then
                         if not activeTween or activeTween.PlaybackState ~= Enum.PlaybackState.Playing then
                             local dest = QuestCFrame + Vector3.new(0, 10, 0)
                             local dist = (root.Position - dest.Position).Magnitude
                             local duration = math.clamp(dist / TweenSpeed, 0.1, 15)
-                            activeTween = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Sine), {
-    CFrame = dest
-})
+
+                            activeTween = TweenService:Create(
+                                root,
+                                TweenInfo.new(duration, Enum.EasingStyle.Sine),
+                                {CFrame = dest}
+                            )
+
                             activeTween:Play()
+
                             activeTween.Completed:Connect(function()
                                 activeTween = nil
                             end)
@@ -1334,6 +1339,9 @@ end
                 end
             end
         end)
+
+    end
+end)
         
         if not ok then
             warn("[AbyssalHub] Farm error: " .. tostring(err))
