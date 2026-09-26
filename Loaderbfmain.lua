@@ -160,7 +160,7 @@ MaximizeIcon.Name = "MaximizeIcon"
 MaximizeIcon.Size = UDim2.new(0, 16, 0, 16)
 MaximizeIcon.Position = UDim2.new(0.5, -8, 0.5, -8)
 MaximizeIcon.BackgroundTransparency = 1
-MaximizeIcon.Image = "rbxassetid://82833606157114"
+MaximizeIcon.Image = "rbxassetid://10709798950"
 MaximizeIcon.ImageColor3 = Color3.fromRGB(200, 230, 255)
 MaximizeIcon.Parent = MaximizeBtn
 
@@ -170,7 +170,7 @@ MinimizeIcon.Name = "MinimizeIcon"
 MinimizeIcon.Size = UDim2.new(0, 16, 0, 16)
 MinimizeIcon.Position = UDim2.new(0.5, -8, 0.5, -8)
 MinimizeIcon.BackgroundTransparency = 1
-MinimizeIcon.Image = "rbxassetid://8992232434"
+MinimizeIcon.Image = "rbxassetid://10709799483"
 MinimizeIcon.ImageColor3 = Color3.fromRGB(200, 230, 255)
 MinimizeIcon.Visible = false
 MinimizeIcon.Parent = MaximizeBtn
@@ -236,11 +236,67 @@ StopActiveTween = function() end
 AddHighlight = function() end    -- ⬅️ THÊM
 RemoveHighlight = function() end -- ⬅️ THÊM
 
+-- ============================================================
+-- HIGHLIGHT PLAYER KHI BẬT AUTO FARM
+-- ============================================================
+local PlayerHighlight = nil
+
+AddHighlight = function()
+    local char = LP.Character
+    if not char then return end
+    
+    -- Xóa cũ nếu có
+    if PlayerHighlight then
+        pcall(function() PlayerHighlight:Destroy() end)
+        PlayerHighlight = nil
+    end
+    
+    -- Tạo Highlight (màu fill)
+    PlayerHighlight = Instance.new("Highlight")
+    PlayerHighlight.Name = "AbyssalHighlight"
+    PlayerHighlight.FillColor = Color3.fromRGB(140, 60, 255)
+    PlayerHighlight.OutlineColor = Color3.fromRGB(200, 180, 255)
+    PlayerHighlight.FillTransparency = 0.5
+    PlayerHighlight.OutlineTransparency = 0
+    PlayerHighlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    PlayerHighlight.Adornee = char
+    PlayerHighlight.Parent = char
+end
+
+RemoveHighlight = function()
+    if PlayerHighlight then
+        pcall(function() PlayerHighlight:Destroy() end)
+        PlayerHighlight = nil
+    end
+    
+    local char = LP.Character
+    if char then
+        for _, child in ipairs(char:GetChildren()) do
+            if child.Name == "AbyssalHighlight" then
+                pcall(function() child:Destroy() end)
+            end
+        end
+    end
+end
+
+local ActiveNotifications = {}
+
+local function UpdateNotifPositions()
+    for i, notif in ipairs(ActiveNotifications) do
+        if notif and notif.Parent then
+            local targetY = -90 - ((i - 1) * 80) -- mỗi notify cách 80px
+            TweenService:Create(notif, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Position = UDim2.new(1, -340, 1, targetY)
+            }):Play()
+        end
+    end
+end
+
 function Library:Notify(title, text, duration)
     duration = duration or 4
+    
     local NotifFrame = Instance.new("Frame")
     NotifFrame.Size = UDim2.new(0, 320, 0, 70)
-    NotifFrame.Position = UDim2.new(1, -340, 1, -90)
     NotifFrame.BackgroundColor3 = Color3.fromRGB(14, 10, 26)
     NotifFrame.BackgroundTransparency = 0.05
     NotifFrame.BorderSizePixel = 0
@@ -290,19 +346,38 @@ function Library:Notify(title, text, duration)
     NotifText.TextWrapped = true
     NotifText.Parent = NotifFrame
     
-    NotifFrame.Position = UDim2.new(1, 20, 1, -90)
-    TweenService:Create(NotifFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-        Position = UDim2.new(1, -340, 1, -90)
-    }):Play()
+    -- Thêm vào đầu list (notify mới nhất ở index 1)
+    table.insert(ActiveNotifications, 1, NotifFrame)
     
+    -- Vị trí ban đầu (ngoài màn hình bên phải, cùng Y như target)
+    NotifFrame.Position = UDim2.new(1, 20, 1, -90)
+    
+    -- Delay 1 frame để update position
+    task.spawn(function()
+        task.wait()
+        UpdateNotifPositions()
+    end)
+    
+    -- Auto remove
     task.delay(duration, function()
+        -- Xóa khỏi list trước (để các notify khác dịch xuống)
+        for i, n in ipairs(ActiveNotifications) do
+            if n == NotifFrame then
+                table.remove(ActiveNotifications, i)
+                break
+            end
+        end
+        
+        -- Animate out
+        local outPos = UDim2.new(1, 20, 1, NotifFrame.Position.Y.Offset)
         local out = TweenService:Create(NotifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-            Position = UDim2.new(1, 20, 1, -90),
+            Position = outPos,
             BackgroundTransparency = 1
         })
         out:Play()
         out.Completed:Connect(function()
             NotifFrame:Destroy()
+            UpdateNotifPositions()
         end)
     end)
 end
@@ -817,8 +892,18 @@ local TabStats = Library:CreateTab("Stats & Server")
 local Tab1 = Library:CreateTab("Main")
 
 --  ---------UI CONTROL---------
+-- Thêm biến này TRƯỚC CreateToggle
+local FirstToggleInit = true
+
 Library:CreateToggle(Tab1, "Auto Farm Level", false, function(v)
     AutoFarm = v
+    
+    -- Chặn notify lần init đầu tiên (khi tạo toggle)
+    if FirstToggleInit then
+        FirstToggleInit = false
+        return
+    end
+    
     if v then
         CurrentQuestName = nil
         QuestCooldown = 0
@@ -1294,68 +1379,6 @@ RunService.Stepped:Connect(function()
         if root.Anchored then root.Anchored = false end
     end
 end)
-
---- ============================================================
--- HIGHLIGHT PLAYER KHI BẬT AUTO FARM
--- ============================================================
-local PlayerHighlight = nil
-local PlayerSelectionBox = nil
-
-AddHighlight = function()
-    local char = LP.Character
-    if not char then return end
-    
-    -- Xóa cũ nếu có
-    if PlayerHighlight then
-        pcall(function() PlayerHighlight:Destroy() end)
-        PlayerHighlight = nil
-    end
-    if PlayerSelectionBox then
-        pcall(function() PlayerSelectionBox:Destroy() end)
-        PlayerSelectionBox = nil
-    end
-    
-    -- Tạo Highlight (màu fill)
-    PlayerHighlight = Instance.new("Highlight")
-    PlayerHighlight.Name = "AbyssalHighlight"
-    PlayerHighlight.FillColor = Color3.fromRGB(140, 60, 255)
-    PlayerHighlight.OutlineColor = Color3.fromRGB(200, 180, 255)
-    PlayerHighlight.FillTransparency = 0.5
-    PlayerHighlight.OutlineTransparency = 0
-    PlayerHighlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    PlayerHighlight.Adornee = char
-    PlayerHighlight.Parent = char
-    
-    -- Tạo SelectionBox (viền box)
-    PlayerSelectionBox = Instance.new("SelectionBox")
-    PlayerSelectionBox.Name = "AbyssalBox"
-    PlayerSelectionBox.Adornee = char
-    PlayerSelectionBox.Color3 = Color3.fromRGB(140, 60, 255)
-    PlayerSelectionBox.LineThickness = 0.05
-    PlayerSelectionBox.Transparency = 0.3
-    PlayerSelectionBox.SurfaceTransparency = 1
-    PlayerSelectionBox.Parent = char
-end
-
-RemoveHighlight = function()
-    if PlayerHighlight then
-        pcall(function() PlayerHighlight:Destroy() end)
-        PlayerHighlight = nil
-    end
-    if PlayerSelectionBox then
-        pcall(function() PlayerSelectionBox:Destroy() end)
-        PlayerSelectionBox = nil
-    end
-    
-    local char = LP.Character
-    if char then
-        for _, child in ipairs(char:GetChildren()) do
-            if child.Name == "AbyssalHighlight" or child.Name == "AbyssalBox" then
-                pcall(function() child:Destroy() end)
-            end
-        end
-    end
-end
 
 -- ============================================================
 -- АВТОВЫБОР ПЕРВОЙ ВКЛАДКИ
