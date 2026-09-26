@@ -1,6 +1,7 @@
 -- ============================================================
 -- UI LIBRARY "ABYSSALHUB"
 -- ============================================================
+print("TEST 1")
 
 local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
@@ -235,6 +236,8 @@ activeTween = nil
 StopActiveTween = function() end
 AddHighlight = function() end
 RemoveHighlight = function() end
+FastAttack = false
+FastAttackDelay = 0.03
 
 -- ============================================================
 -- HIGHLIGHT PLAYER KHI BẬT AUTO FARM
@@ -888,8 +891,10 @@ end)
 -- ============================================================
 -- ДЕМОНСТРАЦИЯ (СОЗДАНИЕ ЭЛЕМЕНТОВ)
 -- ============================================================
+print("TEST 2")
 local TabStats = Library:CreateTab("Stats & Server")
 local TabSettings = Library:CreateTab("Settings")
+print("TEST 3")
 local Tab1 = Library:CreateTab("Main")
 
 --  ---------UI CONTROL---------
@@ -930,6 +935,16 @@ LP.CharacterAdded:Connect(function(char)
     end
 end)
 
+print("TEST 4")
+-- Fast Attack toggle
+Library:CreateToggle(TabSettings, "Fast Attack", false, function(v)
+    FastAttack = v
+end)
+
+Library:CreateSlider(TabSettings, "Fast Attack Delay", 0.01, 0.2, 0.03, function(v)
+    FastAttackDelay = v
+end)
+print("TEST 5")
 -- ---------- TAB STATS & SERVER ----------
 local Player = Players.LocalPlayer
 local JoinTime = tick()
@@ -1418,4 +1433,5 @@ pcall(function()
     end
 end)
 
+print("TEST 6")
 return Library
