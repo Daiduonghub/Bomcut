@@ -1263,11 +1263,12 @@ task.spawn(function()
             
             pcall(AutoAcceptQuest)
             
-            -- Bring Mob: kéo quái trong bán kính về gần player
+            -- Bring Mob: xep mob thanh vong tron quanh player
             if BM_On then
                 pcall(function()
                     local enemiesFolder = workspace:FindFirstChild("Enemies")
                     if enemiesFolder then
+                        local index = 0
                         for _, mob in ipairs(enemiesFolder:GetChildren()) do
                             if mob.Name == CurrentMobName then
                                 local mHum = mob:FindFirstChild("Humanoid")
@@ -1275,11 +1276,18 @@ task.spawn(function()
                                 if mHum and mRoot and mHum.Health > 0 then
                                     local mDist = (root.Position - mRoot.Position).Magnitude
                                     if mDist <= BM_Range and mDist > 8 then
-                                        mRoot.CFrame = root.CFrame * CFrame.new(
-                                            math.random(-BM_Offset, BM_Offset),
-                                            0,
-                                            math.random(-BM_Offset, BM_Offset)
+                                        local angle = (index * 60) * math.pi / 180
+                                        local ringDist = BM_Offset + (math.floor(index / 6) * BM_Offset)
+                                        local offsetX = math.cos(angle) * ringDist
+                                        local offsetZ = math.sin(angle) * ringDist
+                                        
+                                        mRoot.CFrame = CFrame.new(
+                                            root.Position.X + offsetX,
+                                            root.Position.Y,
+                                            root.Position.Z + offsetZ
                                         )
+                                        
+                                        index = index + 1
                                     end
                                 end
                             end
@@ -1288,7 +1296,7 @@ task.spawn(function()
                 end)
             end
             
-            -- Tìm mob bán kính RỘNG 2000 studs
+            -- Tim mob ban kinh RONG 2000 studs
             local target = FindNearestMob(CurrentMobName, 2000)
             currentTarget = target
             
@@ -1299,8 +1307,8 @@ task.spawn(function()
                 if tHum and tHum.Health > 0 and mobRoot then
                     local distToMob = (root.Position - mobRoot.Position).Magnitude
                     
-                    if distToMob > 20 then
-                        -- Xa mob -> tween tới
+                    if distToMob > 20 and not BM_On then
+                        -- Chi tween khi KHONG bat Bring Mob
                         if not activeTween or activeTween.PlaybackState ~= Enum.PlaybackState.Playing then
                             local dest = CFrame.new(mobRoot.Position + Vector3.new(0, 10, 0))
                             local dist = (root.Position - dest.Position).Magnitude
@@ -1313,17 +1321,33 @@ task.spawn(function()
                                 activeTween = nil
                             end)
                         end
+                    elseif distToMob > 20 and BM_On then
+                        -- Bring Mob ON -> chi tween neu mob o xa (qua 100 studs)
+                        if distToMob > 100 then
+                            if not activeTween or activeTween.PlaybackState ~= Enum.PlaybackState.Playing then
+                                local dest = CFrame.new(mobRoot.Position + Vector3.new(0, 10, 0))
+                                local dist = (root.Position - dest.Position).Magnitude
+                                local duration = math.clamp(dist / TweenSpeed, 0.1, 15)
+                                activeTween = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Sine), {
+                                    CFrame = dest
+                                })
+                                activeTween:Play()
+                                activeTween.Completed:Connect(function()
+                                    activeTween = nil
+                                end)
+                            end
+                        end
                     else
                         StopActiveTween()
                         root.CFrame = CFrame.new(mobRoot.Position + Vector3.new(0, 10, 0))
                     end
                     
-                    -- Đánh
-                    if distToMob <= 15 then
+                    -- Danh
+                    if distToMob <= 30 then
                         pcall(function()
                             RegisterAttack:FireServer(AttackDelay, HitCount)
                             
-                            -- Lấy TẤT CẢ mob cùng loại đang ở gần (đã bị bring mob kéo về)
+                            -- Lay TAT CA mob cung loai dang o gan
                             local allTargets = {}
                             local enemiesFolder = workspace:FindFirstChild("Enemies")
                             if enemiesFolder then
@@ -1333,7 +1357,7 @@ task.spawn(function()
                                         local mRoot = mob:FindFirstChild("HumanoidRootPart")
                                         if mHum and mRoot and mHum.Health > 0 then
                                             local mDist = (root.Position - mRoot.Position).Magnitude
-                                            if mDist <= (BM_On and (BM_Range + 20) or 20) then
+                                            if mDist <= (BM_On and (BM_Range + 20) or 30) then
                                                 table.insert(allTargets, mob)
                                             end
                                         end
@@ -1341,7 +1365,6 @@ task.spawn(function()
                                 end
                             end
                             
-                            -- Nếu không có mob nào trong list (fallback) -> dùng target gốc
                             if #allTargets == 0 then
                                 table.insert(allTargets, target)
                             end
@@ -1375,7 +1398,7 @@ task.spawn(function()
                     end
                 end
             else
-                -- Không có mob -> bay tới vị trí spawn chờ
+                -- Khong co mob -> bay toi vi tri spawn cho
                 currentTarget = nil
                 
                 if QuestCFrame then
