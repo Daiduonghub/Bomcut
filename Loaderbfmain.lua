@@ -1279,36 +1279,34 @@ task.spawn(function()
 if distToMob <= 15 then
     pcall(function()
         RegisterAttack:FireServer(AttackDelay, HitCount)
-    end)
-    
-    local hitParts = {}
-    pcall(function()
+        
+        local hitParts = {}
         for _, p in ipairs(target:GetDescendants()) do
             if p:IsA("BasePart") then
                 table.insert(hitParts, p)
             end
         end
+        
+        if #hitParts == 0 then return end
+        
+        if FA_On then
+            for i = 1, 15 do
+                for _, p in ipairs(hitParts) do
+                    pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
+                    pcall(function() RegisterHit:FireServer(p, {}) end)
+                end
+                task.wait(FA_Delay or 0.03)
+            end
+        else
+            for i = 1, HitCount do
+                for _, p in ipairs(hitParts) do
+                    pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
+                    pcall(function() RegisterHit:FireServer(p, {}) end)
+                end
+                task.wait(AttackDelay / HitCount)
+            end
+        end
     end)
-    
-    if #hitParts == 0 then
-        task.wait(0.1)
-    elseif FA_On then
-        for i = 1, 15 do
-            for _, p in ipairs(hitParts) do
-                pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
-                pcall(function() RegisterHit:FireServer(p, {}) end)
-            end
-            task.wait(FA_Delay or 0.03)
-        end
-    else
-        for i = 1, HitCount do
-            for _, p in ipairs(hitParts) do
-                pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
-                pcall(function() RegisterHit:FireServer(p, {}) end)
-            end
-            task.wait(AttackDelay / HitCount)
-        end
-    end
 end
             else
                 -- Không có mob → bay tới vị trí spawn chờ
