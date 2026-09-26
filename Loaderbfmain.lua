@@ -1281,23 +1281,30 @@ if distToMob <= 15 then
         RegisterAttack:FireServer(AttackDelay, HitCount)
     end)
     
-    if FA_On then
+    local hitParts = {}
+    pcall(function()
+        for _, p in ipairs(target:GetDescendants()) do
+            if p:IsA("BasePart") then
+                table.insert(hitParts, p)
+            end
+        end
+    end)
+    
+    if #hitParts == 0 then
+        task.wait(0.1)
+    elseif FA_On then
         for i = 1, 15 do
-            for _, p in ipairs(target:GetDescendants()) do
-                if p:IsA("BasePart") then
-                    pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
-                    pcall(function() RegisterHit:FireServer(p, {}) end)
-                end
+            for _, p in ipairs(hitParts) do
+                pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
+                pcall(function() RegisterHit:FireServer(p, {}) end)
             end
             task.wait(FA_Delay or 0.03)
         end
     else
         for i = 1, HitCount do
-            for _, p in ipairs(target:GetDescendants()) do
-                if p:IsA("BasePart") then
-                    pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
-                    pcall(function() RegisterHit:FireServer(p, {}) end)
-                end
+            for _, p in ipairs(hitParts) do
+                pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
+                pcall(function() RegisterHit:FireServer(p, {}) end)
             end
             task.wait(AttackDelay / HitCount)
         end
@@ -1358,7 +1365,7 @@ RunService.Stepped:Connect(function()
     local dist = (root.Position - mobRoot.Position).Magnitude
     
     if dist <= 20 then
-        -- ✅ ĐÃ Ở TRÊN ĐẦU MOB → ANCHOR CỨNG
+        -- ĐÃ Ở TRÊN ĐẦU MOB → ANCHOR CỨNG
         if activeTween then
             activeTween:Cancel()
             activeTween = nil
@@ -1369,7 +1376,7 @@ RunService.Stepped:Connect(function()
         root.Velocity = Vector3.zero
         root.RotVelocity = Vector3.zero
     else
-        -- ⚠️ ĐANG BAY → UNANCHOR ĐỂ TWEEN HOẠT ĐỘNG
+        -- ĐANG BAY → UNANCHOR ĐỂ TWEEN HOẠT ĐỘNG
         if root.Anchored then root.Anchored = false end
     end
 end)
