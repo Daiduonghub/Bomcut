@@ -1184,15 +1184,15 @@ task.spawn(function()
                 if tHum and tHum.Health > 0 and mobRoot then
                     local distToMob = (root.Position - mobRoot.Position).Magnitude
                     
-                    if distToMob > 15 then
+                    if distToMob > 20 then
                         -- Xa mob → tween tới
                         if not activeTween or activeTween.PlaybackState ~= Enum.PlaybackState.Playing then
                             local dest = CFrame.new(mobRoot.Position + Vector3.new(0, 10, 0))
                             local dist = (root.Position - dest.Position).Magnitude
-                            local duration = math.clamp(dist / TweenSpeed, 0.1, 8)
-                            activeTween = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
-                                CFrame = dest
-                            })
+                            local duration = math.clamp(dist / TweenSpeed, 0.1, 15)
+                            activeTween = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Sine), {
+    CFrame = dest
+})
                             activeTween:Play()
                             activeTween.Completed:Connect(function()
                                 activeTween = nil
@@ -1234,10 +1234,10 @@ task.spawn(function()
                         if not activeTween or activeTween.PlaybackState ~= Enum.PlaybackState.Playing then
                             local dest = QuestCFrame + Vector3.new(0, 10, 0)
                             local dist = (root.Position - dest.Position).Magnitude
-                            local duration = math.clamp(dist / TweenSpeed, 0.1, 8)
-                            activeTween = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
-                                CFrame = dest
-                            })
+                            local duration = math.clamp(dist / TweenSpeed, 0.1, 15)
+                            activeTween = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Sine), {
+    CFrame = dest
+})
                             activeTween:Play()
                             activeTween.Completed:Connect(function()
                                 activeTween = nil
@@ -1278,7 +1278,7 @@ RunService.Stepped:Connect(function()
     
     local dist = (root.Position - mobRoot.Position).Magnitude
     
-    if dist <= 15 then
+    if dist <= 20 then
         -- ✅ ĐÃ Ở TRÊN ĐẦU MOB → ANCHOR CỨNG
         if activeTween then
             activeTween:Cancel()
