@@ -1070,8 +1070,28 @@ local function FireRegisterHit(targetPart)
 end
 
 -- ============================================================
--- QUEST SYSTEM (so sánh theo TÊN QUEST, không phải Mob)
+-- QUEST SYSTEM (CHECK QUA PLAYERGUI - ĐƠN GIẢN)
 -- ============================================================
+local function GetLocalPlayer()
+    return LP -- LP đã khai báo ở đầu file
+end
+
+local function HasActiveQuest()
+    local player = GetLocalPlayer()
+    if not player then return false end
+
+    local playerGui = player:FindFirstChild("PlayerGui")
+    if not playerGui then return false end
+
+    -- FindFirstChild recursive để tìm sâu nếu frame bị nest
+    local trackedFrame = playerGui:FindFirstChild("TrackedQuestFrame", true)
+    if trackedFrame and trackedFrame.Visible then
+        return true
+    end
+
+    return false
+end
+
 local function FindQuestByLevel(level)
     for _, q in ipairs(FirstSeaQuests) do
         if level >= q.MinLevel and level <= q.MaxLevel then
@@ -1087,10 +1107,10 @@ local function AutoAcceptQuest()
     if not questData then return nil end
     
     local questKey = questData.QuestName .. "|" .. tostring(questData.QuestId)
+    local hasQuest = HasActiveQuest()
     
-    -- CHỈ nhận quest khi quest key KHÁC (level đổi hoặc đổi quest part)
-    -- KHÔNG check HasQuest() → tránh spam
-    if CurrentQuestName ~= questKey then
+    -- Nếu CHƯA có quest HOẶC quest khác level → nhận lại
+    if not hasQuest or CurrentQuestName ~= questKey then
         if tick() < QuestCooldown then return nil end
         
         pcall(function()
@@ -1100,7 +1120,7 @@ local function AutoAcceptQuest()
         CurrentQuestName = questKey
         CurrentMobName = questData.MobName
         QuestCFrame = questData.MobSpawn
-        QuestCooldown = tick() + 5 -- Cooldown 5s, tránh spam
+        QuestCooldown = tick() + 3
         
         return questData
     end
