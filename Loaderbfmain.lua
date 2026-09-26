@@ -224,7 +224,7 @@ local Library = {}
 Library.Tabs = {}
 Library.CurrentTab = nil
 
--- ============================================================
+--- ============================================================
 -- GLOBAL VARS (KHAI BÁO TRƯỚC ĐỂ TOGGLE KHÔNG LỖI)
 -- ============================================================
 AutoFarm = false
@@ -232,7 +232,9 @@ CurrentQuestName = nil
 QuestCooldown = 0
 currentTarget = nil
 activeTween = nil
-StopActiveTween = function() end -- hàm rỗng, sẽ ghi đè sau
+StopActiveTween = function() end
+AddHighlight = function() end    -- ⬅️ THÊM
+RemoveHighlight = function() end -- ⬅️ THÊM
 
 function Library:Notify(title, text, duration)
     duration = duration or 4
@@ -1300,7 +1302,7 @@ end)
 local PlayerHighlight = nil
 local PlayerSelectionBox = nil
 
-local function AddHighlight()
+AddHighlight()
     local char = LP.Character
     if not char then return end
     
@@ -1336,7 +1338,7 @@ local function AddHighlight()
     PlayerSelectionBox.Parent = char
 end
 
-local function RemoveHighlight()
+RemoveHighlight()
     if PlayerHighlight then
         pcall(function() PlayerHighlight:Destroy() end)
         PlayerHighlight = nil
