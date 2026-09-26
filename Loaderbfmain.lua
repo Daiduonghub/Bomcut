@@ -223,6 +223,16 @@ local Library = {}
 Library.Tabs = {}
 Library.CurrentTab = nil
 
+-- ============================================================
+-- GLOBAL VARS (KHAI BÁO TRƯỚC ĐỂ TOGGLE KHÔNG LỖI)
+-- ============================================================
+AutoFarm = false
+CurrentQuestName = nil
+QuestCooldown = 0
+currentTarget = nil
+activeTween = nil
+StopActiveTween = function() end -- hàm rỗng, sẽ ghi đè sau
+
 function Library:Notify(title, text, duration)
     duration = duration or 4
     local NotifFrame = Instance.new("Frame")
@@ -812,7 +822,7 @@ Library:CreateToggle(Tab1, "Auto Farm Level", false, function(v)
         Library:Notify("AbyssalHub", "Auto Farm: ON", 2)
     else
         currentTarget = nil
-        StopActiveTween()
+        if StopActiveTween then StopActiveTween() end
         local char = LP.Character
         if char then
             local root = char:FindFirstChild("HumanoidRootPart")
@@ -821,6 +831,7 @@ Library:CreateToggle(Tab1, "Auto Farm Level", false, function(v)
         Library:Notify("AbyssalHub", "Auto Farm: OFF", 2)
     end
 end)
+
 
 -- ---------- TAB STATS & SERVER ----------
 local Player = Players.LocalPlayer
