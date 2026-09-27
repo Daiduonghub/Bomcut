@@ -767,6 +767,295 @@ function Library:CreateSlider(tab, name, min, max, default, callback)
 end
 
 -- ============================================================
+-- HAM TAO DROPDOWN (LIST CHON, KEO DUOC)
+-- ============================================================
+function Library:CreateDropdown(tab, name, options, default, callback)
+    options = options or {}
+    default = default or (options[1] or "")
+    
+    -- Khung chua
+    local DropFrame = Instance.new("Frame")
+    DropFrame.Size = UDim2.new(1, -12, 0, 40)
+    DropFrame.BackgroundColor3 = Color3.fromRGB(22, 16, 38)
+    DropFrame.BackgroundTransparency = 0.4
+    DropFrame.BorderSizePixel = 0
+    DropFrame.ClipsDescendants = false
+    DropFrame.ZIndex = 5
+    DropFrame.Parent = tab.Frame
+    
+    local DCorner = Instance.new("UICorner")
+    DCorner.CornerRadius = UDim.new(0, 10)
+    DCorner.Parent = DropFrame
+    
+    -- Label ten
+    local DLabel = Instance.new("TextLabel")
+    DLabel.Size = UDim2.new(0.5, 0, 1, 0)
+    DLabel.Position = UDim2.new(0, 14, 0, 0)
+    DLabel.BackgroundTransparency = 1
+    DLabel.Text = name
+    DLabel.TextColor3 = Color3.fromRGB(220, 220, 240)
+    DLabel.TextSize = 13
+    DLabel.Font = Enum.Font.GothamMedium
+    DLabel.TextXAlignment = Enum.TextXAlignment.Left
+    DLabel.ZIndex = 6
+    DLabel.Parent = DropFrame
+    
+    -- Hien thi lua chon hien tai
+    local SelectedLbl = Instance.new("TextLabel")
+    SelectedLbl.Size = UDim2.new(0.45, -30, 1, 0)
+    SelectedLbl.Position = UDim2.new(0.5, 0, 0, 0)
+    SelectedLbl.BackgroundTransparency = 1
+    SelectedLbl.Text = tostring(default)
+    SelectedLbl.TextColor3 = Color3.fromRGB(140, 60, 255)
+    SelectedLbl.TextSize = 13
+    SelectedLbl.Font = Enum.Font.GothamBold
+    SelectedLbl.TextXAlignment = Enum.TextXAlignment.Right
+    SelectedLbl.ZIndex = 6
+    SelectedLbl.Parent = DropFrame
+    
+    -- Mui ten chi xuong
+    local Arrow = Instance.new("TextLabel")
+    Arrow.Size = UDim2.new(0, 20, 1, 0)
+    Arrow.Position = UDim2.new(1, -24, 0, 0)
+    Arrow.BackgroundTransparency = 1
+    Arrow.Text = "▼"
+    Arrow.TextColor3 = Color3.fromRGB(140, 60, 255)
+    Arrow.TextSize = 10
+    Arrow.Font = Enum.Font.GothamBold
+    Arrow.ZIndex = 6
+    Arrow.Parent = DropFrame
+    
+    -- Nut click
+    local DButton = Instance.new("TextButton")
+    DButton.Size = UDim2.new(1, 0, 1, 0)
+    DButton.BackgroundTransparency = 1
+    DButton.Text = ""
+    DButton.ZIndex = 7
+    DButton.Parent = DropFrame
+    
+    -- Bang danh sach (list options)
+    local ListFrame = Instance.new("ScrollingFrame")
+    ListFrame.Size = UDim2.new(1, 0, 0, 0)
+    ListFrame.Position = UDim2.new(0, 0, 1, 4)
+    ListFrame.BackgroundColor3 = Color3.fromRGB(18, 12, 30)
+    ListFrame.BackgroundTransparency = 0.05
+    ListFrame.BorderSizePixel = 0
+    ListFrame.ScrollBarThickness = 3
+    ListFrame.ScrollBarImageColor3 = Color3.fromRGB(140, 60, 255)
+    ListFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+    ListFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    ListFrame.Visible = false
+    ListFrame.ZIndex = 20
+    ListFrame.Parent = DropFrame
+    
+    local LCorner = Instance.new("UICorner")
+    LCorner.CornerRadius = UDim.new(0, 8)
+    LCorner.Parent = ListFrame
+    
+    local LStroke = Instance.new("UIStroke")
+    LStroke.Color = Color3.fromRGB(140, 60, 255)
+    LStroke.Thickness = 1
+    LStroke.Transparency = 0.4
+    LStroke.Parent = ListFrame
+    
+    local LLayout = Instance.new("UIListLayout")
+    LLayout.Padding = UDim.new(0, 2)
+    LLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    LLayout.Parent = ListFrame
+    
+    local LPad = Instance.new("UIPadding")
+    LPad.PaddingTop = UDim.new(0, 4)
+    LPad.PaddingLeft = UDim.new(0, 4)
+    LPad.PaddingRight = UDim.new(0, 4)
+    LPad.PaddingBottom = UDim.new(0, 4)
+    LPad.Parent = ListFrame
+    
+    local isOpen = false
+    local currentValue = default
+    local optionButtons = {}
+    
+    -- Ham cap nhat gia tri hien thi
+    local function setValue(v)
+        currentValue = v
+        SelectedLbl.Text = tostring(v)
+        if callback then callback(v) end
+    end
+    
+    -- Tao tung option trong list
+    for _, opt in ipairs(options) do
+        local OptBtn = Instance.new("TextButton")
+        OptBtn.Size = UDim2.new(1, 0, 0, 28)
+        OptBtn.BackgroundColor3 = Color3.fromRGB(28, 22, 45)
+        OptBtn.BackgroundTransparency = 0.5
+        OptBtn.Text = tostring(opt)
+        OptBtn.TextColor3 = Color3.fromRGB(220, 220, 240)
+        OptBtn.TextSize = 12
+        OptBtn.Font = Enum.Font.GothamMedium
+        OptBtn.BorderSizePixel = 0
+        OptBtn.TextXAlignment = Enum.TextXAlignment.Left
+        OptBtn.ZIndex = 21
+        OptBtn.Parent = ListFrame
+        
+        local OCorner = Instance.new("UICorner")
+        OCorner.CornerRadius = UDim.new(0, 6)
+        OCorner.Parent = OptBtn
+        
+        local OPad = Instance.new("UIPadding")
+        OPad.PaddingLeft = UDim.new(0, 10)
+        OPad.Parent = OptBtn
+        
+        table.insert(optionButtons, {Btn = OptBtn, Value = opt})
+        
+        OptBtn.MouseEnter:Connect(function()
+            if currentValue ~= opt then
+                TweenService:Create(OptBtn, TweenInfo.new(0.1), {BackgroundTransparency = 0.2}):Play()
+            end
+        end)
+        OptBtn.MouseLeave:Connect(function()
+            if currentValue ~= opt then
+                TweenService:Create(OptBtn, TweenInfo.new(0.1), {BackgroundTransparency = 0.5}):Play()
+            end
+        end)
+        
+        OptBtn.MouseButton1Click:Connect(function()
+            -- Reset tat ca ve mau cu
+            for _, ob in ipairs(optionButtons) do
+                TweenService:Create(ob.Btn, TweenInfo.new(0.15), {
+                    BackgroundColor3 = Color3.fromRGB(28, 22, 45),
+                    BackgroundTransparency = 0.5,
+                    TextColor3 = Color3.fromRGB(220, 220, 240)
+                }):Play()
+            end
+            -- Highlight option duoc chon
+            TweenService:Create(OptBtn, TweenInfo.new(0.15), {
+                BackgroundColor3 = Color3.fromRGB(140, 60, 255),
+                BackgroundTransparency = 0.2,
+                TextColor3 = Color3.fromRGB(255, 255, 255)
+            }):Play()
+            
+            setValue(opt)
+            
+            -- Dong list
+            isOpen = false
+            TweenService:Create(ListFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+                Size = UDim2.new(1, 0, 0, 0)
+            }):Play()
+            task.delay(0.2, function()
+                ListFrame.Visible = false
+            end)
+            TweenService:Create(Arrow, TweenInfo.new(0.2), {Rotation = 0}):Play()
+        end)
+    end
+    
+    -- Highlight option mac dinh
+    for _, ob in ipairs(optionButtons) do
+        if ob.Value == currentValue then
+            ob.Btn.BackgroundColor3 = Color3.fromRGB(140, 60, 255)
+            ob.Btn.BackgroundTransparency = 0.2
+            ob.Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        end
+    end
+    
+    -- Toggle dong/mo list
+    DButton.MouseButton1Click:Connect(function()
+        isOpen = not isOpen
+        
+        if isOpen then
+            -- Mo
+            ListFrame.Visible = true
+            local listHeight = math.min(#options * 30 + 12, 150)
+            TweenService:Create(ListFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Size = UDim2.new(1, 0, 0, listHeight)
+            }):Play()
+            TweenService:Create(Arrow, TweenInfo.new(0.2), {Rotation = 180}):Play()
+        else
+            -- Dong
+            TweenService:Create(ListFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                Size = UDim2.new(1, 0, 0, 0)
+            }):Play()
+            TweenService:Create(Arrow, TweenInfo.new(0.2), {Rotation = 0}):Play()
+            task.delay(0.2, function()
+                ListFrame.Visible = false
+            end)
+        end
+    end)
+    
+    -- Hover hieu ung nut
+    DButton.MouseEnter:Connect(function()
+        TweenService:Create(DropFrame, TweenInfo.new(0.15), {BackgroundTransparency = 0.2}):Play()
+    end)
+    DButton.MouseLeave:Connect(function()
+        TweenService:Create(DropFrame, TweenInfo.new(0.15), {BackgroundTransparency = 0.4}):Play()
+    end)
+    
+    -- Tra ve object de dieu khien tu ben ngoai
+    return {
+        Frame = DropFrame,
+        Set = setValue,
+        Get = function() return currentValue end,
+        SetOptions = function(newOptions)
+            -- Xoa list cu
+            for _, ob in ipairs(optionButtons) do
+                ob.Btn:Destroy()
+            end
+            optionButtons = {}
+            
+            -- Tao lai
+            for _, opt in ipairs(newOptions) do
+                local OptBtn = Instance.new("TextButton")
+                OptBtn.Size = UDim2.new(1, 0, 0, 28)
+                OptBtn.BackgroundColor3 = Color3.fromRGB(28, 22, 45)
+                OptBtn.BackgroundTransparency = 0.5
+                OptBtn.Text = tostring(opt)
+                OptBtn.TextColor3 = Color3.fromRGB(220, 220, 240)
+                OptBtn.TextSize = 12
+                OptBtn.Font = Enum.Font.GothamMedium
+                OptBtn.BorderSizePixel = 0
+                OptBtn.TextXAlignment = Enum.TextXAlignment.Left
+                OptBtn.ZIndex = 21
+                OptBtn.Parent = ListFrame
+                
+                local OCorner = Instance.new("UICorner")
+                OCorner.CornerRadius = UDim.new(0, 6)
+                OCorner.Parent = OptBtn
+                
+                local OPad = Instance.new("UIPadding")
+                OPad.PaddingLeft = UDim.new(0, 10)
+                OPad.Parent = OptBtn
+                
+                table.insert(optionButtons, {Btn = OptBtn, Value = opt})
+                
+                OptBtn.MouseButton1Click:Connect(function()
+                    for _, ob in ipairs(optionButtons) do
+                        TweenService:Create(ob.Btn, TweenInfo.new(0.15), {
+                            BackgroundColor3 = Color3.fromRGB(28, 22, 45),
+                            BackgroundTransparency = 0.5,
+                            TextColor3 = Color3.fromRGB(220, 220, 240)
+                        }):Play()
+                    end
+                    TweenService:Create(OptBtn, TweenInfo.new(0.15), {
+                        BackgroundColor3 = Color3.fromRGB(140, 60, 255),
+                        BackgroundTransparency = 0.2,
+                        TextColor3 = Color3.fromRGB(255, 255, 255)
+                    }):Play()
+                    
+                    setValue(opt)
+                    
+                    isOpen = false
+                    TweenService:Create(ListFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+                        Size = UDim2.new(1, 0, 0, 0)
+                    }):Play()
+                    task.delay(0.2, function()
+                        ListFrame.Visible = false
+                    end)
+                    TweenService:Create(Arrow, TweenInfo.new(0.2), {Rotation = 0}):Play()
+                end)
+            end
+        end
+    }
+end
+
+-- ============================================================
 -- ФУНКЦИЯ СОЗДАНИЯ IMAGE
 -- ============================================================
 function Library:CreateImage(tab, imageId, height)
@@ -936,6 +1225,10 @@ end)
 
 Library:CreateSlider(TabSettings, "BM_Spread", 3, 20, 8, function(v)
     BM_Offset = v
+end)
+
+Library:CreateDropdown(TabSettings, "Chon Mob", {"Bandit", "Monkey", "Gorilla", "Pirate", "Brute"}, "Bandit", function(value)
+    CurrentMobName = value
 end)
 
 -- ---------- TAB STATS & SERVER ----------
