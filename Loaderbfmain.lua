@@ -1384,11 +1384,12 @@ task.spawn(function()
 end)
 
 -- ============================================================
--- RIVALS FEATURES
+-- RIVALS FEATURES — MOBILE
 -- ============================================================
 local LP = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 local UIS = UserInputService
+local VIM = game:GetService("VirtualInputManager")
 
 -- ============================================================
 -- HELPERS
@@ -1407,9 +1408,8 @@ end
 
 local function IsTeam(plr)
     if plr == LP then return true end
-    local myTeam = LP.Team
-    local theirTeam = plr.Team
-    return myTeam ~= nil and theirTeam ~= nil and myTeam == theirTeam
+    local a, b = LP.Team, plr.Team
+    return a ~= nil and b ~= nil and a == b
 end
 
 local function GetTargets(filterTeam)
@@ -1431,20 +1431,10 @@ end
 
 local function GetFOVTarget(fov, part, followESP)
     local center = Camera.ViewportSize / 2
-    local best, bestDist = nil, fov
-    
-    -- Nếu followESP: dùng filter giống ESP (ẩn team nếu ESP.Team = true)
-    -- Nếu không: dùng Aim.Team riêng
-    local filterTeam
-    if followESP then
-        filterTeam = _G.ESP.Team
-    else
-        filterTeam = _G.Aim.Team
-    end
-    
-    -- AimAll: nếu true thì bỏ qua giới hạn FOV → aim người gần tâm nhất
+    local filterTeam = followESP and _G.ESP.Team or _G.Aim.Team
     local effectiveFOV = _G.Aim.AimAll and 1e9 or fov
-    
+    local best, bestDist = nil, effectiveFOV
+
     for _, plr in ipairs(GetTargets(filterTeam)) do
         local root = GetRoot(plr)
         if root then
@@ -1452,7 +1442,7 @@ local function GetFOVTarget(fov, part, followESP)
             local sp, onScreen = WorldToScreen(targetPart.Position)
             if onScreen then
                 local d = (sp - center).Magnitude
-                if d < effectiveFOV and d < bestDist then
+                if d < bestDist then
                     bestDist = d
                     best = plr
                 end
@@ -1463,19 +1453,11 @@ local function GetFOVTarget(fov, part, followESP)
 end
 
 -- ============================================================
--- AIMBOT (Camera lock)
+-- AIMBOT — mobile: luôn bật khi toggle ON
 -- ============================================================
-local aimHeld = false
-UIS.InputBegan:Connect(function(i, gpe)
-    if gpe then return end
-    if i.UserInputType == _G.Aim.Key then aimHeld = true end
-end)
-UIS.InputEnded:Connect(function(i)
-    if i.UserInputType == _G.Aim.Key then aimHeld = false end
-end)
-
 RunService.RenderStepped:Connect(function()
-    if not _G.Aim.Enabled or not aimHeld then return end
+    if not _G.Aim.Enabled then return end
+    if not IsAlive(LP) then return end
     local target = GetFOVTarget(_G.Aim.FOV, _G.Aim.Part, _G.Aim.FollowESP)
     if not target then return end
     local part = target.Character:FindFirstChild(_G.Aim.Part) or GetRoot(target)
@@ -1485,174 +1467,282 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -- ============================================================
--- SILENT AIM (hook mouse hit)
+-- SILENT AIM — bọc pcall, mobile có thể không hỗ trợ
 -- ============================================================
-local oldNamecall
-oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-    local method = getnamecallmethod()
-    if _G.Silent.Enabled and (method == "FindPartOnRay" or method == "FindPartOnRayWithIgnoreList" or method == "Raycast") then
-        local target = GetFOVTarget(_G.Silent.FOV, "Head")
-        if target then
-            local head = target.Character and target.Character:FindFirstChild("Head")
-            if head then
-                if method == "Raycast" then
-                    local args = {...}
-                    local params = args[2]
-                    local origin = Camera.CFrame.Position
-                    local dir = (head.Position - origin)
-                    args[2] = RaycastParams.new()
-                    args[2].FilterDescendantsInstances = {target.Character}
-                    args[2].FilterType = Enum.RaycastFilterType.Include
-                    return oldNamecall(self, origin, dir, args[2])
-                else
-                    local args = {...}
-                    args[1] = Ray.new(Camera.CFrame.Position, (head.Position - Camera.CFrame.Position).Unit * 1000)
-                    return oldNamecall(self, unpack(args))
-                end
-            end
-        end
-    end
-    return oldNamecall(self, ...)
-end)
-
--- ============================================================
--- TRIGGERBOT (dựa vào crosshair gần target)
--- ============================================================
-task.spawn(function()
-    while task.wait(_G.Trig.Delay) do
-        if not _G.Trig.Enabled then continue end
-        local center = Camera.ViewportSize / 2
-        for _, plr in ipairs(GetTargets()) do
-            local root = GetRoot(plr)
-            if root then
-                local sp, onScreen, depth = WorldToScreen(root.Position)
-                if onScreen and (sp - center).Magnitude < _G.Trig.Range then
-                    if not _G.Trig.Team or not IsTeam(plr) then
-                        pcall(function()
-                            mouse1click()
-                        end)
-                        break
+pcall(function()
+    local oldNamecall
+    oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+        local method = getnamecallmethod()
+        if _G.Silent.Enabled and (method == "FindPartOnRay" or method == "FindPartOnRayWithIgnoreList" or method == "Raycast") then
+            local target = GetFOVTarget(_G.Silent.FOV, "Head")
+            if target then
+                local head = target.Character and target.Character:FindFirstChild("Head")
+                if head then
+                    if method == "Raycast" then
+                        local args = {...}
+                        local origin = Camera.CFrame.Position
+                        local dir = (head.Position - origin)
+                        local params = RaycastParams.new()
+                        params.FilterDescendantsInstances = {target.Character}
+                        params.FilterType = Enum.RaycastFilterType.Include
+                        return oldNamecall(self, origin, dir, params)
+                    else
+                        local args = {...}
+                        args[1] = Ray.new(Camera.CFrame.Position, (head.Position - Camera.CFrame.Position).Unit * 1000)
+                        return oldNamecall(self, unpack(args))
                     end
                 end
             end
         end
+        return oldNamecall(self, ...)
+    end)
+end)
+
+-- ============================================================
+-- TRIGGERBOT — dùng VirtualInputManager (mobile-safe)
+-- ============================================================
+task.spawn(function()
+    while task.wait(_G.Trig.Delay or 0.05) do
+        if not _G.Trig.Enabled then continue end
+        local center = Camera.ViewportSize / 2
+        for _, plr in ipairs(GetTargets(_G.Trig.Team)) do
+            local root = GetRoot(plr)
+            if root then
+                local sp, onScreen = WorldToScreen(root.Position)
+                if onScreen and (sp - center).Magnitude < _G.Trig.Range then
+                    pcall(function()
+                        VIM:SendMouseButtonEvent(0, 0, 0, true,  game, 1)
+                        VIM:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+                    end)
+                    break
+                end
+            end
+        end
     end
 end)
 
 -- ============================================================
--- ESP
+-- ESP — Instance (không cần Drawing API)
 -- ============================================================
-local ESPFolder = Instance.new("Folder")
-ESPFolder.Name = "AbyssalESP"
-ESPFolder.Parent = ScreenGui
+local ESPGui
+if CoreGui:FindFirstChild("AbyssalESP") then
+    CoreGui.AbyssalESP:Destroy()
+end
+ESPGui = Instance.new("ScreenGui")
+ESPGui.Name = "AbyssalESP"
+ESPGui.ResetOnSpawn = false
+ESPGui.IgnoreGuiInset = true
+ESPGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ESPGui.Parent = CoreGui
 
-local drawings = {}
-local function newDrawing(class, props)
-    local d = Drawing.new(class)
-    for k, v in pairs(props) do d[k] = v end
-    return d
+local espData = {}
+
+local function makeESP(plr)
+    local box = Instance.new("Frame")
+    box.BackgroundTransparency = 1
+    box.BorderSizePixel = 0
+    box.Visible = false
+    box.ZIndex = 2
+    box.Parent = ESPGui
+
+    local boxStroke = Instance.new("UIStroke")
+    boxStroke.Color = Color3.fromRGB(140, 60, 255)
+    boxStroke.Thickness = 1.5
+    boxStroke.Transparency = 0.1
+    boxStroke.Parent = box
+
+    local boxCorner = Instance.new("UICorner")
+    boxCorner.CornerRadius = UDim.new(0, 3)
+    boxCorner.Parent = box
+
+    local nameLbl = Instance.new("TextLabel")
+    nameLbl.BackgroundTransparency = 1
+    nameLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+    nameLbl.TextStrokeTransparency = 0
+    nameLbl.TextSize = 13
+    nameLbl.Font = Enum.Font.GothamBold
+    nameLbl.TextXAlignment = Enum.TextXAlignment.Center
+    nameLbl.Visible = false
+    nameLbl.ZIndex = 3
+    nameLbl.Parent = ESPGui
+
+    local distLbl = Instance.new("TextLabel")
+    distLbl.BackgroundTransparency = 1
+    distLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
+    distLbl.TextStrokeTransparency = 0
+    distLbl.TextSize = 11
+    distLbl.Font = Enum.Font.Gotham
+    distLbl.TextXAlignment = Enum.TextXAlignment.Center
+    distLbl.Visible = false
+    distLbl.ZIndex = 3
+    distLbl.Parent = ESPGui
+
+    local hpBg = Instance.new("Frame")
+    hpBg.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    hpBg.BorderSizePixel = 0
+    hpBg.Visible = false
+    hpBg.ZIndex = 2
+    hpBg.Parent = ESPGui
+
+    local hpBar = Instance.new("Frame")
+    hpBar.BackgroundColor3 = Color3.fromRGB(0, 255, 100)
+    hpBar.BorderSizePixel = 0
+    hpBar.Visible = false
+    hpBar.ZIndex = 3
+    hpBar.Parent = ESPGui
+
+    local tracer = Instance.new("Frame")
+    tracer.BackgroundColor3 = Color3.fromRGB(140, 60, 255)
+    tracer.BorderSizePixel = 0
+    tracer.AnchorPoint = Vector2.new(0.5, 0.5)
+    tracer.Visible = false
+    tracer.ZIndex = 2
+    tracer.Parent = ESPGui
+
+    espData[plr] = {
+        Box = box, Stroke = boxStroke,
+        Name = nameLbl, Dist = distLbl,
+        HpBg = hpBg, HpBar = hpBar,
+        Tracer = tracer,
+    }
 end
 
-local function createESP(plr)
-    local t = {
-        Box = newDrawing("Square", {Thickness = 1, Filled = false, Color = Color3.fromRGB(140, 60, 255), Transparency = 1, Visible = false}),
-        Name = newDrawing("Text", {Size = 14, Center = true, Outline = true, Color = Color3.fromRGB(255, 255, 255), Transparency = 1, Visible = false}),
-        HealthBg = newDrawing("Square", {Thickness = 1, Filled = true, Color = Color3.fromRGB(20, 20, 20), Transparency = 0.5, Visible = false}),
-        HealthBar = newDrawing("Square", {Thickness = 1, Filled = true, Color = Color3.fromRGB(0, 255, 100), Transparency = 1, Visible = false}),
-        Dist = newDrawing("Text", {Size = 12, Center = true, Outline = true, Color = Color3.fromRGB(200, 200, 200), Transparency = 1, Visible = false}),
-        Tracer = newDrawing("Line", {Thickness = 1, Color = Color3.fromRGB(140, 60, 255), Transparency = 1, Visible = false}),
-    }
-    drawings[plr] = t
-    return t
+local function destroyESP(plr)
+    local d = espData[plr]
+    if not d then return end
+    for _, obj in pairs(d) do
+        pcall(function() obj:Destroy() end)
+    end
+    espData[plr] = nil
 end
 
 for _, plr in ipairs(Players:GetPlayers()) do
-    if plr ~= LP then createESP(plr) end
+    if plr ~= LP then makeESP(plr) end
 end
 Players.PlayerAdded:Connect(function(plr)
-    if plr ~= LP then createESP(plr) end
+    if plr ~= LP then makeESP(plr) end
 end)
-Players.PlayerRemoving:Connect(function(plr)
-    if drawings[plr] then
-        for _, d in pairs(drawings[plr]) do pcall(function() d:Remove() end) end
-        drawings[plr] = nil
-    end
-end)
+Players.PlayerRemoving:Connect(destroyESP)
 
 RunService.RenderStepped:Connect(function()
-    for plr, t in pairs(drawings) do
-        local enabled = _G.ESP.Box or _G.ESP.Name or _G.ESP.Health or _G.ESP.Dist or _G.ESP.Tracer
-        if not enabled or not IsAlive(plr) or (_G.ESP.Team and IsTeam(plr)) then
-            for _, d in pairs(t) do d.Visible = false end
+    for plr, d in pairs(espData) do
+        local show = IsAlive(plr)
+        if show and _G.ESP.Team and IsTeam(plr) then
+            show = false
+        end
+
+        if not show then
+            d.Box.Visible = false
+            d.Name.Visible = false
+            d.Dist.Visible = false
+            d.HpBg.Visible = false
+            d.HpBar.Visible = false
+            d.Tracer.Visible = false
             continue
         end
 
         local char = plr.Character
-        local root = char:FindFirstChild("HumanoidRootPart")
         local head = char:FindFirstChild("Head")
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if not root or not head then
-            for _, d in pairs(t) do d.Visible = false end
+        local root = char:FindFirstChild("HumanoidRootPart")
+        local hum  = char:FindFirstChildOfClass("Humanoid")
+        if not head or not root or not hum then
+            d.Box.Visible = false
+            d.Name.Visible = false
+            d.Dist.Visible = false
+            d.HpBg.Visible = false
+            d.HpBar.Visible = false
+            d.Tracer.Visible = false
             continue
         end
 
-        local topPos, topOn = WorldToScreen(head.Position + Vector3.new(0, 0.5, 0))
-        local botPos, botOn = WorldToScreen(root.Position - Vector3.new(0, 3, 0))
-
+        local top, topOn = WorldToScreen(head.Position + Vector3.new(0, 0.5, 0))
+        local bot, botOn = WorldToScreen(root.Position - Vector3.new(0, 3, 0))
         if not (topOn and botOn) then
-            for _, d in pairs(t) do d.Visible = false end
+            d.Box.Visible = false
+            d.Name.Visible = false
+            d.Dist.Visible = false
+            d.HpBg.Visible = false
+            d.HpBar.Visible = false
+            d.Tracer.Visible = false
             continue
         end
 
-        local height = math.abs(botPos.Y - topPos.Y)
-        local width = height * 0.6
-        local boxPos = Vector2.new(topPos.X - width / 2, topPos.Y)
-        local boxSize = Vector2.new(width, height)
-        local dist = (Camera.CFrame.Position - root.Position).Magnitude
+        local height = math.abs(bot.Y - top.Y)
+        local width  = height * 0.6
+        local x      = top.X - width / 2
+        local y      = top.Y
 
-        t.Box.Visible = _G.ESP.Box
-        t.Box.Position = boxPos
-        t.Box.Size = boxSize
+        d.Box.Visible = _G.ESP.Box
+        if _G.ESP.Box then
+            d.Box.Position = UDim2.fromOffset(x, y)
+            d.Box.Size     = UDim2.fromOffset(width, height)
+        end
 
-        t.Name.Visible = _G.ESP.Name
-        t.Name.Position = Vector2.new(topPos.X, topPos.Y - 16)
-        t.Name.Text = plr.Name
+        d.Name.Visible = _G.ESP.Name
+        if _G.ESP.Name then
+            d.Name.Position = UDim2.fromOffset(x, y - 16)
+            d.Name.Size     = UDim2.fromOffset(width, 14)
+            d.Name.Text     = plr.Name
+        end
 
-        t.Dist.Visible = _G.ESP.Dist
-        t.Dist.Position = Vector2.new(topPos.X, botPos.Y + 4)
-        t.Dist.Text = string.format("%d m", dist)
+        local dist3D = (Camera.CFrame.Position - root.Position).Magnitude
+        d.Dist.Visible = _G.ESP.Dist
+        if _G.ESP.Dist then
+            d.Dist.Position = UDim2.fromOffset(x, y + height + 2)
+            d.Dist.Size     = UDim2.fromOffset(width, 12)
+            d.Dist.Text     = string.format("%d m", dist3D)
+        end
 
-        t.HealthBg.Visible = _G.ESP.Health
-        t.HealthBg.Position = Vector2.new(boxPos.X - 6, boxPos.Y)
-        t.HealthBg.Size = Vector2.new(3, height)
-
-        t.HealthBar.Visible = _G.ESP.Health
         local hpct = hum.Health / hum.MaxHealth
-        t.HealthBar.Position = Vector2.new(boxPos.X - 6, boxPos.Y + height * (1 - hpct))
-        t.HealthBar.Size = Vector2.new(3, height * hpct)
-        t.HealthBar.Color = Color3.fromRGB(255 * (1 - hpct), 255 * hpct, 0)
+        d.HpBg.Visible  = _G.ESP.Health
+        d.HpBar.Visible = _G.ESP.Health
+        if _G.ESP.Health then
+            d.HpBg.Position  = UDim2.fromOffset(x - 6, y)
+            d.HpBg.Size      = UDim2.fromOffset(3, height)
+            d.HpBar.Position = UDim2.fromOffset(x - 6, y + height * (1 - hpct))
+            d.HpBar.Size     = UDim2.fromOffset(3, height * hpct)
+            d.HpBar.BackgroundColor3 = Color3.fromRGB(255 * (1 - hpct), 255 * hpct, 0)
+        end
 
-        t.Tracer.Visible = _G.ESP.Tracer
-        t.Tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-        t.Tracer.To = Vector2.new(topPos.X, botPos.Y)
+        d.Tracer.Visible = _G.ESP.Tracer
+        if _G.ESP.Tracer then
+            local fromV = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+            local toV   = Vector2.new(top.X, bot.Y)
+            local mid   = (fromV + toV) / 2
+            local len   = (toV - fromV).Magnitude
+            local ang   = math.deg(math.atan2(toV.Y - fromV.Y, toV.X - fromV.X))
+            d.Tracer.Position = UDim2.fromOffset(mid.X, mid.Y)
+            d.Tracer.Size     = UDim2.fromOffset(len, 1)
+            d.Tracer.Rotation = ang
+        end
     end
 end)
 
 -- ============================================================
 -- MOVEMENT
 -- ============================================================
-local flyBV, flyBG
+local flyBV
 
 RunService.Stepped:Connect(function()
     local char = LP.Character
     if not char then return end
-    local hum = char:FindFirstChildOfClass("Humanoid")
+    local hum  = char:FindFirstChildOfClass("Humanoid")
     local root = char:FindFirstChild("HumanoidRootPart")
     if not hum or not root then return end
 
-    hum.WalkSpeed = _G.Move.Speed and _G.Move.SpeedVal or 16
-    hum.JumpPower = _G.Move.Jump and _G.Move.JumpVal or 50
-    hum.UseJumpPower = _G.Move.Jump
+    if _G.Move.Speed then
+        hum.WalkSpeed = _G.Move.SpeedVal
+    else
+        hum.WalkSpeed = 16
+    end
+
+    if _G.Move.Jump then
+        hum.UseJumpPower = true
+        hum.JumpPower = _G.Move.JumpVal
+    else
+        hum.UseJumpPower = false
+        hum.JumpPower = 50
+    end
 
     if _G.Move.Noclip then
         for _, p in ipairs(char:GetDescendants()) do
@@ -1662,9 +1752,10 @@ RunService.Stepped:Connect(function()
 
     if _G.Move.Fly then
         if not flyBV then
-            flyBV = Instance.new("BodyVelocity", root)
+            flyBV = Instance.new("BodyVelocity")
             flyBV.MaxForce = Vector3.new(1e5, 1e5, 1e5)
             flyBV.Velocity = Vector3.zero
+            flyBV.Parent = root
         end
         local dir = Vector3.zero
         local cam = Camera.CFrame
@@ -1672,8 +1763,8 @@ RunService.Stepped:Connect(function()
         if UIS:IsKeyDown(Enum.KeyCode.S) then dir -= cam.LookVector end
         if UIS:IsKeyDown(Enum.KeyCode.A) then dir -= cam.RightVector end
         if UIS:IsKeyDown(Enum.KeyCode.D) then dir += cam.RightVector end
-        if UIS:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.new(0, 1, 0) end
-        if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then dir -= Vector3.new(0, 1, 0) end
+        if UIS:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.yAxis end
+        if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then dir -= Vector3.yAxis end
         flyBV.Velocity = dir.Magnitude > 0 and dir.Unit * _G.Move.FlySpeed or Vector3.zero
     else
         if flyBV then flyBV:Destroy() flyBV = nil end
