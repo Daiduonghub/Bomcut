@@ -238,6 +238,12 @@ FA_On = false
 FA_Delay = 0.03
 BM_On = false
 BM_Max = 5  -- thay vì BM_Range / BM_Offset
+-- Bring Mob — khai báo trước để toggle thấy được
+BroughtMobData  = {}
+ClearBodyMovers = function() end
+WakeMob         = function() end
+RestoreMob      = function() end
+BringMobs       = function() end
 
 -- ============================================================
 -- HIGHLIGHT PLAYER KHI BẬT AUTO FARM
@@ -1608,7 +1614,7 @@ end
 -- ============================================================
 local BroughtMobData = {}   -- [mob] = { BaseY, WalkSpeed, JumpPower }
 
-local function ClearBodyMovers(root)
+function ClearBodyMovers(root)
     for _, child in ipairs(root:GetChildren()) do
         if child:IsA("BodyMover")
         or child:IsA("BodyPosition")
@@ -1623,7 +1629,7 @@ local function ClearBodyMovers(root)
     end
 end
 
-local function WakeMob(hum, root)
+function WakeMob(hum, root)
     -- kéo humanoid ra khỏi trạng thái idle/sleep
     pcall(function() hum:ChangeState(Enum.HumanoidStateType.Physics) end)
     pcall(function() hum:ChangeState(Enum.HumanoidStateType.Running) end)
@@ -1640,7 +1646,7 @@ local function WakeMob(hum, root)
     if stun and stun:IsA("BoolValue") then stun.Value = false end
 end
 
-local function RestoreMob(mob)
+function RestoreMob(mob)
     local data = BroughtMobData[mob]
     BroughtMobData[mob] = nil
     if not (mob and mob.Parent) then return end
@@ -1658,7 +1664,7 @@ local function RestoreMob(mob)
     end
 end
 
-local function BringMobs()
+function BringMobs()
     local char = LP.Character
     if not char then return end
     local root = char:FindFirstChild("HumanoidRootPart")
