@@ -237,8 +237,7 @@ RemoveHighlight = function() end
 FA_On = false
 FA_Delay = 0.03
 BM_On = false
-BM_Range = 300
-BM_Offset = 8
+BM_Max = 5  -- thay vì BM_Range / BM_Offset
 
 -- ============================================================
 -- HIGHLIGHT PLAYER KHI BẬT AUTO FARM
@@ -1056,6 +1055,73 @@ function Library:CreateDropdown(tab, name, options, default, callback)
 end
 
 -- ============================================================
+-- HAM TAO TEXTBOX (NHAP SO)
+-- ============================================================
+function Library:CreateTextBox(tab, name, default, callback)
+    local BoxFrame = Instance.new("Frame")
+    BoxFrame.Size = UDim2.new(1, -12, 0, 40)
+    BoxFrame.BackgroundColor3 = Color3.fromRGB(22, 16, 38)
+    BoxFrame.BackgroundTransparency = 0.4
+    BoxFrame.BorderSizePixel = 0
+    BoxFrame.Parent = tab.Frame
+    
+    local BCorner = Instance.new("UICorner")
+    BCorner.CornerRadius = UDim.new(0, 10)
+    BCorner.Parent = BoxFrame
+    
+    local BLabel = Instance.new("TextLabel")
+    BLabel.Size = UDim2.new(0.5, 0, 1, 0)
+    BLabel.Position = UDim2.new(0, 14, 0, 0)
+    BLabel.BackgroundTransparency = 1
+    BLabel.Text = name
+    BLabel.TextColor3 = Color3.fromRGB(220, 220, 240)
+    BLabel.TextSize = 13
+    BLabel.Font = Enum.Font.GothamMedium
+    BLabel.TextXAlignment = Enum.TextXAlignment.Left
+    BLabel.Parent = BoxFrame
+    
+    local Input = Instance.new("TextBox")
+    Input.Size = UDim2.new(0.45, -10, 0, 26)
+    Input.Position = UDim2.new(0.5, 0, 0.5, -13)
+    Input.BackgroundColor3 = Color3.fromRGB(14, 10, 24)
+    Input.BackgroundTransparency = 0.2
+    Input.BorderSizePixel = 0
+    Input.Text = tostring(default)
+    Input.TextColor3 = Color3.fromRGB(140, 60, 255)
+    Input.TextSize = 13
+    Input.Font = Enum.Font.GothamBold
+    Input.PlaceholderText = "Nhap so..."
+    Input.PlaceholderColor3 = Color3.fromRGB(120, 120, 140)
+    Input.ClearTextOnFocus = false
+    Input.Parent = BoxFrame
+    
+    local ICorner = Instance.new("UICorner")
+    ICorner.CornerRadius = UDim.new(0, 6)
+    ICorner.Parent = Input
+    
+    local IStroke = Instance.new("UIStroke")
+    IStroke.Color = Color3.fromRGB(140, 60, 255)
+    IStroke.Thickness = 1
+    IStroke.Transparency = 0.4
+    IStroke.Parent = Input
+    
+    Input.Focused:Connect(function()
+        TweenService:Create(IStroke, TweenInfo.new(0.15), {Transparency = 0, Thickness = 1.5}):Play()
+    end)
+    Input.FocusLost:Connect(function()
+        TweenService:Create(IStroke, TweenInfo.new(0.15), {Transparency = 0.4, Thickness = 1}):Play()
+        local num = tonumber(Input.Text) or default
+        if callback then callback(num) end
+    end)
+    
+    return {
+        Frame = BoxFrame,
+        Get = function() return tonumber(Input.Text) or default end,
+        Set = function(v) Input.Text = tostring(v) end
+    }
+end
+
+-- ============================================================
 -- ФУНКЦИЯ СОЗДАНИЯ IMAGE
 -- ============================================================
 function Library:CreateImage(tab, imageId, height)
@@ -1219,16 +1285,8 @@ Library:CreateToggle(TabSettings, "BringMob", false, function(v)
     BM_On = v
 end)
 
-Library:CreateSlider(TabSettings, "BM_Range", 100, 1000, 300, function(v)
-    BM_Range = v
-end)
-
-Library:CreateSlider(TabSettings, "BM_Spread", 3, 20, 8, function(v)
-    BM_Offset = v
-end)
-
-Library:CreateDropdown(TabSettings, "Chon Mob", {"Bandit", "Monkey", "Gorilla", "Pirate", "Brute"}, "Bandit", function(value)
-    CurrentMobName = value
+Library:CreateTextBox(TabSettings, "So mob gom (1-5)", 5, function(v)
+    BM_Max = math.clamp(math.floor(v), 1, 5)
 end)
 
 -- ---------- TAB STATS & SERVER ----------
@@ -1554,42 +1612,70 @@ task.spawn(function()
                 return
             end
             
-            pcall(AutoAcceptQuest)
+            pcall(AutoQuest)
             
-            -- Bring Mob: xep mob thanh vong tron quanh player
+            -- Bring Mob: gom toi da BM_Max con quai
             if BM_On then
                 pcall(function()
                     local enemiesFolder = workspace:FindFirstChild("Enemies")
-                    if enemiesFolder then
-                        local index = 0
-                        for _, mob in ipairs(enemiesFolder:GetChildren()) do
-                            if mob.Name == CurrentMobName then
-                                local mHum = mob:FindFirstChild("Humanoid")
-                                local mRoot = mob:FindFirstChild("HumanoidRootPart")
-                                if mHum and mRoot and mHum.Health > 0 then
-                                    local mDist = (root.Position - mRoot.Position).Magnitude
-                                    if mDist <= BM_Range and mDist > 8 then
-                                        local angle = (index * 60) * math.pi / 180
-                                        local ringDist = BM_Offset + (math.floor(index / 6) * BM_Offset)
-                                        local offsetX = math.cos(angle) * ringDist
-                                        local offsetZ = math.sin(angle) * ringDist
-                                        
-                                        mRoot.CFrame = CFrame.new(
-                                            root.Position.X + offsetX,
-                                            root.Position.Y,
-                                            root.Position.Z + offsetZ
-                                        )
-                                        
-                                        index = index + 1
-                                    end
+                    if not enemiesFolder then return end
+                    
+                    -- Sap xep mob theo khoang cach tu gan den xa
+                    local sorted = {}
+                    for _, mob in ipairs(enemiesFolder:GetChildren()) do
+                        if mob.Name == CurrentMobName then
+                            local mHum = mob:FindFirstChild("Humanoid")
+                            local mRoot = mob:FindFirstChild("HumanoidRootPart")
+                            if mHum and mRoot and mHum.Health > 0 then
+                                local dist = (root.Position - mRoot.Position).Magnitude
+                                if dist <= 500 then
+                                    table.insert(sorted, {Mob = mob, Dist = dist, Root = mRoot, Hum = mHum})
                                 end
                             end
                         end
                     end
+                    table.sort(sorted, function(a, b) return a.Dist < b.Dist end)
+                    
+                    -- Chi gom BM_Max con gan nhat
+                    local maxCount = BM_Max or 5
+                    for i, data in ipairs(sorted) do
+                        if i > maxCount then break end
+                        
+                        local mob = data.Mob
+                        local mRoot = data.Root
+                        local mHum = data.Hum
+                        
+                        -- Vi tri co dinh quanh player (hinh tron ban kinh 8)
+                        local angle = ((i - 1) * (360 / maxCount)) * math.pi / 180
+                        local radius = 8
+                        local offsetX = math.cos(angle) * radius
+                        local offsetZ = math.sin(angle) * radius
+                        
+                        mRoot.CFrame = CFrame.new(
+                            root.Position.X + offsetX,
+                            root.Position.Y,
+                            root.Position.Z + offsetZ
+                        )
+                        
+                        -- Chong bay len cao
+                        mRoot.Velocity = Vector3.zero
+                        mRoot.RotVelocity = Vector3.zero
+                        
+                        -- Tat AI di chuyen
+                        mHum.PlatformStand = true
+                        mHum.WalkSpeed = 0
+                        mHum.JumpPower = 0
+                        
+                        -- Clear Busy / Stun
+                        local busy = mob:FindFirstChild("Busy")
+                        if busy and busy:IsA("BoolValue") then busy.Value = false end
+                        local stun = mHum:FindFirstChild("Stun")
+                        if stun and stun:IsA("BoolValue") then stun.Value = false end
+                    end
                 end)
             end
             
-            -- Tim mob ban kinh RONG 2000 studs
+            -- Tim mob gan nhat ban kinh RONG 2000 studs
             local target = FindNearestMob(CurrentMobName, 2000)
             currentTarget = target
             
@@ -1601,7 +1687,6 @@ task.spawn(function()
                     local distToMob = (root.Position - mobRoot.Position).Magnitude
                     
                     if distToMob > 20 and not BM_On then
-                        -- Chi tween khi KHONG bat Bring Mob
                         if not activeTween or activeTween.PlaybackState ~= Enum.PlaybackState.Playing then
                             local dest = CFrame.new(mobRoot.Position + Vector3.new(0, 10, 0))
                             local dist = (root.Position - dest.Position).Magnitude
@@ -1615,7 +1700,6 @@ task.spawn(function()
                             end)
                         end
                     elseif distToMob > 20 and BM_On then
-                        -- Bring Mob ON -> chi tween neu mob o xa (qua 100 studs)
                         if distToMob > 100 then
                             if not activeTween or activeTween.PlaybackState ~= Enum.PlaybackState.Playing then
                                 local dest = CFrame.new(mobRoot.Position + Vector3.new(0, 10, 0))
@@ -1640,7 +1724,6 @@ task.spawn(function()
                         pcall(function()
                             RegisterAttack:FireServer(AttackDelay, HitCount)
                             
-                            -- Lay TAT CA mob cung loai dang o gan
                             local allTargets = {}
                             local enemiesFolder = workspace:FindFirstChild("Enemies")
                             if enemiesFolder then
@@ -1650,7 +1733,7 @@ task.spawn(function()
                                         local mRoot = mob:FindFirstChild("HumanoidRootPart")
                                         if mHum and mRoot and mHum.Health > 0 then
                                             local mDist = (root.Position - mRoot.Position).Magnitude
-                                            if mDist <= (BM_On and (BM_Range + 20) or 30) then
+                                            if mDist <= (BM_On and 30 or 30) then
                                                 table.insert(allTargets, mob)
                                             end
                                         end
@@ -1691,9 +1774,7 @@ task.spawn(function()
                     end
                 end
             else
-                -- Khong co mob -> bay toi vi tri spawn cho
                 currentTarget = nil
-                
                 if QuestCFrame then
                     local distToSpawn = (root.Position - QuestCFrame.Position).Magnitude
                     if distToSpawn > 20 then
@@ -1728,7 +1809,7 @@ RunService.Stepped:Connect(function()
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return end
     
-    -- Không farm / không target → unanchor
+    -- Khong farm / khong target -> unanchor
     if not AutoFarm or not currentTarget then
         if root.Anchored then root.Anchored = false end
         return
@@ -1745,7 +1826,7 @@ RunService.Stepped:Connect(function()
     local dist = (root.Position - mobRoot.Position).Magnitude
     
     if dist <= 20 then
-        -- ĐÃ Ở TRÊN ĐẦU MOB → ANCHOR CỨNG
+        -- Da o tren dau mob -> anchor cung
         if activeTween then
             activeTween:Cancel()
             activeTween = nil
@@ -1756,8 +1837,42 @@ RunService.Stepped:Connect(function()
         root.Velocity = Vector3.zero
         root.RotVelocity = Vector3.zero
     else
-        -- ĐANG BAY → UNANCHOR ĐỂ TWEEN HOẠT ĐỘNG
+        -- Dang bay -> unanchor de tween hoat dong
         if root.Anchored then root.Anchored = false end
+    end
+    
+    -- Reset velocity mob moi frame chong bay len cao
+    if BM_On and AutoFarm then
+        pcall(function()
+            local enemiesFolder = workspace:FindFirstChild("Enemies")
+            if not enemiesFolder then return end
+            
+            local sorted = {}
+            for _, mob in ipairs(enemiesFolder:GetChildren()) do
+                if mob.Name == CurrentMobName then
+                    local mHum = mob:FindFirstChild("Humanoid")
+                    local mRoot = mob:FindFirstChild("HumanoidRootPart")
+                    if mHum and mRoot and mHum.Health > 0 then
+                        local d = (root.Position - mRoot.Position).Magnitude
+                        if d <= 30 then
+                            table.insert(sorted, {Mob = mob, Dist = d, Root = mRoot, Hum = mHum})
+                        end
+                    end
+                end
+            end
+            table.sort(sorted, function(a, b) return a.Dist < b.Dist end)
+            
+            local maxCount = BM_Max or 5
+            for i, data in ipairs(sorted) do
+                if i > maxCount then break end
+                data.Root.Velocity = Vector3.zero
+                data.Root.RotVelocity = Vector3.zero
+                -- Ep Y ve Y player
+                if math.abs(data.Root.Position.Y - root.Position.Y) > 2 then
+                    data.Root.CFrame = CFrame.new(data.Root.Position.X, root.Position.Y, data.Root.Position.Z)
+                end
+            end
+        end)
     end
 end)
 
