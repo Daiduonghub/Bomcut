@@ -1595,6 +1595,9 @@ end
 -- ============================================================
 -- VÒNG LẶP AUTO FARM
 -- ============================================================
+-- ============================================================
+-- VÒNG LẶP AUTO FARM (FULL FIXED)
+-- ============================================================
 currentTarget = nil
 activeTween = nil
 local HitHash = "168716de"
@@ -1626,7 +1629,7 @@ task.spawn(function()
 
             pcall(AutoAcceptQuest)
 
-            -- tìm mob gần nhất bán kính 2000
+            -- Tim mob gan nhat ban kinh 2000
             local target = FindNearestMob(CurrentMobName, 2000)
             currentTarget = target
 
@@ -1637,22 +1640,10 @@ task.spawn(function()
                 if tHum and tHum.Health > 0 and mobRoot then
                     local distToMob = (root.Position - mobRoot.Position).Magnitude
 
-                    -- di chuyển tới mob
-                    if distToMob > 20 and not BM_On then
-                        if not activeTween or activeTween.PlaybackState ~= Enum.PlaybackState.Playing then
-                            local dest = CFrame.new(mobRoot.Position + Vector3.new(0, 10, 0))
-                            local dist = (root.Position - dest.Position).Magnitude
-                            local duration = math.clamp(dist / TweenSpeed, 0.1, 15)
-                            activeTween = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Sine), {
-                                CFrame = dest
-                            })
-                            activeTween:Play()
-                            activeTween.Completed:Connect(function()
-                                activeTween = nil
-                            end)
-                        end
-                    elseif distToMob > 20 and BM_On then
-                        if distToMob > 100 then
+                    -- === DI CHUYEN ===
+                    if BM_On then
+                        -- BM ON: chi bay khi mob qua xa (>400)
+                        if distToMob > 400 then
                             if not activeTween or activeTween.PlaybackState ~= Enum.PlaybackState.Playing then
                                 local dest = CFrame.new(mobRoot.Position + Vector3.new(0, 10, 0))
                                 local dist = (root.Position - dest.Position).Magnitude
@@ -1665,13 +1656,31 @@ task.spawn(function()
                                     activeTween = nil
                                 end)
                             end
+                        else
+                            StopActiveTween()
                         end
                     else
-                        StopActiveTween()
-                        root.CFrame = CFrame.new(mobRoot.Position + Vector3.new(0, 10, 0))
+                        -- BM OFF: bay binh thuong
+                        if distToMob > 20 then
+                            if not activeTween or activeTween.PlaybackState ~= Enum.PlaybackState.Playing then
+                                local dest = CFrame.new(mobRoot.Position + Vector3.new(0, 10, 0))
+                                local dist = (root.Position - dest.Position).Magnitude
+                                local duration = math.clamp(dist / TweenSpeed, 0.1, 15)
+                                activeTween = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Sine), {
+                                    CFrame = dest
+                                })
+                                activeTween:Play()
+                                activeTween.Completed:Connect(function()
+                                    activeTween = nil
+                                end)
+                            end
+                        else
+                            StopActiveTween()
+                            root.CFrame = CFrame.new(mobRoot.Position + Vector3.new(0, 10, 0))
+                        end
                     end
 
-                    -- đánh
+                    -- === DANH ===
                     if distToMob <= 30 then
                         pcall(function()
                             RegisterAttack:FireServer(AttackDelay, HitCount)
@@ -1726,7 +1735,7 @@ task.spawn(function()
                     end
                 end
             else
-                -- không có mob → bay tới spawn
+                -- Khong co mob -> bay toi spawn
                 currentTarget = nil
                 if QuestCFrame then
                     local distToSpawn = (root.Position - QuestCFrame.Position).Magnitude
@@ -1755,11 +1764,56 @@ task.spawn(function()
 end)
 
 -- ============================================================
+-- STEPPED HANDLER (chong knockback player)
+-- ============================================================
+RunService.Stepped:Connect(function()
+    local char = LP.Character
+    if not char then return end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    if not AutoFarm or not currentTarget then
+        if root.Anchored then root.Anchored = false end
+        return
+    end
+
+    -- Neu tween dang chay VA khong BM_On -> unanchor cho tween bay
+    if activeTween and activeTween.PlaybackState == Enum.PlaybackState.Playing then
+        if not BM_On then
+            if root.Anchored then root.Anchored = false end
+            return
+        end
+    end
+
+    -- Neu BM_On -> Heartbeat lo viec anchor player
+    if BM_On then return end
+
+    local mobRoot = currentTarget:FindFirstChild("HumanoidRootPart")
+    local mobHum = currentTarget:FindFirstChild("Humanoid")
+    if not mobRoot or not mobHum or mobHum.Health <= 0 then
+        currentTarget = nil
+        root.Anchored = false
+        return
+    end
+
+    local dist = (root.Position - mobRoot.Position).Magnitude
+
+    if dist <= 20 then
+        root.Anchored = true
+        root.CFrame = CFrame.new(mobRoot.Position + Vector3.new(0, 10, 0))
+        root.Velocity = Vector3.zero
+        root.RotVelocity = Vector3.zero
+    else
+        if root.Anchored then root.Anchored = false end
+    end
+end)
+
+-- ============================================================
 -- BRING MOB SYSTEM (Heartbeat - 60 FPS chong troi)
 -- ============================================================
 local BroughtMobData = {}
 
-function RestoreMob(mob)
+local function RestoreMob(mob)
     local data = BroughtMobData[mob]
     BroughtMobData[mob] = nil
     if not (mob and mob.Parent) then return end
@@ -1776,22 +1830,22 @@ function RestoreMob(mob)
 end
 
 RunService.Heartbeat:Connect(function()
+    -- Tat farm / tat BM -> restore het mob
     if not AutoFarm or not BM_On then
-        -- Restore khi tat
         for mob in pairs(BroughtMobData) do
             if mob and mob.Parent then RestoreMob(mob) end
         end
         return
     end
-    
+
     local char = LP.Character
     if not char then return end
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return end
-    
+
     local enemiesFolder = workspace:FindFirstChild("Enemies")
     if not enemiesFolder then return end
-    
+
     -- Lay danh sach mob gan nhat
     local sorted = {}
     for _, mob in ipairs(enemiesFolder:GetChildren()) do
@@ -1807,10 +1861,10 @@ RunService.Heartbeat:Connect(function()
         end
     end
     table.sort(sorted, function(a, b) return a.Dist < b.Dist end)
-    
+
     local maxCount = BM_Max or 5
     local kept = {}
-    
+
     for i, data in ipairs(sorted) do
         if i > maxCount then
             if BroughtMobData[data.Mob] then
@@ -1819,7 +1873,7 @@ RunService.Heartbeat:Connect(function()
         else
             kept[data.Mob] = true
             local mob, mRoot, mHum = data.Mob, data.Root, data.Hum
-            
+
             -- Luu trang thai goc lan dau
             if not BroughtMobData[mob] then
                 BroughtMobData[mob] = {
@@ -1829,27 +1883,28 @@ RunService.Heartbeat:Connect(function()
                 }
             end
             local bData = BroughtMobData[mob]
-            
-            -- Vi tri quanh player
-            local angle = ((i - 1) * (360 / maxCount)) * math.pi / 180
+
+            -- Vi tri quanh player — dung DebugId lam angle co dinh
+            local debugId = mob:GetDebugId()
+            local angle = (debugId % 360) * math.pi / 180
             local radius = 8
             local targetPos = Vector3.new(
                 root.Position.X + math.cos(angle) * radius,
-                bData.BaseY,  -- Y goc, khong doi
+                bData.BaseY,
                 root.Position.Z + math.sin(angle) * radius
             )
-            
-            -- Ep CFrame moi frame (60 FPS) -> server khong kip keo di
+
+            -- Ep CFrame moi frame (60 FPS)
             mRoot.Anchored = true
             mRoot.CFrame = CFrame.new(targetPos)
-            mRoot.AssemblyLinearVelocity = Vector3.zero
+            mRoot.AssemblyLinearVelocity  = Vector3.zero
             mRoot.AssemblyAngularVelocity = Vector3.zero
-            
+
             -- Lock humanoid
             mHum.PlatformStand = true
             mHum.WalkSpeed = 0
             mHum.JumpPower = 0
-            
+
             -- Clear debuff
             local busy = mob:FindFirstChild("Busy")
             if busy and busy:IsA("BoolValue") then busy.Value = false end
@@ -1857,7 +1912,7 @@ RunService.Heartbeat:Connect(function()
             if stun and stun:IsA("BoolValue") then stun.Value = false end
         end
     end
-    
+
     -- Cleanup mob ngoai slot
     for mob in pairs(BroughtMobData) do
         if not kept[mob] then
@@ -1865,6 +1920,21 @@ RunService.Heartbeat:Connect(function()
                 RestoreMob(mob)
             else
                 BroughtMobData[mob] = nil
+            end
+        end
+    end
+
+    -- Anchor player len dau mob dau tien (slot 1)
+    if #sorted > 0 then
+        local firstMob = sorted[1].Mob
+        if firstMob and firstMob.Parent then
+            local fRoot = firstMob:FindFirstChild("HumanoidRootPart")
+            local fHum = firstMob:FindFirstChild("Humanoid")
+            if fRoot and fHum and fHum.Health > 0 then
+                root.Anchored = true
+                root.CFrame = CFrame.new(fRoot.Position + Vector3.new(0, 10, 0))
+                root.Velocity = Vector3.zero
+                root.RotVelocity = Vector3.zero
             end
         end
     end
