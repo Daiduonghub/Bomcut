@@ -1581,7 +1581,7 @@ local function AutoAcceptQuest()
 end
 
 -- ============================================================
--- VÒNG LẶP AUTO FARM (FIXED - FULL BLOCK)
+-- VÒNG LẶP AUTO FARM (FIXED)
 -- ============================================================
 currentTarget = nil
 activeTween = nil
@@ -1612,15 +1612,14 @@ task.spawn(function()
                 return
             end
             
-            pcall(AutoQuest)
+            pcall(AutoAcceptQuest)
             
-            -- Bring Mob: gom toi da BM_Max con quai
+            -- Bring Mob
             if BM_On then
                 pcall(function()
                     local enemiesFolder = workspace:FindFirstChild("Enemies")
                     if not enemiesFolder then return end
                     
-                    -- Sap xep mob theo khoang cach tu gan den xa
                     local sorted = {}
                     for _, mob in ipairs(enemiesFolder:GetChildren()) do
                         if mob.Name == CurrentMobName then
@@ -1636,7 +1635,6 @@ task.spawn(function()
                     end
                     table.sort(sorted, function(a, b) return a.Dist < b.Dist end)
                     
-                    -- Chi gom BM_Max con gan nhat
                     local maxCount = BM_Max or 5
                     for i, data in ipairs(sorted) do
                         if i > maxCount then break end
@@ -1645,7 +1643,19 @@ task.spawn(function()
                         local mRoot = data.Root
                         local mHum = data.Hum
                         
-                        -- Vi tri co dinh quanh player (hinh tron ban kinh 8)
+                        -- Xoa BodyMover de mob khong bi day len
+                        for _, child in ipairs(mRoot:GetChildren()) do
+                            if child:IsA("BodyMover") 
+                               or child:IsA("BodyPosition") 
+                               or child:IsA("BodyVelocity") 
+                               or child:IsA("BodyGyro")
+                               or child:IsA("LinearVelocity") 
+                               or child:IsA("AlignPosition") then
+                                child:Destroy()
+                            end
+                        end
+                        
+                        -- Vi tri co dinh quanh player
                         local angle = ((i - 1) * (360 / maxCount)) * math.pi / 180
                         local radius = 8
                         local offsetX = math.cos(angle) * radius
@@ -1657,11 +1667,10 @@ task.spawn(function()
                             root.Position.Z + offsetZ
                         )
                         
-                        -- Chong bay len cao
-                        mRoot.Velocity = Vector3.zero
-                        mRoot.RotVelocity = Vector3.zero
+                        -- ANCHORED de khong bi bay
+                        mRoot.Anchored = true
                         
-                        -- Tat AI di chuyen
+                        -- Tat AI
                         mHum.PlatformStand = true
                         mHum.WalkSpeed = 0
                         mHum.JumpPower = 0
@@ -1733,7 +1742,7 @@ task.spawn(function()
                                         local mRoot = mob:FindFirstChild("HumanoidRootPart")
                                         if mHum and mRoot and mHum.Health > 0 then
                                             local mDist = (root.Position - mRoot.Position).Magnitude
-                                            if mDist <= (BM_On and 30 or 30) then
+                                            if mDist <= 30 then
                                                 table.insert(allTargets, mob)
                                             end
                                         end
@@ -1801,8 +1810,9 @@ task.spawn(function()
     end
 end)
 
--- Dùng STEPPED (chạy TRƯỚC physics) thay vì HEARTBEAT (chạy SAU physics)
--- Stepped: chỉ chống knockback, KHÔNG snap CFrame
+-- ============================================================
+-- STEPPED HANDLER (CHONG KNOCKBACK + GIU MOB)
+-- ============================================================
 RunService.Stepped:Connect(function()
     local char = LP.Character
     if not char then return end
@@ -1811,6 +1821,12 @@ RunService.Stepped:Connect(function()
     
     -- Khong farm / khong target -> unanchor
     if not AutoFarm or not currentTarget then
+        if root.Anchored then root.Anchored = false end
+        return
+    end
+    
+    -- NEU TWEEN DANG CHAY -> KHONG CAN THIEP
+    if activeTween and activeTween.PlaybackState == Enum.PlaybackState.Playing then
         if root.Anchored then root.Anchored = false end
         return
     end
@@ -1827,21 +1843,16 @@ RunService.Stepped:Connect(function()
     
     if dist <= 20 then
         -- Da o tren dau mob -> anchor cung
-        if activeTween then
-            activeTween:Cancel()
-            activeTween = nil
-        end
-        
         root.Anchored = true
         root.CFrame = CFrame.new(mobRoot.Position + Vector3.new(0, 10, 0))
         root.Velocity = Vector3.zero
         root.RotVelocity = Vector3.zero
     else
-        -- Dang bay -> unanchor de tween hoat dong
+        -- Dang o xa -> unanchor de tween bay
         if root.Anchored then root.Anchored = false end
     end
     
-    -- Reset velocity mob moi frame chong bay len cao
+    -- Giu mob dung yen khi BringMob ON
     if BM_On and AutoFarm then
         pcall(function()
             local enemiesFolder = workspace:FindFirstChild("Enemies")
@@ -1865,11 +1876,22 @@ RunService.Stepped:Connect(function()
             local maxCount = BM_Max or 5
             for i, data in ipairs(sorted) do
                 if i > maxCount then break end
+                data.Root.Anchored = true
                 data.Root.Velocity = Vector3.zero
                 data.Root.RotVelocity = Vector3.zero
-                -- Ep Y ve Y player
-                if math.abs(data.Root.Position.Y - root.Position.Y) > 2 then
-                    data.Root.CFrame = CFrame.new(data.Root.Position.X, root.Position.Y, data.Root.Position.Z)
+            end
+        end)
+    else
+        -- Khi BM OFF -> unanchor mob de chung hoat dong lai
+        pcall(function()
+            local enemiesFolder = workspace:FindFirstChild("Enemies")
+            if not enemiesFolder then return end
+            for _, mob in ipairs(enemiesFolder:GetChildren()) do
+                if mob.Name == CurrentMobName then
+                    local mRoot = mob:FindFirstChild("HumanoidRootPart")
+                    if mRoot and mRoot.Anchored then
+                        mRoot.Anchored = false
+                    end
                 end
             end
         end)
