@@ -1593,6 +1593,168 @@ local function AutoAcceptQuest()
 end
 
 -- ============================================================
+-- VÒNG LẶP AUTO FARM
+-- ============================================================
+currentTarget = nil
+activeTween = nil
+local HitHash = "168716de"
+
+StopActiveTween = function()
+    if activeTween then
+        activeTween:Cancel()
+        activeTween = nil
+    end
+end
+
+task.spawn(function()
+    while task.wait(0.1) do
+        local ok, err = pcall(function()
+            if not AutoFarm then
+                currentTarget = nil
+                StopActiveTween()
+                return
+            end
+
+            local char = LP.Character
+            if not char then return end
+            local root = char:FindFirstChild("HumanoidRootPart")
+            local hum  = char:FindFirstChild("Humanoid")
+            if not root or not hum or hum.Health <= 0 then
+                task.wait(0.5)
+                return
+            end
+
+            pcall(AutoAcceptQuest)
+
+            -- tìm mob gần nhất bán kính 2000
+            local target = FindNearestMob(CurrentMobName, 2000)
+            currentTarget = target
+
+            if target then
+                local tHum    = target:FindFirstChild("Humanoid")
+                local mobRoot = target:FindFirstChild("HumanoidRootPart")
+
+                if tHum and tHum.Health > 0 and mobRoot then
+                    local distToMob = (root.Position - mobRoot.Position).Magnitude
+
+                    -- di chuyển tới mob
+                    if distToMob > 20 and not BM_On then
+                        if not activeTween or activeTween.PlaybackState ~= Enum.PlaybackState.Playing then
+                            local dest = CFrame.new(mobRoot.Position + Vector3.new(0, 10, 0))
+                            local dist = (root.Position - dest.Position).Magnitude
+                            local duration = math.clamp(dist / TweenSpeed, 0.1, 15)
+                            activeTween = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Sine), {
+                                CFrame = dest
+                            })
+                            activeTween:Play()
+                            activeTween.Completed:Connect(function()
+                                activeTween = nil
+                            end)
+                        end
+                    elseif distToMob > 20 and BM_On then
+                        if distToMob > 100 then
+                            if not activeTween or activeTween.PlaybackState ~= Enum.PlaybackState.Playing then
+                                local dest = CFrame.new(mobRoot.Position + Vector3.new(0, 10, 0))
+                                local dist = (root.Position - dest.Position).Magnitude
+                                local duration = math.clamp(dist / TweenSpeed, 0.1, 15)
+                                activeTween = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Sine), {
+                                    CFrame = dest
+                                })
+                                activeTween:Play()
+                                activeTween.Completed:Connect(function()
+                                    activeTween = nil
+                                end)
+                            end
+                        end
+                    else
+                        StopActiveTween()
+                        root.CFrame = CFrame.new(mobRoot.Position + Vector3.new(0, 10, 0))
+                    end
+
+                    -- đánh
+                    if distToMob <= 30 then
+                        pcall(function()
+                            RegisterAttack:FireServer(AttackDelay, HitCount)
+
+                            local allTargets = {}
+                            local enemiesFolder = workspace:FindFirstChild("Enemies")
+                            if enemiesFolder then
+                                for _, mob in ipairs(enemiesFolder:GetChildren()) do
+                                    if mob.Name == CurrentMobName then
+                                        local mHum  = mob:FindFirstChild("Humanoid")
+                                        local mRoot = mob:FindFirstChild("HumanoidRootPart")
+                                        if mHum and mRoot and mHum.Health > 0 then
+                                            local mDist = (root.Position - mRoot.Position).Magnitude
+                                            if mDist <= 30 then
+                                                table.insert(allTargets, mob)
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+
+                            if #allTargets == 0 then
+                                table.insert(allTargets, target)
+                            end
+
+                            if FA_On then
+                                for _ = 1, 15 do
+                                    for _, mob in ipairs(allTargets) do
+                                        for _, p in ipairs(mob:GetDescendants()) do
+                                            if p:IsA("BasePart") then
+                                                pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
+                                                pcall(function() RegisterHit:FireServer(p, {}) end)
+                                            end
+                                        end
+                                    end
+                                    task.wait(FA_Delay or 0.03)
+                                end
+                            else
+                                for _ = 1, HitCount do
+                                    for _, mob in ipairs(allTargets) do
+                                        for _, p in ipairs(mob:GetDescendants()) do
+                                            if p:IsA("BasePart") then
+                                                pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
+                                                pcall(function() RegisterHit:FireServer(p, {}) end)
+                                            end
+                                        end
+                                    end
+                                    task.wait(AttackDelay / HitCount)
+                                end
+                            end
+                        end)
+                    end
+                end
+            else
+                -- không có mob → bay tới spawn
+                currentTarget = nil
+                if QuestCFrame then
+                    local distToSpawn = (root.Position - QuestCFrame.Position).Magnitude
+                    if distToSpawn > 20 then
+                        if not activeTween or activeTween.PlaybackState ~= Enum.PlaybackState.Playing then
+                            local dest = QuestCFrame + Vector3.new(0, 10, 0)
+                            local dist = (root.Position - dest.Position).Magnitude
+                            local duration = math.clamp(dist / TweenSpeed, 0.1, 15)
+                            activeTween = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Sine), {
+                                CFrame = dest
+                            })
+                            activeTween:Play()
+                            activeTween.Completed:Connect(function()
+                                activeTween = nil
+                            end)
+                        end
+                    end
+                end
+            end
+        end)
+
+        if not ok then
+            warn("[AbyssalHub] Farm error: " .. tostring(err))
+        end
+    end
+end)
+
+-- ============================================================
 -- BRING MOB SYSTEM (Heartbeat - 60 FPS chong troi)
 -- ============================================================
 local BroughtMobData = {}
