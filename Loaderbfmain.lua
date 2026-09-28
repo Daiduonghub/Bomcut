@@ -1283,6 +1283,15 @@ end)
 
 Library:CreateToggle(TabSettings, "BringMob", false, function(v)
     BM_On = v
+    if not v then
+        -- trả hết mob đang bị mang về trạng thái gốc
+        for mob in pairs(BroughtMobData) do
+            if mob and mob.Parent then
+                RestoreMob(mob)
+            end
+        end
+        BroughtMobData = {}
+    end
 end)
 
 Library:CreateTextBox(TabSettings, "So mob gom (1-5)", 5, function(v)
@@ -1594,107 +1603,190 @@ StopActiveTween = function()
     end
 end
 
+-- ============================================================
+-- BRING MOB STATE — giữ Y gốc, wake liên tục
+-- ============================================================
+local BroughtMobData = {}   -- [mob] = { BaseY, WalkSpeed, JumpPower }
+
+local function ClearBodyMovers(root)
+    for _, child in ipairs(root:GetChildren()) do
+        if child:IsA("BodyMover")
+        or child:IsA("BodyPosition")
+        or child:IsA("BodyVelocity")
+        or child:IsA("BodyGyro")
+        or child:IsA("LinearVelocity")
+        or child:IsA("AlignPosition")
+        or child:IsA("AlignOrientation")
+        or child:IsA("VectorForce") then
+            pcall(function() child:Destroy() end)
+        end
+    end
+end
+
+local function WakeMob(hum, root)
+    -- kéo humanoid ra khỏi trạng thái idle/sleep
+    pcall(function() hum:ChangeState(Enum.HumanoidStateType.Physics) end)
+    pcall(function() hum:ChangeState(Enum.HumanoidStateType.Running) end)
+    pcall(function() hum:ChangeState(Enum.HumanoidStateType.RunningNoPhysics) end)
+    -- xoá vận tốc để mob không trôi
+    pcall(function()
+        root.AssemblyLinearVelocity  = Vector3.zero
+        root.AssemblyAngularVelocity = Vector3.zero
+    end)
+    -- clear debuff ngủ / stun
+    local busy = hum.Parent and hum.Parent:FindFirstChild("Busy")
+    if busy and busy:IsA("BoolValue") then busy.Value = false end
+    local stun = hum:FindFirstChild("Stun")
+    if stun and stun:IsA("BoolValue") then stun.Value = false end
+end
+
+local function RestoreMob(mob)
+    local data = BroughtMobData[mob]
+    BroughtMobData[mob] = nil
+    if not (mob and mob.Parent) then return end
+    local mRoot = mob:FindFirstChild("HumanoidRootPart")
+    local mHum  = mob:FindFirstChild("Humanoid")
+    if mRoot then
+        mRoot.Anchored = false
+        ClearBodyMovers(mRoot)
+    end
+    if mHum and data then
+        mHum.PlatformStand = false
+        mHum.WalkSpeed     = data.WalkSpeed  or 16
+        mHum.JumpPower     = data.JumpPower  or 50
+        pcall(function() mHum:ChangeState(Enum.HumanoidStateType.Running) end)
+    end
+end
+
+local function BringMobs()
+    local char = LP.Character
+    if not char then return end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    local enemiesFolder = workspace:FindFirstChild("Enemies")
+    if not enemiesFolder then return end
+
+    -- gom mob trong 500 studs
+    local sorted = {}
+    for _, mob in ipairs(enemiesFolder:GetChildren()) do
+        if mob.Name == CurrentMobName then
+            local mHum  = mob:FindFirstChild("Humanoid")
+            local mRoot = mob:FindFirstChild("HumanoidRootPart")
+            if mHum and mRoot and mHum.Health > 0 then
+                local d = (root.Position - mRoot.Position).Magnitude
+                if d <= 500 then
+                    table.insert(sorted, {Mob = mob, Root = mRoot, Hum = mHum, Dist = d})
+                end
+            end
+        end
+    end
+    table.sort(sorted, function(a, b) return a.Dist < b.Dist end)
+
+    local maxCount = BM_Max or 5
+    local kept = {}
+
+    for i, data in ipairs(sorted) do
+        if i > maxCount then
+            -- ngoài slot -> trả về trạng thái gốc
+            if BroughtMobData[data.Mob] then
+                RestoreMob(data.Mob)
+            end
+        else
+            kept[data.Mob] = true
+            local mob, mRoot, mHum = data.Mob, data.Root, data.Hum
+
+            -- lưu trạng thái gốc đúng 1 lần
+            if not BroughtMobData[mob] then
+                BroughtMobData[mob] = {
+                    BaseY     = mRoot.Position.Y,   -- <-- Y GỐC, không bao giờ đổi
+                    WalkSpeed = mHum.WalkSpeed,
+                    JumpPower = mHum.JumpPower,
+                }
+            end
+            local bData = BroughtMobData[mob]
+
+            -- xoá mọi mover để không ai giành quyền điều khiển
+            ClearBodyMovers(mRoot)
+
+            -- vị trí quanh player — Y CỐ ĐỊNH = BaseY
+            local angle   = ((i - 1) * (360 / maxCount)) * math.pi / 180
+            local radius  = 8
+            local offsetX = math.cos(angle) * radius
+            local offsetZ = math.sin(angle) * radius
+
+            local targetPos = Vector3.new(
+                root.Position.X + offsetX,
+                bData.BaseY,                          -- FIX bay lên trời
+                root.Position.Z + offsetZ
+            )
+
+            mRoot.Anchored = true
+            mRoot.CFrame   = CFrame.new(targetPos)
+            mRoot.AssemblyLinearVelocity  = Vector3.zero
+            mRoot.AssemblyAngularVelocity = Vector3.zero
+
+            mHum.PlatformStand = true
+            mHum.WalkSpeed     = 0
+            mHum.JumpPower     = 0
+
+            -- WAKE liên tục
+            WakeMob(mHum, mRoot)
+        end
+    end
+
+    -- dọn mob đã mang mà không còn trong danh sách
+    for mob in pairs(BroughtMobData) do
+        if not kept[mob] then
+            if mob and mob.Parent then
+                RestoreMob(mob)
+            else
+                BroughtMobData[mob] = nil
+            end
+        end
+    end
+end
+
 task.spawn(function()
     while task.wait(0.1) do
         local ok, err = pcall(function()
             if not AutoFarm then
                 currentTarget = nil
                 StopActiveTween()
+                -- nhả hết mob khi tắt farm
+                for mob in pairs(BroughtMobData) do
+                    if mob and mob.Parent then RestoreMob(mob) end
+                end
                 return
             end
-            
+
             local char = LP.Character
             if not char then return end
             local root = char:FindFirstChild("HumanoidRootPart")
-            local hum = char:FindFirstChild("Humanoid")
+            local hum  = char:FindFirstChild("Humanoid")
             if not root or not hum or hum.Health <= 0 then
                 task.wait(0.5)
                 return
             end
-            
+
             pcall(AutoAcceptQuest)
-            
+
             -- Bring Mob
             if BM_On then
-                pcall(function()
-                    local enemiesFolder = workspace:FindFirstChild("Enemies")
-                    if not enemiesFolder then return end
-                    
-                    local sorted = {}
-                    for _, mob in ipairs(enemiesFolder:GetChildren()) do
-                        if mob.Name == CurrentMobName then
-                            local mHum = mob:FindFirstChild("Humanoid")
-                            local mRoot = mob:FindFirstChild("HumanoidRootPart")
-                            if mHum and mRoot and mHum.Health > 0 then
-                                local dist = (root.Position - mRoot.Position).Magnitude
-                                if dist <= 500 then
-                                    table.insert(sorted, {Mob = mob, Dist = dist, Root = mRoot, Hum = mHum})
-                                end
-                            end
-                        end
-                    end
-                    table.sort(sorted, function(a, b) return a.Dist < b.Dist end)
-                    
-                    local maxCount = BM_Max or 5
-                    for i, data in ipairs(sorted) do
-                        if i > maxCount then break end
-                        
-                        local mob = data.Mob
-                        local mRoot = data.Root
-                        local mHum = data.Hum
-                        
-                        -- Xoa BodyMover de mob khong bi day len
-                        for _, child in ipairs(mRoot:GetChildren()) do
-                            if child:IsA("BodyMover") 
-                               or child:IsA("BodyPosition") 
-                               or child:IsA("BodyVelocity") 
-                               or child:IsA("BodyGyro")
-                               or child:IsA("LinearVelocity") 
-                               or child:IsA("AlignPosition") then
-                                child:Destroy()
-                            end
-                        end
-                        
-                        -- Vi tri co dinh quanh player
-                        local angle = ((i - 1) * (360 / maxCount)) * math.pi / 180
-                        local radius = 8
-                        local offsetX = math.cos(angle) * radius
-                        local offsetZ = math.sin(angle) * radius
-                        
-                        mRoot.CFrame = CFrame.new(
-                            root.Position.X + offsetX,
-                            root.Position.Y,
-                            root.Position.Z + offsetZ
-                        )
-                        
-                        -- ANCHORED de khong bi bay
-                        mRoot.Anchored = true
-                        
-                        -- Tat AI
-                        mHum.PlatformStand = true
-                        mHum.WalkSpeed = 0
-                        mHum.JumpPower = 0
-                        
-                        -- Clear Busy / Stun
-                        local busy = mob:FindFirstChild("Busy")
-                        if busy and busy:IsA("BoolValue") then busy.Value = false end
-                        local stun = mHum:FindFirstChild("Stun")
-                        if stun and stun:IsA("BoolValue") then stun.Value = false end
-                    end
-                end)
+                pcall(BringMobs)
             end
-            
-            -- Tim mob gan nhat ban kinh RONG 2000 studs
+
+            -- tìm mob gần nhất bán kính 2000
             local target = FindNearestMob(CurrentMobName, 2000)
             currentTarget = target
-            
+
             if target then
-                local tHum = target:FindFirstChild("Humanoid")
+                local tHum    = target:FindFirstChild("Humanoid")
                 local mobRoot = target:FindFirstChild("HumanoidRootPart")
-                
+
                 if tHum and tHum.Health > 0 and mobRoot then
                     local distToMob = (root.Position - mobRoot.Position).Magnitude
-                    
+
                     if distToMob > 20 and not BM_On then
                         if not activeTween or activeTween.PlaybackState ~= Enum.PlaybackState.Playing then
                             local dest = CFrame.new(mobRoot.Position + Vector3.new(0, 10, 0))
@@ -1727,18 +1819,18 @@ task.spawn(function()
                         StopActiveTween()
                         root.CFrame = CFrame.new(mobRoot.Position + Vector3.new(0, 10, 0))
                     end
-                    
-                    -- Danh
+
+                    -- đánh
                     if distToMob <= 30 then
                         pcall(function()
                             RegisterAttack:FireServer(AttackDelay, HitCount)
-                            
+
                             local allTargets = {}
                             local enemiesFolder = workspace:FindFirstChild("Enemies")
                             if enemiesFolder then
                                 for _, mob in ipairs(enemiesFolder:GetChildren()) do
                                     if mob.Name == CurrentMobName then
-                                        local mHum = mob:FindFirstChild("Humanoid")
+                                        local mHum  = mob:FindFirstChild("Humanoid")
                                         local mRoot = mob:FindFirstChild("HumanoidRootPart")
                                         if mHum and mRoot and mHum.Health > 0 then
                                             local mDist = (root.Position - mRoot.Position).Magnitude
@@ -1749,13 +1841,13 @@ task.spawn(function()
                                     end
                                 end
                             end
-                            
+
                             if #allTargets == 0 then
                                 table.insert(allTargets, target)
                             end
-                            
+
                             if FA_On then
-                                for i = 1, 15 do
+                                for _ = 1, 15 do
                                     for _, mob in ipairs(allTargets) do
                                         for _, p in ipairs(mob:GetDescendants()) do
                                             if p:IsA("BasePart") then
@@ -1767,7 +1859,7 @@ task.spawn(function()
                                     task.wait(FA_Delay or 0.03)
                                 end
                             else
-                                for i = 1, HitCount do
+                                for _ = 1, HitCount do
                                     for _, mob in ipairs(allTargets) do
                                         for _, p in ipairs(mob:GetDescendants()) do
                                             if p:IsA("BasePart") then
@@ -1803,7 +1895,7 @@ task.spawn(function()
                 end
             end
         end)
-        
+
         if not ok then
             warn("[AbyssalHub] Farm error: " .. tostring(err))
         end
@@ -1818,83 +1910,56 @@ RunService.Stepped:Connect(function()
     if not char then return end
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return end
-    
-    -- Khong farm / khong target -> unanchor
+
+    -- không farm / không target -> unanchor player
     if not AutoFarm or not currentTarget then
         if root.Anchored then root.Anchored = false end
         return
     end
-    
-    -- NEU TWEEN DANG CHAY -> KHONG CAN THIEP
+
+    -- nếu tween đang chạy -> không can thiệp
     if activeTween and activeTween.PlaybackState == Enum.PlaybackState.Playing then
         if root.Anchored then root.Anchored = false end
         return
     end
-    
+
     local mobRoot = currentTarget:FindFirstChild("HumanoidRootPart")
-    local mobHum = currentTarget:FindFirstChild("Humanoid")
+    local mobHum  = currentTarget:FindFirstChild("Humanoid")
     if not mobRoot or not mobHum or mobHum.Health <= 0 then
         currentTarget = nil
         root.Anchored = false
         return
     end
-    
+
     local dist = (root.Position - mobRoot.Position).Magnitude
-    
+
     if dist <= 20 then
-        -- Da o tren dau mob -> anchor cung
+        -- đứng trên đầu mob -> anchor cứng
         root.Anchored = true
-        root.CFrame = CFrame.new(mobRoot.Position + Vector3.new(0, 10, 0))
-        root.Velocity = Vector3.zero
+        root.CFrame   = CFrame.new(mobRoot.Position + Vector3.new(0, 10, 0))
+        root.Velocity    = Vector3.zero
         root.RotVelocity = Vector3.zero
     else
-        -- Dang o xa -> unanchor de tween bay
         if root.Anchored then root.Anchored = false end
     end
-    
-    -- Giu mob dung yen khi BringMob ON
+
+    -- giữ mob đứng yên khi BringMob ON
+    -- CHỈ giữ vị trí + wake, KHÔNG tính lại Y (BringMobs đã lo)
     if BM_On and AutoFarm then
-        pcall(function()
-            local enemiesFolder = workspace:FindFirstChild("Enemies")
-            if not enemiesFolder then return end
-            
-            local sorted = {}
-            for _, mob in ipairs(enemiesFolder:GetChildren()) do
-                if mob.Name == CurrentMobName then
-                    local mHum = mob:FindFirstChild("Humanoid")
-                    local mRoot = mob:FindFirstChild("HumanoidRootPart")
-                    if mHum and mRoot and mHum.Health > 0 then
-                        local d = (root.Position - mRoot.Position).Magnitude
-                        if d <= 30 then
-                            table.insert(sorted, {Mob = mob, Dist = d, Root = mRoot, Hum = mHum})
-                        end
-                    end
+        for mob in pairs(BroughtMobData) do
+            if mob and mob.Parent then
+                local mRoot = mob:FindFirstChild("HumanoidRootPart")
+                local mHum  = mob:FindFirstChild("Humanoid")
+                if mRoot and mHum and mHum.Health > 0 then
+                    mRoot.Anchored = true
+                    mRoot.AssemblyLinearVelocity  = Vector3.zero
+                    mRoot.AssemblyAngularVelocity = Vector3.zero
+                    pcall(function()
+                        mHum:ChangeState(Enum.HumanoidStateType.Physics)
+                    end)
                 end
             end
-            table.sort(sorted, function(a, b) return a.Dist < b.Dist end)
-            
-            local maxCount = BM_Max or 5
-            for i, data in ipairs(sorted) do
-                if i > maxCount then break end
-                data.Root.Anchored = true
-                data.Root.Velocity = Vector3.zero
-                data.Root.RotVelocity = Vector3.zero
-            end
-        end)
-    else
-        -- Khi BM OFF -> unanchor mob de chung hoat dong lai
-        pcall(function()
-            local enemiesFolder = workspace:FindFirstChild("Enemies")
-            if not enemiesFolder then return end
-            for _, mob in ipairs(enemiesFolder:GetChildren()) do
-                if mob.Name == CurrentMobName then
-                    local mRoot = mob:FindFirstChild("HumanoidRootPart")
-                    if mRoot and mRoot.Anchored then
-                        mRoot.Anchored = false
-                    end
-                end
-            end
-        end)
+        end
     end
 end)
 
