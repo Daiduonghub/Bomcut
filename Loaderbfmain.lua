@@ -227,7 +227,7 @@ Library.CurrentTab = nil
 -- GLOBAL VARS (KHAI BÁO TRƯỚC ĐỂ TOGGLE KHÔNG LỖI)
 -- ============================================================
 -- State
-_G.Aim = { Enabled = false, FOV = 150, Smooth = 0.15, Team = false, WallCheck = true, Part = "Head", Key = Enum.UserInputType.MouseButton2 }
+_G.Aim = { Enabled = false, FOV = 150, Smooth = 0.15, Team = false, WallCheck = true, Part = "Head", Key = Enum.UserInputType.MouseButton2, FollowESP = true, AimAll = true }
 _G.Silent = { Enabled = false, FOV = 200, Team = false }
 _G.Trig = { Enabled = false, Delay = 0.05, Range = 30, Team = false }
 _G.ESP = { Box = false, Name = false, Health = false, Dist = false, Tracer = false, Skeleton = false, Team = true }
@@ -1238,6 +1238,9 @@ Library:CreateSlider(TabCombat, "FOV", 10, 500, 150, function(v) _G.Aim.FOV = v 
 Library:CreateSlider(TabCombat, "Smooth", 0.01, 1, 0.15, function(v) _G.Aim.Smooth = v end)
 Library:CreateToggle(TabCombat, "Bỏ qua đồng đội", false, function(v) _G.Aim.Team = v end)
 
+Library:CreateToggle(TabCombat, "Aim theo ESP (chung filter)", true, function(v) _G.Aim.FollowESP = v end)
+Library:CreateToggle(TabCombat, "Aim tất cả (bỏ FOV)", true, function(v) _G.Aim.AimAll = v end)
+
 Library:CreateLabel(TabCombat, "── SILENT ──")
 Library:CreateToggle(TabCombat, "Silent Aim", false, function(v) _G.Silent.Enabled = v end)
 Library:CreateSlider(TabCombat, "Silent FOV", 10, 500, 200, function(v) _G.Silent.FOV = v end)
@@ -1409,11 +1412,11 @@ local function IsTeam(plr)
     return myTeam ~= nil and theirTeam ~= nil and myTeam == theirTeam
 end
 
-local function GetTargets()
+local function GetTargets(filterTeam)
     local list = {}
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr ~= LP and IsAlive(plr) then
-            if not _G.Aim.Team or not IsTeam(plr) then
+            if not filterTeam or not IsTeam(plr) then
                 table.insert(list, plr)
             end
         end
@@ -1426,17 +1429,30 @@ local function WorldToScreen(pos)
     return Vector2.new(sp.X, sp.Y), onScreen, sp.Z
 end
 
-local function GetFOVTarget(fov, part)
+local function GetFOVTarget(fov, part, followESP)
     local center = Camera.ViewportSize / 2
     local best, bestDist = nil, fov
-    for _, plr in ipairs(GetTargets()) do
+    
+    -- Nếu followESP: dùng filter giống ESP (ẩn team nếu ESP.Team = true)
+    -- Nếu không: dùng Aim.Team riêng
+    local filterTeam
+    if followESP then
+        filterTeam = _G.ESP.Team
+    else
+        filterTeam = _G.Aim.Team
+    end
+    
+    -- AimAll: nếu true thì bỏ qua giới hạn FOV → aim người gần tâm nhất
+    local effectiveFOV = _G.Aim.AimAll and 1e9 or fov
+    
+    for _, plr in ipairs(GetTargets(filterTeam)) do
         local root = GetRoot(plr)
         if root then
             local targetPart = plr.Character:FindFirstChild(part) or root
             local sp, onScreen = WorldToScreen(targetPart.Position)
             if onScreen then
                 local d = (sp - center).Magnitude
-                if d < bestDist then
+                if d < effectiveFOV and d < bestDist then
                     bestDist = d
                     best = plr
                 end
@@ -1460,7 +1476,7 @@ end)
 
 RunService.RenderStepped:Connect(function()
     if not _G.Aim.Enabled or not aimHeld then return end
-    local target = GetFOVTarget(_G.Aim.FOV, _G.Aim.Part)
+    local target = GetFOVTarget(_G.Aim.FOV, _G.Aim.Part, _G.Aim.FollowESP)
     if not target then return end
     local part = target.Character:FindFirstChild(_G.Aim.Part) or GetRoot(target)
     if not part then return end
