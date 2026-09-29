@@ -226,12 +226,21 @@ Library.CurrentTab = nil
 --- ============================================================
 -- GLOBAL VARS (KHAI BÁO TRƯỚC ĐỂ TOGGLE KHÔNG LỖI)
 -- ============================================================
--- State
-_G.Aim = { Enabled = false, FOV = 150, Smooth = 0.15, Team = false, WallCheck = true, Part = "Head", Key = Enum.UserInputType.MouseButton2, FollowESP = true, AimAll = true }
-_G.Silent = { Enabled = false, FOV = 200, Team = false }
-_G.Trig = { Enabled = false, Delay = 0.05, Range = 30, Team = false }
-_G.ESP = { Box = false, Name = false, Health = false, Dist = false, Tracer = false, Skeleton = false, Team = true }
-_G.Move = { Speed = false, SpeedVal = 50, Jump = false, JumpVal = 100, Fly = false, FlySpeed = 50, Noclip = false }
+AutoFarm = false
+CurrentQuestName = nil
+QuestCooldown = 0
+currentTarget = nil
+activeTween = nil
+StopActiveTween = function() end
+AddHighlight = function() end
+RemoveHighlight = function() end
+FA_On = false
+FA_Delay = 0.03
+BM_On = false
+BM_Max = 5  -- thay vì BM_Range / BM_Offset
+-- Bring Mob — khai báo trước để toggle thấy được
+BroughtMobData  = {}
+RestoreMob      = function() end
 
 -- ============================================================
 -- HIGHLIGHT PLAYER KHI BẬT AUTO FARM
@@ -1226,48 +1235,71 @@ end)
 -- ДЕМОНСТРАЦИЯ (СОЗДАНИЕ ЭЛЕМЕНТОВ)
 -- ============================================================
 local TabStats = Library:CreateTab("Stats & Server")
-local TabCombat = Library:CreateTab("Combat")
-local TabVisual = Library:CreateTab("Visual")
-local TabMove   = Library:CreateTab("Movement")
+local TabSettings = Library:CreateTab("Settings")
+local Tab1 = Library:CreateTab("Main")
 
--- ---- COMBAT ----
-Library:CreateLabel(TabCombat, "── AIMBOT ──")
+--  ---------UI CONTROL---------
+-- Thêm biến này TRƯỚC CreateToggle
+local FirstToggleInit = true
 
-Library:CreateToggle(TabCombat, "Aimbot (giữ chuột phải)", false, function(v) _G.Aim.Enabled = v end)
-Library:CreateSlider(TabCombat, "FOV", 10, 500, 150, function(v) _G.Aim.FOV = v end)
-Library:CreateSlider(TabCombat, "Smooth", 0.01, 1, 0.15, function(v) _G.Aim.Smooth = v end)
-Library:CreateToggle(TabCombat, "Bỏ qua đồng đội", false, function(v) _G.Aim.Team = v end)
+Library:CreateToggle(Tab1, "Auto Farm Level", false, function(v)
+    AutoFarm = v
+    
+    -- Chặn notify lần init đầu tiên (khi tạo toggle)
+    if FirstToggleInit then
+        FirstToggleInit = false
+        return
+    end
+    
+    if v then
+        CurrentQuestName = nil
+        QuestCooldown = 0
+        AddHighlight()
+        Library:Notify("AbyssalHub", "Auto Farm: ON", 2)
+    else
+        currentTarget = nil
+        if StopActiveTween then StopActiveTween() end
+        if LP and LP.Character then
+            local root = LP.Character:FindFirstChild("HumanoidRootPart")
+            if root then root.Anchored = false end
+        end
+        RemoveHighlight()
+        Library:Notify("AbyssalHub", "Auto Farm: OFF", 2)
+    end
+end)
 
-Library:CreateToggle(TabCombat, "Aim theo ESP (chung filter)", true, function(v) _G.Aim.FollowESP = v end)
-Library:CreateToggle(TabCombat, "Aim tất cả (bỏ FOV)", true, function(v) _G.Aim.AimAll = v end)
+-- Re-add highlight khi player respawn
+LP.CharacterAdded:Connect(function(char)
+    if AutoFarm then
+        task.wait(0.5) -- Chờ character load xong
+        AddHighlight()
+    end
+end)
 
-Library:CreateLabel(TabCombat, "── SILENT ──")
-Library:CreateToggle(TabCombat, "Silent Aim", false, function(v) _G.Silent.Enabled = v end)
-Library:CreateSlider(TabCombat, "Silent FOV", 10, 500, 200, function(v) _G.Silent.FOV = v end)
+Library:CreateToggle(TabSettings, "FastAtk", false, function(v)
+    FA_On = v
+end)
 
-Library:CreateLabel(TabCombat, "── TRIGGER ──")
-Library:CreateToggle(TabCombat, "Triggerbot", false, function(v) _G.Trig.Enabled = v end)
-Library:CreateSlider(TabCombat, "Trig delay", 0.01, 0.5, 0.05, function(v) _G.Trig.Delay = v end)
-Library:CreateSlider(TabCombat, "Trig range (px)", 5, 200, 30, function(v) _G.Trig.Range = v end)
+Library:CreateSlider(TabSettings, "AtkSpeed", 0.01, 0.2, 0.03, function(v)
+    FA_Delay = v
+end)
 
--- ---- VISUAL ----
-Library:CreateLabel(TabVisual, "── ESP ──")
-Library:CreateToggle(TabVisual, "Box", false, function(v) _G.ESP.Box = v end)
-Library:CreateToggle(TabVisual, "Name", false, function(v) _G.ESP.Name = v end)
-Library:CreateToggle(TabVisual, "Health bar", false, function(v) _G.ESP.Health = v end)
-Library:CreateToggle(TabVisual, "Distance", false, function(v) _G.ESP.Dist = v end)
-Library:CreateToggle(TabVisual, "Tracer", false, function(v) _G.ESP.Tracer = v end)
-Library:CreateToggle(TabVisual, "Ẩn đồng đội", true, function(v) _G.ESP.Team = v end)
+Library:CreateToggle(TabSettings, "BringMob", false, function(v)
+    BM_On = v
+    if not v then
+        -- trả hết mob đang bị mang về trạng thái gốc
+        for mob in pairs(BroughtMobData) do
+            if mob and mob.Parent then
+                RestoreMob(mob)
+            end
+        end
+        BroughtMobData = {}
+    end
+end)
 
--- ---- MOVEMENT ----
-Library:CreateLabel(TabMove, "── MOVEMENT ──")
-Library:CreateToggle(TabMove, "Speed hack", false, function(v) _G.Move.Speed = v end)
-Library:CreateSlider(TabMove, "Speed", 16, 250, 50, function(v) _G.Move.SpeedVal = v end)
-Library:CreateToggle(TabMove, "Jump hack", false, function(v) _G.Move.Jump = v end)
-Library:CreateSlider(TabMove, "Jump power", 50, 500, 100, function(v) _G.Move.JumpVal = v end)
-Library:CreateToggle(TabMove, "Fly (WASD + Space)", false, function(v) _G.Move.Fly = v end)
-Library:CreateSlider(TabMove, "Fly speed", 10, 300, 50, function(v) _G.Move.FlySpeed = v end)
-Library:CreateToggle(TabMove, "Noclip", false, function(v) _G.Move.Noclip = v end)
+Library:CreateTextBox(TabSettings, "So mob gom (1-5)", 5, function(v)
+    BM_Max = math.clamp(math.floor(v), 1, 5)
+end)
 
 -- ---------- TAB STATS & SERVER ----------
 local Player = Players.LocalPlayer
@@ -1384,390 +1416,523 @@ task.spawn(function()
 end)
 
 -- ============================================================
--- RIVALS FEATURES — MOBILE
+-- AUTO FARM LEVEL + BRING MOB (REWRITE - FIXED)
 -- ============================================================
-local LP = Players.LocalPlayer
-local Camera = Workspace.CurrentCamera
-local UIS = UserInputService
-local VIM = game:GetService("VirtualInputManager")
+
+local RS = game:GetService("ReplicatedStorage")
+
+repeat task.wait() until game:IsLoaded() and LP.Character
+
+local Net          = RS:WaitForChild("Modules"):WaitForChild("Net")
+local RegisterAttack = Net:WaitForChild("RE/RegisterAttack")
+local RegisterHit    = Net:WaitForChild("RE/RegisterHit")
+local CommF_       = RS:WaitForChild("Remotes"):WaitForChild("CommF_")
+
+-- ============================================================
+-- QUEST LIST
+-- ============================================================
+local FirstSeaQuests = {
+    { MinLevel = 650, MaxLevel = 700, QuestName = "FountainQuest", QuestId = 2, NpcName = "Hero", NpcPosition = CFrame.new(5257, 39, 4051), MobName = "Galley Captain", MobSpawn = CFrame.new(5790, 60, 4975) },
+    { MinLevel = 625, MaxLevel = 649, QuestName = "FountainQuest", QuestId = 1, NpcName = "Hero", NpcPosition = CFrame.new(5257, 39, 4051), MobName = "Galley Pirate", MobSpawn = CFrame.new(5554, 82, 3971) },
+    { MinLevel = 550, MaxLevel = 624, QuestName = "SkyExp2Quest", QuestId = 2, NpcName = "Conylee", NpcPosition = CFrame.new(-7903, 5635, -1411), MobName = "Nomadic Pirate", MobSpawn = CFrame.new(-7819, 5545, -1727) },
+    { MinLevel = 525, MaxLevel = 549, QuestName = "SkyExp2Quest", QuestId = 1, NpcName = "Conylee", NpcPosition = CFrame.new(-7903, 5635, -1411), MobName = "Royal Squad", MobSpawn = CFrame.new(-7667, 5747, -1964) },
+    { MinLevel = 475, MaxLevel = 524, QuestName = "SkyExp1Quest", QuestId = 2, NpcName = "Instance", NpcPosition = CFrame.new(-7903, 5635, -1411), MobName = "Shanda", MobSpawn = CFrame.new(-7657, 5607, -1412) },
+    { MinLevel = 450, MaxLevel = 474, QuestName = "SkyExp1Quest", QuestId = 1, NpcName = "Instance", NpcPosition = CFrame.new(-7903, 5635, -1411), MobName = "God's Guard", MobSpawn = CFrame.new(-4718, 850, -1945) },
+    { MinLevel = 400, MaxLevel = 449, QuestName = "FishmanQuest", QuestId = 2, NpcName = "Villager", NpcPosition = CFrame.new(6112, 19, 1567), MobName = "Fishman Commando", MobSpawn = CFrame.new(6337, -1, 1145) },
+    { MinLevel = 375, MaxLevel = 399, QuestName = "FishmanQuest", QuestId = 1, NpcName = "Villager", NpcPosition = CFrame.new(6112, 19, 1567), MobName = "Fishman Warrior", MobSpawn = CFrame.new(6090, -1, 1494) },
+    { MinLevel = 325, MaxLevel = 374, QuestName = "MagmaQuest", QuestId = 2, NpcName = "Military Spy", NpcPosition = CFrame.new(-5315, 12, 8515), MobName = "Military Spy", MobSpawn = CFrame.new(-5808, 51, 8829) },
+    { MinLevel = 300, MaxLevel = 324, QuestName = "MagmaQuest", QuestId = 1, NpcName = "Military Spy", NpcPosition = CFrame.new(-5315, 12, 8515), MobName = "Military Soldier", MobSpawn = CFrame.new(-5401, 18, 8450) },
+    { MinLevel = 250, MaxLevel = 299, QuestName = "ColosseumQuest", QuestId = 1, NpcName = "Noble", NpcPosition = CFrame.new(-1580, 7, -2992), MobName = "Toga Warrior", MobSpawn = CFrame.new(-1840, 7, -2735) },
+    { MinLevel = 210, MaxLevel = 249, QuestName = "PrisonerQuest", QuestId = 2, NpcName = "Military Detective", NpcPosition = CFrame.new(487, 5, 327), MobName = "Dangerous Prisoner", MobSpawn = CFrame.new(1099, 5, 130) },
+    { MinLevel = 190, MaxLevel = 209, QuestName = "PrisonerQuest", QuestId = 1, NpcName = "Military Detective", NpcPosition = CFrame.new(487, 5, 327), MobName = "Prisoner", MobSpawn = CFrame.new(524, 5, 484) },
+    { MinLevel = 175, MaxLevel = 189, QuestName = "SkyQuest", QuestId = 2, NpcName = "Mad Scientist", NpcPosition = CFrame.new(-4842, 718, -2622), MobName = "Dark Master", MobSpawn = CFrame.new(-5244, 431, -2279) },
+    { MinLevel = 150, MaxLevel = 174, QuestName = "SkyQuest", QuestId = 1, NpcName = "Mad Scientist", NpcPosition = CFrame.new(-4842, 718, -2622), MobName = "Sky Bandit", MobSpawn = CFrame.new(-4962, 281, -2880) },
+    { MinLevel = 120, MaxLevel = 149, QuestName = "MarineQuest2", QuestId = 1, NpcName = "Navy Lieutenant", NpcPosition = CFrame.new(-2440, 13, 3216), MobName = "Chief Petty Officer", MobSpawn = CFrame.new(-2566, 6, 3314) },
+    { MinLevel = 100, MaxLevel = 119, QuestName = "SnowQuest", QuestId = 2, NpcName = "Snow Adventurer", NpcPosition = CFrame.new(1386, 87, -1298), MobName = "Snowman", MobSpawn = CFrame.new(1361, 87, -1544) },
+    { MinLevel = 90, MaxLevel = 99, QuestName = "SnowQuest", QuestId = 1, NpcName = "Snow Adventurer", NpcPosition = CFrame.new(1386, 87, -1298), MobName = "Snow Bandit", MobSpawn = CFrame.new(1279, 104, -1433) },
+    { MinLevel = 75, MaxLevel = 89, QuestName = "DesertQuest", QuestId = 2, NpcName = "Desert Adventurer", NpcPosition = CFrame.new(897, 7, 4388), MobName = "Desert Officer", MobSpawn = CFrame.new(1134, 10, 4424) },
+    { MinLevel = 60, MaxLevel = 74, QuestName = "DesertQuest", QuestId = 1, NpcName = "Desert Adventurer", NpcPosition = CFrame.new(897, 7, 4388), MobName = "Desert Bandit", MobSpawn = CFrame.new(944, 7, 4277) },
+    { MinLevel = 40, MaxLevel = 59, QuestName = "BuggyQuest1", QuestId = 2, NpcName = "Rich Man", NpcPosition = CFrame.new(-1140, 5, 3828), MobName = "Brute", MobSpawn = CFrame.new(-1390, 16, 4101) },
+    { MinLevel = 30, MaxLevel = 39, QuestName = "BuggyQuest1", QuestId = 1, NpcName = "Rich Man", NpcPosition = CFrame.new(-1140, 5, 3828), MobName = "Pirate", MobSpawn = CFrame.new(-1201, 14, 3938) },
+    { MinLevel = 15, MaxLevel = 29, QuestName = "JungleQuest", QuestId = 2, NpcName = "Adventurer", NpcPosition = CFrame.new(-1601, 37, 153), MobName = "Gorilla", MobSpawn = CFrame.new(-1237, 6, -510) },
+    { MinLevel = 10, MaxLevel = 14, QuestName = "JungleQuest", QuestId = 1, NpcName = "Adventurer", NpcPosition = CFrame.new(-1683.78, 50.35, 171.07), MobName = "Monkey", MobSpawn = CFrame.new(-1498, 51, 60) },
+    { MinLevel = 1,  MaxLevel = 9,   QuestName = "BanditQuest1", QuestId = 1, NpcName = "Bandit Hero", NpcPosition = CFrame.new(1059, 16, 1549), MobName = "Bandit", MobSpawn = CFrame.new(1141, 17, 1690) }
+}
+
+-- ============================================================
+-- CONFIG
+-- ============================================================
+if AttackDelay == nil then AttackDelay = 0.5 end
+if HitCount   == nil then HitCount = 3 end
+if TweenSpeed == nil then TweenSpeed = 150 end
+if CurrentMobName == nil then CurrentMobName = "Bandit" end
+if QuestCFrame == nil then QuestCFrame = CFrame.new(1059, 16, 1547) end
+if QuestCooldown == nil then QuestCooldown = 0 end
+if CurrentQuestName == nil then CurrentQuestName = nil end
+if currentTarget == nil then currentTarget = nil end
+
+local PLAYER_FLY_Y  = 15     -- độ cao player so với mob
+local ATTACK_RANGE  = 30
+local STOP_RANGE    = 12
+local BRING_RADIUS  = 8      -- bán kính dàn mob quanh player
+local DETECT_RANGE  = 500    -- tầm gom mob
+local HitHash       = "168716de"
 
 -- ============================================================
 -- HELPERS
 -- ============================================================
-local function IsAlive(plr)
-    local c = plr.Character
-    if not c then return false end
-    local h = c:FindFirstChildOfClass("Humanoid")
-    return h and h.Health > 0
+local function GetPlayerParts()
+    local char = LP.Character
+    if not char then return nil end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    local hum  = char:FindFirstChild("Humanoid")
+    if not root or not hum or hum.Health <= 0 then return nil end
+    return root
 end
 
-local function GetRoot(plr)
-    local c = plr.Character
-    return c and c:FindFirstChild("HumanoidRootPart")
+local function GetMobParts(mob)
+    if not mob or not mob.Parent then return nil end
+    local hum  = mob:FindFirstChild("Humanoid")
+    local root = mob:FindFirstChild("HumanoidRootPart")
+    if not hum or not root or hum.Health <= 0 then return nil end
+    return root, hum
 end
 
-local function IsTeam(plr)
-    if plr == LP then return true end
-    local a, b = LP.Team, plr.Team
-    return a ~= nil and b ~= nil and a == b
-end
+local function FindNearestMob(name, maxDist)
+    maxDist = maxDist or 2000
+    local myRoot = GetPlayerParts()
+    if not myRoot then return nil end
 
-local function GetTargets(filterTeam)
-    local list = {}
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= LP and IsAlive(plr) then
-            if not filterTeam or not IsTeam(plr) then
-                table.insert(list, plr)
+    local enemies = workspace:FindFirstChild("Enemies")
+    if not enemies then return nil end
+
+    local best, bestDist = nil, maxDist
+    for _, mob in ipairs(enemies:GetChildren()) do
+        if mob.Name == name then
+            local mRoot = GetMobParts(mob)
+            if mRoot then
+                local d = (myRoot.Position - mRoot.Position).Magnitude
+                if d < bestDist then
+                    bestDist = d
+                    best = mob
+                end
             end
         end
     end
+    return best, bestDist
+end
+
+local function GetAttackParts(mob)
+    local parts = {}
+    for _, p in ipairs(mob:GetDescendants()) do
+        if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then
+            table.insert(parts, p)
+        end
+    end
+    if #parts == 0 then
+        local hrp = mob:FindFirstChild("HumanoidRootPart")
+        if hrp then table.insert(parts, hrp) end
+    end
+    return parts
+end
+
+-- ============================================================
+-- TWEEN MANAGEMENT (fix race condition)
+-- ============================================================
+local farmTween     = nil
+local farmTweenConn = nil
+
+StopActiveTween = function()
+    if farmTweenConn then
+        pcall(function() farmTweenConn:Disconnect() end)
+        farmTweenConn = nil
+    end
+    if farmTween then
+        pcall(function() farmTween:Cancel() end)
+        farmTween = nil
+    end
+end
+
+local function FlyTo(targetPos)
+    local root = GetPlayerParts()
+    if not root then return end
+
+    StopActiveTween()
+
+    local dist = (root.Position - targetPos).Magnitude
+    if dist < 1 then return end
+    local duration = math.clamp(dist / TweenSpeed, 0.05, 12)
+
+    root.Anchored = false
+
+    farmTween = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
+        CFrame = CFrame.new(targetPos)
+    })
+    farmTweenConn = farmTween.Completed:Connect(function(state)
+        if state == Enum.PlaybackState.Completed then
+            farmTween = nil
+        end
+    end)
+    farmTween:Play()
+end
+
+-- ============================================================
+-- QUEST SYSTEM
+-- ============================================================
+local function HasActiveQuest()
+    local pg = LP:FindFirstChild("PlayerGui")
+    if not pg then return false end
+    local frame = pg:FindFirstChild("TrackedQuestFrame", true)
+    return frame and frame.Visible
+end
+
+local function FindQuestByLevel(level)
+    for _, q in ipairs(FirstSeaQuests) do
+        if level >= q.MinLevel and level <= q.MaxLevel then return q end
+    end
+    return FirstSeaQuests[1]
+end
+
+local function AutoAcceptQuest()
+    local level = 1
+    pcall(function()
+        if LP:FindFirstChild("Data") and LP.Data:FindFirstChild("Level") then
+            level = LP.Data.Level.Value
+        end
+    end)
+
+    local q = FindQuestByLevel(level)
+    if not q then return nil end
+
+    local key = q.QuestName .. "|" .. tostring(q.QuestId)
+    local hasQuest = HasActiveQuest()
+
+    if not hasQuest or CurrentQuestName ~= key then
+        if tick() < QuestCooldown then return nil end
+
+        pcall(function()
+            CommF_:InvokeServer("StartQuest", q.QuestName, q.QuestId)
+        end)
+
+        CurrentQuestName = key
+        CurrentMobName   = q.MobName
+        QuestCFrame      = q.MobSpawn
+        QuestCooldown    = tick() + 3
+        return q
+    end
+    return q
+end
+
+-- ============================================================
+-- MAIN FARM LOOP
+-- ============================================================
+task.spawn(function()
+    while true do
+        task.wait(0.08)
+
+        if not AutoFarm then
+            StopActiveTween()
+            currentTarget = nil
+            local root = GetPlayerParts()
+            if root and root.Anchored then root.Anchored = false end
+        else
+            local ok, err = pcall(function()
+                local root = GetPlayerParts()
+                if not root then
+                    task.wait(0.5)
+                    return
+                end
+
+                pcall(AutoAcceptQuest)
+
+                local target = FindNearestMob(CurrentMobName, 2000)
+                currentTarget = target
+
+                -- Không có mob → bay tới spawn
+                if not target then
+                    StopActiveTween()
+                    if QuestCFrame then
+                        local spawnPos = QuestCFrame.Position + Vector3.new(0, PLAYER_FLY_Y, 0)
+                        local d = (root.Position - spawnPos).Magnitude
+                        if d > 20 and not farmTween then
+                            FlyTo(spawnPos)
+                        end
+                    end
+                    return
+                end
+
+                local mRoot = GetMobParts(target)
+                if not mRoot then return end
+
+                local dist = (root.Position - mRoot.Position).Magnitude
+
+                -- ===== DI CHUYỂN =====
+                if BM_On then
+                    -- BM bật: player được anchor trên đầu mob #1 bởi Heartbeat
+                    -- chỉ bay khi mob quá xa
+                    if dist > 400 and not farmTween then
+                        FlyTo(mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0))
+                    elseif dist <= 400 then
+                        StopActiveTween()
+                    end
+                else
+                    -- BM tắt: bay tới đầu mob bình thường
+                    if dist > STOP_RANGE then
+                        if not farmTween then
+                            FlyTo(mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0))
+                        end
+                    else
+                        StopActiveTween()
+                        root.Anchored = true
+                        root.CFrame = CFrame.new(mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0))
+                        root.Velocity = Vector3.zero
+                        root.RotVelocity = Vector3.zero
+                    end
+                end
+
+                -- ===== ĐÁNH =====
+                if dist <= ATTACK_RANGE then
+                    pcall(function()
+                        RegisterAttack:FireServer(AttackDelay, HitCount)
+
+                        -- Gom tất cả mob cùng loại trong tầm
+                        local targets = {target}
+                        local enemies = workspace:FindFirstChild("Enemies")
+                        if enemies then
+                            for _, m in ipairs(enemies:GetChildren()) do
+                                if m.Name == CurrentMobName and m ~= target then
+                                    local mr = GetMobParts(m)
+                                    if mr and (root.Position - mr.Position).Magnitude <= ATTACK_RANGE then
+                                        table.insert(targets, m)
+                                    end
+                                end
+                            end
+                        end
+
+                        local loops = FA_On and 15 or HitCount
+                        local delay = FA_On and (FA_Delay or 0.03) or (AttackDelay / math.max(HitCount, 1))
+
+                        for _ = 1, loops do
+                            for _, m in ipairs(targets) do
+                                for _, p in ipairs(GetAttackParts(m)) do
+                                    pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
+                                    pcall(function() RegisterHit:FireServer(p, {}) end)
+                                end
+                            end
+                            task.wait(delay)
+                        end
+                    end)
+                end
+            end)
+
+            if not ok then
+                warn("[AbyssalHub] Farm error: " .. tostring(err))
+            end
+        end
+    end
+end)
+
+-- ============================================================
+-- STEPPED HANDLER (chống knockback, anchor player khi tới mob)
+-- ============================================================
+RunService.Stepped:Connect(function()
+    if not AutoFarm or not currentTarget then
+        local root = GetPlayerParts()
+        if root and root.Anchored then root.Anchored = false end
+        return
+    end
+
+    -- Đang tween → không can thiệp
+    if farmTween and farmTween.PlaybackState == Enum.PlaybackState.Playing then
+        return
+    end
+
+    -- BM_On → Heartbeat lo anchor player
+    if BM_On then return end
+
+    local root = GetPlayerParts()
+    if not root then return end
+
+    local mRoot = GetMobParts(currentTarget)
+    if not mRoot then
+        currentTarget = nil
+        if root.Anchored then root.Anchored = false end
+        return
+    end
+
+    local dist = (root.Position - mRoot.Position).Magnitude
+    if dist <= ATTACK_RANGE then
+        root.Anchored = true
+        root.CFrame = CFrame.new(mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0))
+        root.Velocity = Vector3.zero
+        root.RotVelocity = Vector3.zero
+    else
+        if root.Anchored then root.Anchored = false end
+    end
+end)
+
+-- ============================================================
+-- BRING MOB SYSTEM (FULL REWRITE)
+-- Dùng global BroughtMobData đã khai báo ở đầu file
+-- ============================================================
+
+RestoreMob = function(mob)
+    local data = BroughtMobData[mob]
+    BroughtMobData[mob] = nil
+    if not mob or not mob.Parent then return end
+
+    local mRoot = mob:FindFirstChild("HumanoidRootPart")
+    local mHum  = mob:FindFirstChild("Humanoid")
+
+    if mRoot then
+        pcall(function() mRoot.Anchored = false end)
+    end
+    if mHum and data then
+        pcall(function()
+            mHum.PlatformStand = false
+            mHum.WalkSpeed = data.WalkSpeed or 16
+            mHum.JumpPower = data.JumpPower or 50
+        end)
+    end
+end
+
+-- Hàm gom mob cùng loại trong tầm DETECT, sort theo khoảng cách
+local function GatherNearbyMobs(currentMobName, rootPos, maxDist)
+    local enemies = workspace:FindFirstChild("Enemies")
+    if not enemies then return {} end
+
+    local list = {}
+    for _, mob in ipairs(enemies:GetChildren()) do
+        if mob.Name == currentMobName then
+            local mRoot = mob:FindFirstChild("HumanoidRootPart")
+            local mHum  = mob:FindFirstChild("Humanoid")
+            if mRoot and mHum and mHum.Health > 0 then
+                local d = (rootPos - mRoot.Position).Magnitude
+                if d <= maxDist then
+                    table.insert(list, {
+                        Mob  = mob,
+                        Root = mRoot,
+                        Hum  = mHum,
+                        Dist = d
+                    })
+                end
+            end
+        end
+    end
+    table.sort(list, function(a, b) return a.Dist < b.Dist end)
     return list
 end
 
-local function WorldToScreen(pos)
-    local sp, onScreen = Camera:WorldToViewportPoint(pos)
-    return Vector2.new(sp.X, sp.Y), onScreen, sp.Z
-end
-
-local function GetFOVTarget(fov, part, followESP)
-    local center = Camera.ViewportSize / 2
-    local filterTeam = followESP and _G.ESP.Team or _G.Aim.Team
-    local effectiveFOV = _G.Aim.AimAll and 1e9 or fov
-    local best, bestDist = nil, effectiveFOV
-
-    for _, plr in ipairs(GetTargets(filterTeam)) do
-        local root = GetRoot(plr)
-        if root then
-            local targetPart = plr.Character:FindFirstChild(part) or root
-            local sp, onScreen = WorldToScreen(targetPart.Position)
-            if onScreen then
-                local d = (sp - center).Magnitude
-                if d < bestDist then
-                    bestDist = d
-                    best = plr
-                end
+RunService.Heartbeat:Connect(function()
+    -- Tắt farm hoặc tắt BM → restore hết mob đang mang
+    if not AutoFarm or not BM_On then
+        for mob in pairs(BroughtMobData) do
+            if mob and mob.Parent then
+                RestoreMob(mob)
+            else
+                BroughtMobData[mob] = nil
             end
         end
+        return
     end
-    return best
-end
 
--- ============================================================
--- AIMBOT — mobile: luôn bật khi toggle ON
--- ============================================================
-RunService.RenderStepped:Connect(function()
-    if not _G.Aim.Enabled then return end
-    if not IsAlive(LP) then return end
-    local target = GetFOVTarget(_G.Aim.FOV, _G.Aim.Part, _G.Aim.FollowESP)
-    if not target then return end
-    local part = target.Character:FindFirstChild(_G.Aim.Part) or GetRoot(target)
-    if not part then return end
-    local goal = CFrame.new(Camera.CFrame.Position, part.Position)
-    Camera.CFrame = Camera.CFrame:Lerp(goal, 1 - _G.Aim.Smooth)
-end)
-
--- ============================================================
--- SILENT AIM — bọc pcall, mobile có thể không hỗ trợ
--- ============================================================
-pcall(function()
-    local oldNamecall
-    oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-        local method = getnamecallmethod()
-        if _G.Silent.Enabled and (method == "FindPartOnRay" or method == "FindPartOnRayWithIgnoreList" or method == "Raycast") then
-            local target = GetFOVTarget(_G.Silent.FOV, "Head")
-            if target then
-                local head = target.Character and target.Character:FindFirstChild("Head")
-                if head then
-                    if method == "Raycast" then
-                        local args = {...}
-                        local origin = Camera.CFrame.Position
-                        local dir = (head.Position - origin)
-                        local params = RaycastParams.new()
-                        params.FilterDescendantsInstances = {target.Character}
-                        params.FilterType = Enum.RaycastFilterType.Include
-                        return oldNamecall(self, origin, dir, params)
-                    else
-                        local args = {...}
-                        args[1] = Ray.new(Camera.CFrame.Position, (head.Position - Camera.CFrame.Position).Unit * 1000)
-                        return oldNamecall(self, unpack(args))
-                    end
-                end
-            end
-        end
-        return oldNamecall(self, ...)
-    end)
-end)
-
--- ============================================================
--- TRIGGERBOT — dùng VirtualInputManager (mobile-safe)
--- ============================================================
-task.spawn(function()
-    while task.wait(_G.Trig.Delay or 0.05) do
-        if not _G.Trig.Enabled then continue end
-        local center = Camera.ViewportSize / 2
-        for _, plr in ipairs(GetTargets(_G.Trig.Team)) do
-            local root = GetRoot(plr)
-            if root then
-                local sp, onScreen = WorldToScreen(root.Position)
-                if onScreen and (sp - center).Magnitude < _G.Trig.Range then
-                    pcall(function()
-                        VIM:SendMouseButtonEvent(0, 0, 0, true,  game, 1)
-                        VIM:SendMouseButtonEvent(0, 0, 0, false, game, 1)
-                    end)
-                    break
-                end
-            end
-        end
-    end
-end)
-
--- ============================================================
--- ESP — Instance (không cần Drawing API)
--- ============================================================
-local ESPGui
-if CoreGui:FindFirstChild("AbyssalESP") then
-    CoreGui.AbyssalESP:Destroy()
-end
-ESPGui = Instance.new("ScreenGui")
-ESPGui.Name = "AbyssalESP"
-ESPGui.ResetOnSpawn = false
-ESPGui.IgnoreGuiInset = true
-ESPGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ESPGui.Parent = CoreGui
-
-local espData = {}
-
-local function makeESP(plr)
-    local box = Instance.new("Frame")
-    box.BackgroundTransparency = 1
-    box.BorderSizePixel = 0
-    box.Visible = false
-    box.ZIndex = 2
-    box.Parent = ESPGui
-
-    local boxStroke = Instance.new("UIStroke")
-    boxStroke.Color = Color3.fromRGB(140, 60, 255)
-    boxStroke.Thickness = 1.5
-    boxStroke.Transparency = 0.1
-    boxStroke.Parent = box
-
-    local boxCorner = Instance.new("UICorner")
-    boxCorner.CornerRadius = UDim.new(0, 3)
-    boxCorner.Parent = box
-
-    local nameLbl = Instance.new("TextLabel")
-    nameLbl.BackgroundTransparency = 1
-    nameLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
-    nameLbl.TextStrokeTransparency = 0
-    nameLbl.TextSize = 13
-    nameLbl.Font = Enum.Font.GothamBold
-    nameLbl.TextXAlignment = Enum.TextXAlignment.Center
-    nameLbl.Visible = false
-    nameLbl.ZIndex = 3
-    nameLbl.Parent = ESPGui
-
-    local distLbl = Instance.new("TextLabel")
-    distLbl.BackgroundTransparency = 1
-    distLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
-    distLbl.TextStrokeTransparency = 0
-    distLbl.TextSize = 11
-    distLbl.Font = Enum.Font.Gotham
-    distLbl.TextXAlignment = Enum.TextXAlignment.Center
-    distLbl.Visible = false
-    distLbl.ZIndex = 3
-    distLbl.Parent = ESPGui
-
-    local hpBg = Instance.new("Frame")
-    hpBg.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    hpBg.BorderSizePixel = 0
-    hpBg.Visible = false
-    hpBg.ZIndex = 2
-    hpBg.Parent = ESPGui
-
-    local hpBar = Instance.new("Frame")
-    hpBar.BackgroundColor3 = Color3.fromRGB(0, 255, 100)
-    hpBar.BorderSizePixel = 0
-    hpBar.Visible = false
-    hpBar.ZIndex = 3
-    hpBar.Parent = ESPGui
-
-    local tracer = Instance.new("Frame")
-    tracer.BackgroundColor3 = Color3.fromRGB(140, 60, 255)
-    tracer.BorderSizePixel = 0
-    tracer.AnchorPoint = Vector2.new(0.5, 0.5)
-    tracer.Visible = false
-    tracer.ZIndex = 2
-    tracer.Parent = ESPGui
-
-    espData[plr] = {
-        Box = box, Stroke = boxStroke,
-        Name = nameLbl, Dist = distLbl,
-        HpBg = hpBg, HpBar = hpBar,
-        Tracer = tracer,
-    }
-end
-
-local function destroyESP(plr)
-    local d = espData[plr]
-    if not d then return end
-    for _, obj in pairs(d) do
-        pcall(function() obj:Destroy() end)
-    end
-    espData[plr] = nil
-end
-
-for _, plr in ipairs(Players:GetPlayers()) do
-    if plr ~= LP then makeESP(plr) end
-end
-Players.PlayerAdded:Connect(function(plr)
-    if plr ~= LP then makeESP(plr) end
-end)
-Players.PlayerRemoving:Connect(destroyESP)
-
-RunService.RenderStepped:Connect(function()
-    for plr, d in pairs(espData) do
-        local show = IsAlive(plr)
-        if show and _G.ESP.Team and IsTeam(plr) then
-            show = false
-        end
-
-        if not show then
-            d.Box.Visible = false
-            d.Name.Visible = false
-            d.Dist.Visible = false
-            d.HpBg.Visible = false
-            d.HpBar.Visible = false
-            d.Tracer.Visible = false
-            continue
-        end
-
-        local char = plr.Character
-        local head = char:FindFirstChild("Head")
-        local root = char:FindFirstChild("HumanoidRootPart")
-        local hum  = char:FindFirstChildOfClass("Humanoid")
-        if not head or not root or not hum then
-            d.Box.Visible = false
-            d.Name.Visible = false
-            d.Dist.Visible = false
-            d.HpBg.Visible = false
-            d.HpBar.Visible = false
-            d.Tracer.Visible = false
-            continue
-        end
-
-        local top, topOn = WorldToScreen(head.Position + Vector3.new(0, 0.5, 0))
-        local bot, botOn = WorldToScreen(root.Position - Vector3.new(0, 3, 0))
-        if not (topOn and botOn) then
-            d.Box.Visible = false
-            d.Name.Visible = false
-            d.Dist.Visible = false
-            d.HpBg.Visible = false
-            d.HpBar.Visible = false
-            d.Tracer.Visible = false
-            continue
-        end
-
-        local height = math.abs(bot.Y - top.Y)
-        local width  = height * 0.6
-        local x      = top.X - width / 2
-        local y      = top.Y
-
-        d.Box.Visible = _G.ESP.Box
-        if _G.ESP.Box then
-            d.Box.Position = UDim2.fromOffset(x, y)
-            d.Box.Size     = UDim2.fromOffset(width, height)
-        end
-
-        d.Name.Visible = _G.ESP.Name
-        if _G.ESP.Name then
-            d.Name.Position = UDim2.fromOffset(x, y - 16)
-            d.Name.Size     = UDim2.fromOffset(width, 14)
-            d.Name.Text     = plr.Name
-        end
-
-        local dist3D = (Camera.CFrame.Position - root.Position).Magnitude
-        d.Dist.Visible = _G.ESP.Dist
-        if _G.ESP.Dist then
-            d.Dist.Position = UDim2.fromOffset(x, y + height + 2)
-            d.Dist.Size     = UDim2.fromOffset(width, 12)
-            d.Dist.Text     = string.format("%d m", dist3D)
-        end
-
-        local hpct = hum.Health / hum.MaxHealth
-        d.HpBg.Visible  = _G.ESP.Health
-        d.HpBar.Visible = _G.ESP.Health
-        if _G.ESP.Health then
-            d.HpBg.Position  = UDim2.fromOffset(x - 6, y)
-            d.HpBg.Size      = UDim2.fromOffset(3, height)
-            d.HpBar.Position = UDim2.fromOffset(x - 6, y + height * (1 - hpct))
-            d.HpBar.Size     = UDim2.fromOffset(3, height * hpct)
-            d.HpBar.BackgroundColor3 = Color3.fromRGB(255 * (1 - hpct), 255 * hpct, 0)
-        end
-
-        d.Tracer.Visible = _G.ESP.Tracer
-        if _G.ESP.Tracer then
-            local fromV = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-            local toV   = Vector2.new(top.X, bot.Y)
-            local mid   = (fromV + toV) / 2
-            local len   = (toV - fromV).Magnitude
-            local ang   = math.deg(math.atan2(toV.Y - fromV.Y, toV.X - fromV.X))
-            d.Tracer.Position = UDim2.fromOffset(mid.X, mid.Y)
-            d.Tracer.Size     = UDim2.fromOffset(len, 1)
-            d.Tracer.Rotation = ang
-        end
-    end
-end)
-
--- ============================================================
--- MOVEMENT
--- ============================================================
-local flyBV
-
-RunService.Stepped:Connect(function()
     local char = LP.Character
     if not char then return end
-    local hum  = char:FindFirstChildOfClass("Humanoid")
     local root = char:FindFirstChild("HumanoidRootPart")
-    if not hum or not root then return end
+    local hum  = char:FindFirstChild("Humanoid")
+    if not root or not hum or hum.Health <= 0 then return end
 
-    if _G.Move.Speed then
-        hum.WalkSpeed = _G.Move.SpeedVal
-    else
-        hum.WalkSpeed = 16
-    end
+    -- Lấy danh sách mob gần nhất, giới hạn BM_Max
+    local list = GatherNearbyMobs(CurrentMobName, root.Position, DETECT_RANGE)
+    local max  = BM_Max or 5
+    local kept = {}
 
-    if _G.Move.Jump then
-        hum.UseJumpPower = true
-        hum.JumpPower = _G.Move.JumpVal
-    else
-        hum.UseJumpPower = false
-        hum.JumpPower = 50
-    end
+    for i, entry in ipairs(list) do
+        if i > max then
+            -- Vượt slot → restore về trạng thái gốc
+            if BroughtMobData[entry.Mob] then
+                RestoreMob(entry.Mob)
+            end
+        else
+            kept[entry.Mob] = true
+            local mob   = entry.Mob
+            local mRoot = entry.Root
+            local mHum  = entry.Hum
 
-    if _G.Move.Noclip then
-        for _, p in ipairs(char:GetDescendants()) do
-            if p:IsA("BasePart") and p.CanCollide then p.CanCollide = false end
+            -- Lưu trạng thái gốc lần đầu gặp
+            if not BroughtMobData[mob] then
+                BroughtMobData[mob] = {
+                    BaseY     = mRoot.Position.Y,
+                    WalkSpeed = mHum.WalkSpeed,
+                    JumpPower = mHum.JumpPower,
+                }
+            end
+            local data = BroughtMobData[mob]
+
+            -- Chia góc quanh player theo debug id → ổn định, không nhảy vị trí
+            local debugId = mob:GetDebugId()
+            local angle   = ((debugId * 137.5) % 360) * math.pi / 180
+            local targetPos = Vector3.new(
+                root.Position.X + math.cos(angle) * BRING_RADIUS,
+                data.BaseY,
+                root.Position.Z + math.sin(angle) * BRING_RADIUS
+            )
+
+            -- Anchor + ép vị trí mỗi frame (60 FPS)
+            pcall(function()
+                mRoot.Anchored = true
+                mRoot.CFrame   = CFrame.new(targetPos)
+                mRoot.AssemblyLinearVelocity  = Vector3.zero
+                mRoot.AssemblyAngularVelocity = Vector3.zero
+            end)
+
+            -- Khoá humanoid của mob
+            pcall(function()
+                mHum.PlatformStand = true
+                mHum.WalkSpeed     = 0
+                mHum.JumpPower     = 0
+            end)
+
+            -- Clear debuff (Busy / Stun) để mob không bị AI reset vị trí
+            local busy = mob:FindFirstChild("Busy")
+            if busy and busy:IsA("BoolValue") then busy.Value = false end
+
+            local stun = mob:FindFirstChild("Stun")
+            if stun and stun:IsA("BoolValue") then stun.Value = false end
+
+            -- Một số mob có thêm tag khác
+            local stunned = mob:FindFirstChild("Stunned")
+            if stunned and stunned:IsA("BoolValue") then stunned.Value = false end
+
+            local grabbed = mob:FindFirstChild("Grabbed")
+            if grabbed and grabbed:IsA("BoolValue") then grabbed.Value = false end
         end
     end
 
-    if _G.Move.Fly then
-        if not flyBV then
-            flyBV = Instance.new("BodyVelocity")
-            flyBV.MaxForce = Vector3.new(1e5, 1e5, 1e5)
-            flyBV.Velocity = Vector3.zero
-            flyBV.Parent = root
+    -- Cleanup mob không còn trong slot (đã chết / biến mất / vượt max)
+    for mob in pairs(BroughtMobData) do
+        if not kept[mob] then
+            if mob and mob.Parent then
+                RestoreMob(mob)
+            else
+                BroughtMobData[mob] = nil
+            end
         end
-        local dir = Vector3.zero
-        local cam = Camera.CFrame
-        if UIS:IsKeyDown(Enum.KeyCode.W) then dir += cam.LookVector end
-        if UIS:IsKeyDown(Enum.KeyCode.S) then dir -= cam.LookVector end
-        if UIS:IsKeyDown(Enum.KeyCode.A) then dir -= cam.RightVector end
-        if UIS:IsKeyDown(Enum.KeyCode.D) then dir += cam.RightVector end
-        if UIS:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.yAxis end
-        if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then dir -= Vector3.yAxis end
-        flyBV.Velocity = dir.Magnitude > 0 and dir.Unit * _G.Move.FlySpeed or Vector3.zero
-    else
-        if flyBV then flyBV:Destroy() flyBV = nil end
+    end
+
+    -- Anchor player trên đầu mob gần nhất (slot 1)
+    if #list > 0 then
+        local firstMob = list[1]
+        local fRoot = firstMob.Root
+        local fHum  = firstMob.Hum
+        if fRoot and fHum and fHum.Health > 0 then
+            pcall(function()
+                root.Anchored = true
+                root.CFrame   = CFrame.new(fRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0))
+                root.Velocity     = Vector3.zero
+                root.RotVelocity  = Vector3.zero
+            end)
+        end
     end
 end)
 
