@@ -1671,55 +1671,51 @@ task.spawn(function()
                 local target = FindNearestMob(CurrentMobName, 2000)
                 currentTarget = target
 
-                -- Không có mob → bay tới spawn
--- Không có mob → bay tới spawn
-if not target then
-    StopActiveTween()
-    if QuestCFrame then
-        local spawnPos = QuestCFrame.Position + Vector3.new(0, PLAYER_FLY_Y, 0)
-        local d = (root.Position - spawnPos).Magnitude
-        if d > 20 and not farmMoving then
-            FlyTo(spawnPos)
-        end
-    end
-    return
-end
+                -- Không có mob → bay tới spawn quest
+                if not target then
+                    StopActiveTween()
+                    if QuestCFrame then
+                        local spawnPos = QuestCFrame.Position + Vector3.new(0, PLAYER_FLY_Y, 0)
+                        local d = (root.Position - spawnPos).Magnitude
+                        if d > 20 and not farmMoving then
+                            FlyTo(spawnPos)
+                        end
+                    end
+                    return
+                end
 
-local mRoot = GetMobParts(target)
-if not mRoot then return end
+                local mRoot = GetMobParts(target)
+                if not mRoot then return end
 
--- Khoảng cách NGANG (XZ) — bỏ Y để không bị bug 15 studs
-local dx = root.Position.X - mRoot.Position.X
-local dz = root.Position.Z - mRoot.Position.Z
-local horizDist = math.sqrt(dx*dx + dz*dz)
+                -- Khoảng cách NGANG (bỏ Y để tránh bug 15 studs)
+                local dx = root.Position.X - mRoot.Position.X
+                local dz = root.Position.Z - mRoot.Position.Z
+                local horizDist = math.sqrt(dx * dx + dz * dz)
 
--- ===== DI CHUYỂN =====
-if horizDist > STOP_RANGE then
-    if not farmMoving then
-        FlyTo(mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0))
-    else
-        -- Cập nhật target khi mob di chuyển
-        local newTarget = mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0)
-        if newTarget.Y < MIN_Y then
-            newTarget = Vector3.new(newTarget.X, MIN_Y, newTarget.Z)
-        end
-        farmTargetPos = newTarget
-    end
-else
-    -- Đã đứng trên đầu mob → dừng bay, anchor
-    StopActiveTween()
-    if not BM_On then
-        root.Anchored = true
-        root.CFrame = CFrame.new(mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0))
-        root.Velocity = Vector3.zero
-        root.RotVelocity = Vector3.zero
-    end
-end
-
--- ===== ĐÁNH ===== (đoạn này giữ nguyên)
+                -- ===== DI CHUYỂN =====
+                if horizDist > STOP_RANGE then
+                    if not farmMoving then
+                        FlyTo(mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0))
+                    else
+                        local newTarget = mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0)
+                        if newTarget.Y < MIN_Y then
+                            newTarget = Vector3.new(newTarget.X, MIN_Y, newTarget.Z)
+                        end
+                        farmTargetPos = newTarget
+                    end
+                else
+                    -- Đã tới nơi → dừng bay, anchor
+                    StopActiveTween()
+                    if not BM_On then
+                        root.Anchored = true
+                        root.CFrame = CFrame.new(mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0))
+                        root.Velocity = Vector3.zero
+                        root.RotVelocity = Vector3.zero
+                    end
+                end
 
                 -- ===== ĐÁNH =====
-                if dist <= ATTACK_RANGE then
+                if horizDist <= ATTACK_RANGE then
                     pcall(function()
                         RegisterAttack:FireServer(AttackDelay, HitCount)
 
@@ -1786,7 +1782,7 @@ RunService.Stepped:Connect(function()
     -- Khoảng cách NGANG
     local dx = root.Position.X - mRoot.Position.X
     local dz = root.Position.Z - mRoot.Position.Z
-    local horizDist = math.sqrt(dx*dx + dz*dz)
+    local horizDist = math.sqrt(dx * dx + dz * dz)
 
     if horizDist <= STOP_RANGE then
         root.Anchored = true
@@ -1846,8 +1842,11 @@ RunService.Heartbeat:Connect(function()
     -- Tắt farm / tắt BM → restore hết
     if not AutoFarm or not BM_On then
         for mob in pairs(BroughtMobData) do
-            if mob and mob.Parent then RestoreMob(mob)
-            else BroughtMobData[mob] = nil end
+            if mob and mob.Parent then
+                RestoreMob(mob)
+            else
+                BroughtMobData[mob] = nil
+            end
         end
         return
     end
@@ -1876,7 +1875,7 @@ RunService.Heartbeat:Connect(function()
             end
             local data = BroughtMobData[mob]
 
-            -- Slot cố định — KHÔNG vòng tròn
+            -- Slot cố định quanh player
             local offset = SLOT_OFFSETS[i] or Vector3.new(0, 0, 0)
             local targetPos = Vector3.new(
                 root.Position.X + offset.X,
@@ -1891,7 +1890,7 @@ RunService.Heartbeat:Connect(function()
                 mRoot.AssemblyAngularVelocity = Vector3.zero
             end)
 
-            -- Khoá di chuyển — KHÔNG PlatformStand
+            -- Khoá di chuyển (KHÔNG PlatformStand)
             pcall(function()
                 mHum.WalkSpeed = 0
                 mHum.JumpPower = 0
@@ -1912,14 +1911,16 @@ RunService.Heartbeat:Connect(function()
     -- Cleanup mob ngoài slot
     for mob in pairs(BroughtMobData) do
         if not kept[mob] then
-            if mob and mob.Parent then RestoreMob(mob)
-            else BroughtMobData[mob] = nil end
+            if mob and mob.Parent then
+                RestoreMob(mob)
+            else
+                BroughtMobData[mob] = nil
+            end
         end
     end
 
-    -- Anchor player trên đầu mob gần nhất — CHỈ khi tween không chạy
-    local tweenRunning = farmTween and farmTween.PlaybackState == Enum.PlaybackState.Playing
-    if #list > 0 and not tweenRunning then
+    -- Anchor player trên đầu mob gần nhất — CHỈ khi đang không bay
+    if #list > 0 and not farmMoving then
         local fRoot = list[1].Root
         pcall(function()
             root.Anchored = true
