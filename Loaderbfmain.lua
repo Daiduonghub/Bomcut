@@ -1464,7 +1464,7 @@ local FirstSeaQuests = {
 -- ============================================================
 if AttackDelay == nil then AttackDelay = 0.5 end
 if HitCount   == nil then HitCount = 3 end
-if TweenSpeed == nil then TweenSpeed = 150 end
+if TweenSpeed == nil then TweenSpeed = 80 end   -- chậm lại, mượt hơn
 if CurrentMobName == nil then CurrentMobName = "Bandit" end
 if QuestCFrame == nil then QuestCFrame = CFrame.new(1059, 16, 1547) end
 if QuestCooldown == nil then QuestCooldown = 0 end
@@ -1475,6 +1475,7 @@ local PLAYER_FLY_Y  = 15
 local ATTACK_RANGE  = 30
 local STOP_RANGE    = 12
 local DETECT_RANGE  = 500
+local MIN_Y         = 20     -- không bay thấp hơn mức này (tránh rớt biển)
 local HitHash       = "168716de"
 
 -- Slot cố định — cluster gọn thay vì hình tròn
@@ -1545,44 +1546,65 @@ local function GetAttackParts(mob)
 end
 
 -- ============================================================
--- TWEEN MANAGEMENT (fix race condition)
+-- MOVEMENT SYSTEM (Heartbeat lerp, không dùng TweenService)
 -- ============================================================
-local farmTween     = nil
-local farmTweenConn = nil
+local farmTargetPos = nil
+local farmMoving    = false
 
 StopActiveTween = function()
-    if farmTweenConn then
-        pcall(function() farmTweenConn:Disconnect() end)
-        farmTweenConn = nil
-    end
-    if farmTween then
-        pcall(function() farmTween:Cancel() end)
-        farmTween = nil
-    end
+    farmMoving    = false
+    farmTargetPos = nil
 end
 
 local function FlyTo(targetPos)
+    -- Clamp Y — không bay xuống dưới MIN_Y
+    if targetPos.Y < MIN_Y then
+        targetPos = Vector3.new(targetPos.X, MIN_Y, targetPos.Z)
+    end
+    farmTargetPos = targetPos
+    farmMoving    = true
+end
+
+-- Heartbeat di chuyển mượt
+RunService.Heartbeat:Connect(function(dt)
+    if not AutoFarm or not farmMoving or not farmTargetPos then return end
+
     local root = GetPlayerParts()
-    if not root then return end
+    if not root then
+        farmMoving = false
+        return
+    end
 
-    StopActiveTween()
-
-    local dist = (root.Position - targetPos).Magnitude
-    if dist < 1 then return end
-    local duration = math.clamp(dist / TweenSpeed, 0.05, 12)
+    -- Không bay khi BM đang anchor player
+    if BM_On then
+        farmMoving = false
+        return
+    end
 
     root.Anchored = false
 
-    farmTween = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
-        CFrame = CFrame.new(targetPos)
-    })
-    farmTweenConn = farmTween.Completed:Connect(function(state)
-        if state == Enum.PlaybackState.Completed then
-            farmTween = nil
-        end
-    end)
-    farmTween:Play()
-end
+    local current = root.Position
+    local target  = farmTargetPos
+    local dist    = (current - target).Magnitude
+
+    -- Tới nơi
+    if dist < 2 then
+        farmMoving    = false
+        farmTargetPos = nil
+        return
+    end
+
+    -- Lerp từng frame — mượt, không giật
+    local step  = math.min(TweenSpeed * dt, dist)
+    local alpha = step / dist
+    local newPos = current:Lerp(target, alpha)
+
+    -- Giữ nguyên rotation player — chỉ đổi vị trí
+    root.CFrame = CFrame.new(newPos) * (root.CFrame - root.CFrame.Position)
+end)
+
+-- Alias để code cũ gọi StopActiveTween vẫn hoạt động
+-- (đã gán ở trên)
 
 -- ============================================================
 -- QUEST SYSTEM
@@ -1658,31 +1680,36 @@ task.spawn(function()
 
                 -- Không có mob → bay tới spawn
                 if not target then
-                    StopActiveTween()
-                    if QuestCFrame then
-                        local spawnPos = QuestCFrame.Position + Vector3.new(0, PLAYER_FLY_Y, 0)
-                        local d = (root.Position - spawnPos).Magnitude
-                        if d > 20 and not farmTween then
-                            FlyTo(spawnPos)
-                        end
-                    end
-                    return
-                end
+    StopActiveTween()
+    if QuestCFrame then
+        local spawnPos = QuestCFrame.Position + Vector3.new(0, PLAYER_FLY_Y, 0)
+        local d = (root.Position - spawnPos).Magnitude
+        if d > 20 and not farmMoving then
+            FlyTo(spawnPos)
+        end
+    end
+    return
+end
 
                 local mRoot = GetMobParts(target)
                 if not mRoot then return end
 
                 local dist = (root.Position - mRoot.Position).Magnitude
 
-                -- ===== DI CHUYỂN =====
--- Luôn bay tới mob gần nhất, dù BM_On hay không
+-- ===== DI CHUYỂN =====
 if dist > STOP_RANGE then
-    if not farmTween then
+    if not farmMoving then
         FlyTo(mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0))
+    else
+        -- Cập nhật target mỗi vòng (mob di chuyển)
+        local newTarget = mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0)
+        if newTarget.Y < MIN_Y then
+            newTarget = Vector3.new(newTarget.X, MIN_Y, newTarget.Z)
+        end
+        farmTargetPos = newTarget
     end
 else
     StopActiveTween()
-    -- BM_On thì Heartbeat lo anchor player
     if not BM_On then
         root.Anchored = true
         root.CFrame = CFrame.new(mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0))
@@ -1734,7 +1761,7 @@ end
 end)
 
 -- ============================================================
--- STEPPED HANDLER (BM_Off mới can thiệp)
+-- STEPPED HANDLER
 -- ============================================================
 RunService.Stepped:Connect(function()
     if not AutoFarm or not currentTarget then
@@ -1743,12 +1770,8 @@ RunService.Stepped:Connect(function()
         return
     end
 
-    -- Đang tween → không can thiệp
-    if farmTween and farmTween.PlaybackState == Enum.PlaybackState.Playing then
-        return
-    end
-
-    -- BM_On → Heartbeat lo hết
+    -- Đang bay → không can thiệp
+    if farmMoving then return end
     if BM_On then return end
 
     local root = GetPlayerParts()
