@@ -1471,12 +1471,20 @@ if QuestCooldown == nil then QuestCooldown = 0 end
 if CurrentQuestName == nil then CurrentQuestName = nil end
 if currentTarget == nil then currentTarget = nil end
 
-local PLAYER_FLY_Y  = 15     -- độ cao player so với mob
+local PLAYER_FLY_Y  = 15
 local ATTACK_RANGE  = 30
 local STOP_RANGE    = 12
-local BRING_RADIUS  = 8      -- bán kính dàn mob quanh player
-local DETECT_RANGE  = 500    -- tầm gom mob
+local DETECT_RANGE  = 500
 local HitHash       = "168716de"
+
+-- Slot cố định — cluster gọn thay vì hình tròn
+local SLOT_OFFSETS = {
+    Vector3.new( 0,  0,  0),
+    Vector3.new( 3,  0,  3),
+    Vector3.new(-3,  0,  3),
+    Vector3.new( 3,  0, -3),
+    Vector3.new(-3,  0, -3),
+}
 
 -- ============================================================
 -- HELPERS
@@ -1667,28 +1675,21 @@ task.spawn(function()
                 local dist = (root.Position - mRoot.Position).Magnitude
 
                 -- ===== DI CHUYỂN =====
-                if BM_On then
-                    -- BM bật: player được anchor trên đầu mob #1 bởi Heartbeat
-                    -- chỉ bay khi mob quá xa
-                    if dist > 400 and not farmTween then
-                        FlyTo(mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0))
-                    elseif dist <= 400 then
-                        StopActiveTween()
-                    end
-                else
-                    -- BM tắt: bay tới đầu mob bình thường
-                    if dist > STOP_RANGE then
-                        if not farmTween then
-                            FlyTo(mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0))
-                        end
-                    else
-                        StopActiveTween()
-                        root.Anchored = true
-                        root.CFrame = CFrame.new(mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0))
-                        root.Velocity = Vector3.zero
-                        root.RotVelocity = Vector3.zero
-                    end
-                end
+-- Luôn bay tới mob gần nhất, dù BM_On hay không
+if dist > STOP_RANGE then
+    if not farmTween then
+        FlyTo(mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0))
+    end
+else
+    StopActiveTween()
+    -- BM_On thì Heartbeat lo anchor player
+    if not BM_On then
+        root.Anchored = true
+        root.CFrame = CFrame.new(mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0))
+        root.Velocity = Vector3.zero
+        root.RotVelocity = Vector3.zero
+    end
+end
 
                 -- ===== ĐÁNH =====
                 if dist <= ATTACK_RANGE then
@@ -1733,7 +1734,7 @@ task.spawn(function()
 end)
 
 -- ============================================================
--- STEPPED HANDLER (chống knockback, anchor player khi tới mob)
+-- STEPPED HANDLER (BM_Off mới can thiệp)
 -- ============================================================
 RunService.Stepped:Connect(function()
     if not AutoFarm or not currentTarget then
@@ -1747,7 +1748,7 @@ RunService.Stepped:Connect(function()
         return
     end
 
-    -- BM_On → Heartbeat lo anchor player
+    -- BM_On → Heartbeat lo hết
     if BM_On then return end
 
     local root = GetPlayerParts()
@@ -1772,8 +1773,7 @@ RunService.Stepped:Connect(function()
 end)
 
 -- ============================================================
--- BRING MOB SYSTEM (FULL REWRITE)
--- Dùng global BroughtMobData đã khai báo ở đầu file
+-- BRING MOB SYSTEM (TIGHT CLUSTER - KHÔNG VÒNG TRÒN)
 -- ============================================================
 
 RestoreMob = function(mob)
@@ -1789,32 +1789,25 @@ RestoreMob = function(mob)
     end
     if mHum and data then
         pcall(function()
-            mHum.PlatformStand = false
             mHum.WalkSpeed = data.WalkSpeed or 16
             mHum.JumpPower = data.JumpPower or 50
         end)
     end
 end
 
--- Hàm gom mob cùng loại trong tầm DETECT, sort theo khoảng cách
-local function GatherNearbyMobs(currentMobName, rootPos, maxDist)
+local function GatherNearbyMobs(mobName, rootPos, maxDist)
     local enemies = workspace:FindFirstChild("Enemies")
     if not enemies then return {} end
 
     local list = {}
     for _, mob in ipairs(enemies:GetChildren()) do
-        if mob.Name == currentMobName then
+        if mob.Name == mobName then
             local mRoot = mob:FindFirstChild("HumanoidRootPart")
             local mHum  = mob:FindFirstChild("Humanoid")
             if mRoot and mHum and mHum.Health > 0 then
                 local d = (rootPos - mRoot.Position).Magnitude
                 if d <= maxDist then
-                    table.insert(list, {
-                        Mob  = mob,
-                        Root = mRoot,
-                        Hum  = mHum,
-                        Dist = d
-                    })
+                    table.insert(list, {Mob = mob, Root = mRoot, Hum = mHum, Dist = d})
                 end
             end
         end
@@ -1824,40 +1817,28 @@ local function GatherNearbyMobs(currentMobName, rootPos, maxDist)
 end
 
 RunService.Heartbeat:Connect(function()
-    -- Tắt farm hoặc tắt BM → restore hết mob đang mang
+    -- Tắt farm / tắt BM → restore hết
     if not AutoFarm or not BM_On then
         for mob in pairs(BroughtMobData) do
-            if mob and mob.Parent then
-                RestoreMob(mob)
-            else
-                BroughtMobData[mob] = nil
-            end
+            if mob and mob.Parent then RestoreMob(mob)
+            else BroughtMobData[mob] = nil end
         end
         return
     end
 
-    local char = LP.Character
-    if not char then return end
-    local root = char:FindFirstChild("HumanoidRootPart")
-    local hum  = char:FindFirstChild("Humanoid")
-    if not root or not hum or hum.Health <= 0 then return end
+    local root = GetPlayerParts()
+    if not root then return end
 
-    -- Lấy danh sách mob gần nhất, giới hạn BM_Max
     local list = GatherNearbyMobs(CurrentMobName, root.Position, DETECT_RANGE)
     local max  = BM_Max or 5
     local kept = {}
 
     for i, entry in ipairs(list) do
         if i > max then
-            -- Vượt slot → restore về trạng thái gốc
-            if BroughtMobData[entry.Mob] then
-                RestoreMob(entry.Mob)
-            end
+            if BroughtMobData[entry.Mob] then RestoreMob(entry.Mob) end
         else
             kept[entry.Mob] = true
-            local mob   = entry.Mob
-            local mRoot = entry.Root
-            local mHum  = entry.Hum
+            local mob, mRoot, mHum = entry.Mob, entry.Root, entry.Hum
 
             -- Lưu trạng thái gốc lần đầu gặp
             if not BroughtMobData[mob] then
@@ -1869,16 +1850,14 @@ RunService.Heartbeat:Connect(function()
             end
             local data = BroughtMobData[mob]
 
-            -- Chia góc quanh player theo debug id → ổn định, không nhảy vị trí
-            local debugId = mob:GetDebugId()
-            local angle   = ((debugId * 137.5) % 360) * math.pi / 180
+            -- Slot cố định — KHÔNG vòng tròn
+            local offset = SLOT_OFFSETS[i] or Vector3.new(0, 0, 0)
             local targetPos = Vector3.new(
-                root.Position.X + math.cos(angle) * BRING_RADIUS,
+                root.Position.X + offset.X,
                 data.BaseY,
-                root.Position.Z + math.sin(angle) * BRING_RADIUS
+                root.Position.Z + offset.Z
             )
 
-            -- Anchor + ép vị trí mỗi frame (60 FPS)
             pcall(function()
                 mRoot.Anchored = true
                 mRoot.CFrame   = CFrame.new(targetPos)
@@ -1886,53 +1865,42 @@ RunService.Heartbeat:Connect(function()
                 mRoot.AssemblyAngularVelocity = Vector3.zero
             end)
 
-            -- Khoá humanoid của mob
+            -- Khoá di chuyển — KHÔNG PlatformStand
             pcall(function()
-                mHum.PlatformStand = true
-                mHum.WalkSpeed     = 0
-                mHum.JumpPower     = 0
+                mHum.WalkSpeed = 0
+                mHum.JumpPower = 0
             end)
 
-            -- Clear debuff (Busy / Stun) để mob không bị AI reset vị trí
+            -- Clear debuff
             local busy = mob:FindFirstChild("Busy")
             if busy and busy:IsA("BoolValue") then busy.Value = false end
-
             local stun = mob:FindFirstChild("Stun")
             if stun and stun:IsA("BoolValue") then stun.Value = false end
-
-            -- Một số mob có thêm tag khác
             local stunned = mob:FindFirstChild("Stunned")
             if stunned and stunned:IsA("BoolValue") then stunned.Value = false end
-
             local grabbed = mob:FindFirstChild("Grabbed")
             if grabbed and grabbed:IsA("BoolValue") then grabbed.Value = false end
         end
     end
 
-    -- Cleanup mob không còn trong slot (đã chết / biến mất / vượt max)
+    -- Cleanup mob ngoài slot
     for mob in pairs(BroughtMobData) do
         if not kept[mob] then
-            if mob and mob.Parent then
-                RestoreMob(mob)
-            else
-                BroughtMobData[mob] = nil
-            end
+            if mob and mob.Parent then RestoreMob(mob)
+            else BroughtMobData[mob] = nil end
         end
     end
 
-    -- Anchor player trên đầu mob gần nhất (slot 1)
-    if #list > 0 then
-        local firstMob = list[1]
-        local fRoot = firstMob.Root
-        local fHum  = firstMob.Hum
-        if fRoot and fHum and fHum.Health > 0 then
-            pcall(function()
-                root.Anchored = true
-                root.CFrame   = CFrame.new(fRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0))
-                root.Velocity     = Vector3.zero
-                root.RotVelocity  = Vector3.zero
-            end)
-        end
+    -- Anchor player trên đầu mob gần nhất — CHỈ khi tween không chạy
+    local tweenRunning = farmTween and farmTween.PlaybackState == Enum.PlaybackState.Playing
+    if #list > 0 and not tweenRunning then
+        local fRoot = list[1].Root
+        pcall(function()
+            root.Anchored = true
+            root.CFrame   = CFrame.new(fRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0))
+            root.Velocity     = Vector3.zero
+            root.RotVelocity  = Vector3.zero
+        end)
     end
 end)
 
