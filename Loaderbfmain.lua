@@ -1575,7 +1575,6 @@ RunService.Heartbeat:Connect(function(dt)
         return
     end
 
-    -- Không bay khi BM đang anchor player
     if BM_On then
         farmMoving = false
         return
@@ -1587,24 +1586,18 @@ RunService.Heartbeat:Connect(function(dt)
     local target  = farmTargetPos
     local dist    = (current - target).Magnitude
 
-    -- Tới nơi
-    if dist < 2 then
+    if dist < 1 then
         farmMoving    = false
         farmTargetPos = nil
         return
     end
 
-    -- Lerp từng frame — mượt, không giật
     local step  = math.min(TweenSpeed * dt, dist)
     local alpha = step / dist
     local newPos = current:Lerp(target, alpha)
 
-    -- Giữ nguyên rotation player — chỉ đổi vị trí
     root.CFrame = CFrame.new(newPos) * (root.CFrame - root.CFrame.Position)
 end)
-
--- Alias để code cũ gọi StopActiveTween vẫn hoạt động
--- (đã gán ở trên)
 
 -- ============================================================
 -- QUEST SYSTEM
@@ -1679,7 +1672,8 @@ task.spawn(function()
                 currentTarget = target
 
                 -- Không có mob → bay tới spawn
-                if not target then
+-- Không có mob → bay tới spawn
+if not target then
     StopActiveTween()
     if QuestCFrame then
         local spawnPos = QuestCFrame.Position + Vector3.new(0, PLAYER_FLY_Y, 0)
@@ -1691,17 +1685,20 @@ task.spawn(function()
     return
 end
 
-                local mRoot = GetMobParts(target)
-                if not mRoot then return end
+local mRoot = GetMobParts(target)
+if not mRoot then return end
 
-                local dist = (root.Position - mRoot.Position).Magnitude
+-- Khoảng cách NGANG (XZ) — bỏ Y để không bị bug 15 studs
+local dx = root.Position.X - mRoot.Position.X
+local dz = root.Position.Z - mRoot.Position.Z
+local horizDist = math.sqrt(dx*dx + dz*dz)
 
 -- ===== DI CHUYỂN =====
-if dist > STOP_RANGE then
+if horizDist > STOP_RANGE then
     if not farmMoving then
         FlyTo(mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0))
     else
-        -- Cập nhật target mỗi vòng (mob di chuyển)
+        -- Cập nhật target khi mob di chuyển
         local newTarget = mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0)
         if newTarget.Y < MIN_Y then
             newTarget = Vector3.new(newTarget.X, MIN_Y, newTarget.Z)
@@ -1709,6 +1706,7 @@ if dist > STOP_RANGE then
         farmTargetPos = newTarget
     end
 else
+    -- Đã đứng trên đầu mob → dừng bay, anchor
     StopActiveTween()
     if not BM_On then
         root.Anchored = true
@@ -1717,6 +1715,8 @@ else
         root.RotVelocity = Vector3.zero
     end
 end
+
+-- ===== ĐÁNH ===== (đoạn này giữ nguyên)
 
                 -- ===== ĐÁNH =====
                 if dist <= ATTACK_RANGE then
@@ -1770,7 +1770,6 @@ RunService.Stepped:Connect(function()
         return
     end
 
-    -- Đang bay → không can thiệp
     if farmMoving then return end
     if BM_On then return end
 
@@ -1784,8 +1783,12 @@ RunService.Stepped:Connect(function()
         return
     end
 
-    local dist = (root.Position - mRoot.Position).Magnitude
-    if dist <= ATTACK_RANGE then
+    -- Khoảng cách NGANG
+    local dx = root.Position.X - mRoot.Position.X
+    local dz = root.Position.Z - mRoot.Position.Z
+    local horizDist = math.sqrt(dx*dx + dz*dz)
+
+    if horizDist <= STOP_RANGE then
         root.Anchored = true
         root.CFrame = CFrame.new(mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0))
         root.Velocity = Vector3.zero
