@@ -1580,7 +1580,8 @@ RunService.Heartbeat:Connect(function(dt)
         return
     end
 
-    root.Anchored = false
+    -- ★ QUAN TRỌNG: anchor player để chống gravity
+    root.Anchored = true
 
     local current = root.Position
     local target  = farmTargetPos
