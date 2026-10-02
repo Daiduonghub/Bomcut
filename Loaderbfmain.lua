@@ -1464,7 +1464,7 @@ local FirstSeaQuests = {
 -- ============================================================
 if AttackDelay == nil then AttackDelay = 0.5 end
 if HitCount   == nil then HitCount = 3 end
-if TweenSpeed == nil then TweenSpeed = 80 end   -- chậm lại, mượt hơn
+if TweenSpeed == nil then TweenSpeed = 150 end   -- 80 → 150   -- chậm nhanh, mượt hơn
 if CurrentMobName == nil then CurrentMobName = "Bandit" end
 if QuestCFrame == nil then QuestCFrame = CFrame.new(1059, 16, 1547) end
 if QuestCooldown == nil then QuestCooldown = 0 end
@@ -1475,7 +1475,7 @@ local PLAYER_FLY_Y  = 15
 local ATTACK_RANGE  = 30
 local STOP_RANGE    = 12
 local DETECT_RANGE  = 500
-local MIN_Y         = 20     -- không bay thấp hơn mức này (tránh rớt biển)
+local MIN_Y = -50     -- -50 thay vì 20, để bay vào Magma/Sky vẫn OK     -- không bay thấp hơn mức này (tránh rớt biển)
 local HitHash       = "168716de"
 
 -- Slot cố định — cluster gọn thay vì hình tròn
@@ -1566,6 +1566,7 @@ local function FlyTo(targetPos)
 end
 
 -- Heartbeat di chuyển mượt
+-- Heartbeat di chuyển mượt
 RunService.Heartbeat:Connect(function(dt)
     if not AutoFarm or not farmMoving or not farmTargetPos then return end
 
@@ -1580,7 +1581,6 @@ RunService.Heartbeat:Connect(function(dt)
         return
     end
 
-    -- ★ QUAN TRỌNG: anchor player để chống gravity
     root.Anchored = true
 
     local current = root.Position
@@ -1593,7 +1593,16 @@ RunService.Heartbeat:Connect(function(dt)
         return
     end
 
-        local step  = math.min(TweenSpeed * dt, dist)
+    -- ★ Xa → teleport ngay, không bay từ từ
+    if dist > 50 then
+        root.CFrame = CFrame.new(target) * (root.CFrame - root.CFrame.Position)
+        farmMoving    = false
+        farmTargetPos = nil
+        return
+    end
+
+    -- Gần → lerp mượt
+    local step  = math.min(TweenSpeed * dt, dist)
     local alpha = step / dist
     local newPos = current:Lerp(target, alpha)
 
