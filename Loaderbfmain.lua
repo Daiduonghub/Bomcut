@@ -13,7 +13,7 @@ if CoreGui:FindFirstChild("AbyssalHub") then
 end
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "AbyssalHub"
+ScreenGui.Name = "AbyssalHub[Premium]"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = CoreGui
@@ -107,7 +107,7 @@ local SubTitle = Instance.new("TextLabel")
 SubTitle.Size = UDim2.new(0, 80, 1, 0)
 SubTitle.Position = UDim2.new(0, 178, 0, 0)
 SubTitle.BackgroundTransparency = 1
-SubTitle.Text = "v1.0"
+SubTitle.Text = "v1.0-Blox fruits"
 SubTitle.TextColor3 = Color3.fromRGB(140, 60, 255)
 SubTitle.TextSize = 12
 SubTitle.Font = Enum.Font.Gotham
