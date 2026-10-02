@@ -1562,6 +1562,7 @@ local function SetNoclip(on)
     noclipActive = on
 end
 
+-- Noclip: Stepped (trước physics)
 RunService.Stepped:Connect(function()
     if not noclipActive then return end
     local char = LP.Character
@@ -1571,6 +1572,26 @@ RunService.Stepped:Connect(function()
         if part:IsA("BasePart") and part.CanCollide then
             part.CanCollide = false
         end
+    end
+end)
+
+-- Ép đứng thẳng: RenderStepped (sau physics, trước render)
+RunService.RenderStepped:Connect(function()
+    if not AutoFarm or BM_On then return end
+    if not noclipActive then return end
+
+    local char = LP.Character
+    if not char then return end
+
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    local pos  = root.Position
+    local look = root.CFrame.LookVector
+    local flat = Vector3.new(look.X, 0, look.Z)
+
+    if flat.Magnitude > 0.001 then
+        root.CFrame = CFrame.lookAt(pos, pos + flat.Unit)
     end
 end)
 
