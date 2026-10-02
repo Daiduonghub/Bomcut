@@ -1344,6 +1344,11 @@ local function FormatTime(seconds)
     return string.format("%02d:%02d:%02d", hours, minutes, secs)
 end
 
+local Player = Players.LocalPlayer
+
+-- Mốc thời gian script bắt đầu chạy
+local JoinTime = tick()
+
 -- Ước lượng thời gian player đã ở trong server TRƯỚC khi script chạy
 local InitialOffset = 0
 pcall(function()
