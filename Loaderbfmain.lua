@@ -1344,11 +1344,6 @@ local function FormatTime(seconds)
     return string.format("%02d:%02d:%02d", hours, minutes, secs)
 end
 
-local Player = Players.LocalPlayer
-
--- Mốc thời gian script bắt đầu chạy
-local JoinTime = tick()
-
 -- Ước lượng thời gian player đã ở trong server TRƯỚC khi script chạy
 local InitialOffset = 0
 pcall(function()
@@ -1554,16 +1549,13 @@ local farmTargetPos = nil
 local farmMoving    = false
 local flyBV         = nil
 local flyAttach     = nil
-local flyAlign      = nil    -- ★ thêm dòng này
-
--- ★ Thêm AlignOrientation chống xoay
-local flyAlign = nil
+local flyAlign      = nil
 
 local function EnsureFlyObjects()
     local root = GetPlayerParts()
     if not root then return false end
 
-    if flyAttach and flyAttach.Parent == root 
+    if flyAttach and flyAttach.Parent == root
        and flyBV and flyBV.Parent == root
        and flyAlign and flyAlign.Parent == root then
         return true
@@ -1585,16 +1577,16 @@ local function EnsureFlyObjects()
     flyBV.VectorVelocity = Vector3.zero
     flyBV.Parent = root
 
-    -- ★ Cố định rotation — player đứng thẳng
+    -- Cố định rotation — player đứng thẳng
     flyAlign = Instance.new("AlignOrientation")
     flyAlign.Name = "AbyssalFlyAlign"
     flyAlign.Attachment0 = flyAttach
     flyAlign.Mode = Enum.OrientationAlignmentMode.OneAttachment
     flyAlign.MaxTorque = math.huge
     flyAlign.Responsiveness = 50
-    flyAlign.PrimaryAxis = Vector3.new(0, 1, 0)     -- trục Y đứng thẳng
-    flyAlign.SecondaryAxis = Vector3.new(1, 0, 0)   -- trục X cố định
-    flyAlign.CFrame = CFrame.identity              -- hướng mặc định
+    flyAlign.PrimaryAxis = Vector3.new(0, 1, 0)
+    flyAlign.SecondaryAxis = Vector3.new(1, 0, 0)
+    flyAlign.CFrame = CFrame.identity
     flyAlign.Parent = root
 
     local hum = root.Parent and root.Parent:FindFirstChild("Humanoid")
@@ -1646,44 +1638,44 @@ RunService.Heartbeat:Connect(function(dt)
 
     if not EnsureFlyObjects() then return end
     flyAttach.Parent = root
-    flyBV.Parent = root
+    flyBV.Parent    = root
+    flyAlign.Parent = root
 
     local current = root.Position
     local dir     = farmTargetPos - current
     local dist    = dir.Magnitude
 
     if dist < 2 then
-        -- Tới nơi — dừng mượt
         flyBV.VectorVelocity = Vector3.zero
         farmMoving    = false
         farmTargetPos = nil
         return
     end
 
-    -- Giảm tốc khi gần tới (mượt, không giật)
     -- Giảm tốc khi gần tới
-local speed = TweenSpeed
-if dist < 30 then
-    speed = math.max(speed * (dist / 30), 15)
-end
+    local speed = TweenSpeed
+    if dist < 30 then
+        speed = math.max(speed * (dist / 30), 15)
+    end
 
--- ★ Bay chéo: nếu target cao hơn nhiều → dành 60% lực cho Y trước
-local dirNorm = dir.Unit
-local yDiff   = farmTargetPos.Y - current.Y
+    local dirNorm = dir.Unit
+    local yDiff   = farmTargetPos.Y - current.Y
 
-if yDiff > 10 then
-    -- Đang ở dưới target — bay chéo lên
-    local climb = Vector3.new(dirNorm.X, 1.5, dirNorm.Z).Unit
-    flyBV.VectorVelocity = climb * speed
-else
-    -- Ngang tầm — bay thẳng
-    flyBV.VectorVelocity = dirNorm * speed
-end
+    if yDiff > 10 then
+        -- Đang ở dưới target — bay chéo lên
+        local climb = Vector3.new(dirNorm.X, 1.5, dirNorm.Z).Unit
+        flyBV.VectorVelocity = climb * speed
+    else
+        -- Ngang tầm — bay thẳng
+        flyBV.VectorVelocity = dirNorm * speed
+    end
+end)   -- ★ END ĐÓNG FUNCTION
 
 -- Cleanup khi tắt farm
 CleanupFly = function()
     if flyAttach then flyAttach:Destroy() flyAttach = nil end
-    if flyBV then flyBV:Destroy() flyBV = nil end
+    if flyBV     then flyBV:Destroy()     flyBV     = nil end
+    if flyAlign  then flyAlign:Destroy()  flyAlign  = nil end
 
     local char = LP.Character
     if char then
