@@ -1245,35 +1245,31 @@ local FirstToggleInit = true
 
 Library:CreateToggle(Tab1, "Auto Farm Level", false, function(v)
     AutoFarm = v
-    
+
     -- Chặn notify lần init đầu tiên (khi tạo toggle)
     if FirstToggleInit then
         FirstToggleInit = false
         return
     end
-    
+
     if v then
         CurrentQuestName = nil
         QuestCooldown = 0
         AddHighlight()
         Library:Notify("AbyssalHub", "Auto Farm: ON", 2)
     else
-    currentTarget = nil
-    if StopActiveTween then StopActiveTween() end
-    CleanupFly()                                        -- ★ thêm dòng này
-    if LP and LP.Character then
-        local root = LP.Character:FindFirstChild("HumanoidRootPart")
-        if root then root.Anchored = false end
-    end
-    RemoveHighlight()
-    Library:Notify("AbyssalHub", "Auto Farm: OFF", 2)
+        currentTarget = nil
+        if StopActiveTween then StopActiveTween() end
+        CleanupFly()
+        RemoveHighlight()
+        Library:Notify("AbyssalHub", "Auto Farm: OFF", 2)
     end
 end)
 
 -- Re-add highlight khi player respawn
 LP.CharacterAdded:Connect(function(char)
     if AutoFarm then
-        task.wait(0.5) -- Chờ character load xong
+        task.wait(0.5)   -- Chờ character load xong
         AddHighlight()
     end
 end)
@@ -1555,8 +1551,32 @@ local farmMoving    = false
 local flyBV         = nil
 local flyAttach     = nil
 local flyAlign      = nil
-local flyAlignAtt   = nil   -- ★ attachment riêng cho AlignOrientation
+local flyAlignAtt   = nil
 
+-- ============================================================
+-- NOCLIP (giữ CanCollide = false liên tục khi bay)
+-- ============================================================
+local noclipActive = false
+
+local function SetNoclip(on)
+    noclipActive = on
+end
+
+RunService.Stepped:Connect(function()
+    if not noclipActive then return end
+    local char = LP.Character
+    if not char then return end
+
+    for _, part in ipairs(char:GetDescendants()) do
+        if part:IsA("BasePart") and part.CanCollide then
+            part.CanCollide = false
+        end
+    end
+end)
+
+-- ============================================================
+-- SETUP FLY OBJECTS
+-- ============================================================
 local function EnsureFlyObjects()
     local root = GetPlayerParts()
     if not root then return false end
@@ -1568,10 +1588,10 @@ local function EnsureFlyObjects()
         return true
     end
 
-    if flyAttach    and flyAttach.Parent    then flyAttach:Destroy()    end
-    if flyAlignAtt  and flyAlignAtt.Parent  then flyAlignAtt:Destroy()  end
-    if flyBV        and flyBV.Parent        then flyBV:Destroy()        end
-    if flyAlign     and flyAlign.Parent     then flyAlign:Destroy()     end
+    if flyAttach   and flyAttach.Parent   then flyAttach:Destroy()   end
+    if flyAlignAtt and flyAlignAtt.Parent then flyAlignAtt:Destroy() end
+    if flyBV       and flyBV.Parent       then flyBV:Destroy()       end
+    if flyAlign    and flyAlign.Parent    then flyAlign:Destroy()    end
 
     -- Attachment cho LinearVelocity
     flyAttach = Instance.new("Attachment")
@@ -1599,7 +1619,7 @@ local function EnsureFlyObjects()
     flyAlign.Mode = Enum.OrientationAlignmentMode.OneAttachment
     flyAlign.MaxTorque = 1e6
     flyAlign.Responsiveness = 30
-    flyAlign.PrimaryAxis  = Vector3.new(0, 1, 0)
+    flyAlign.PrimaryAxis   = Vector3.new(0, 1, 0)
     flyAlign.SecondaryAxis = Vector3.new(0, 0, 1)
     flyAlign.Parent = root
 
@@ -1611,6 +1631,8 @@ local function EnsureFlyObjects()
             hum.JumpPower = 0
         end)
     end
+
+    SetNoclip(true)
 
     return true
 end
@@ -1633,7 +1655,9 @@ local function FlyTo(targetPos)
     farmMoving    = true
 end
 
--- Heartbeat: cập nhật velocity mỗi frame
+-- ============================================================
+-- HEARTBEAT — cập nhật velocity mỗi frame
+-- ============================================================
 RunService.Heartbeat:Connect(function(dt)
     if not AutoFarm or not farmMoving or not farmTargetPos then
         if flyBV then flyBV.VectorVelocity = Vector3.zero end
@@ -1651,11 +1675,12 @@ RunService.Heartbeat:Connect(function(dt)
         return
     end
 
-if not EnsureFlyObjects() then return end
-flyAttach.Parent    = root
-flyAlignAtt.Parent  = root
-flyBV.Parent        = root
-flyAlign.Parent     = root
+    if not EnsureFlyObjects() then return end
+
+    flyAttach.Parent    = root
+    flyAlignAtt.Parent  = root
+    flyBV.Parent        = root
+    flyAlign.Parent     = root
 
     local current = root.Position
     local dir     = farmTargetPos - current
@@ -1685,14 +1710,18 @@ flyAlign.Parent     = root
         -- Ngang tầm — bay thẳng
         flyBV.VectorVelocity = dirNorm * speed
     end
-end)   -- ★ END ĐÓNG FUNCTION
+end)
 
--- Cleanup khi tắt farm
+-- ============================================================
+-- CLEANUP khi tắt farm
+-- ============================================================
 CleanupFly = function()
     if flyAttach   then flyAttach:Destroy()   flyAttach   = nil end
     if flyAlignAtt then flyAlignAtt:Destroy() flyAlignAtt = nil end
     if flyBV       then flyBV:Destroy()       flyBV       = nil end
     if flyAlign    then flyAlign:Destroy()    flyAlign    = nil end
+
+    SetNoclip(false)
 
     local char = LP.Character
     if char then
@@ -1780,21 +1809,22 @@ task.spawn(function()
                 local target = FindNearestMob(CurrentMobName, 2000)
                 currentTarget = target
 
-if not target then
-    -- Không có mob → bay tới spawn quest
-    if QuestCFrame then
-        local spawnPos = QuestCFrame.Position + Vector3.new(0, PLAYER_FLY_Y, 0)
-        local d = (root.Position - spawnPos).Magnitude
-        if d > 20 then
-            if not farmMoving then
-                FlyTo(spawnPos)
-            else
-                farmTargetPos = spawnPos
-            end
-        end
-    end
-    return
-end
+                -- Không có mob → bay tới spawn quest
+                if not target then
+                    if QuestCFrame then
+                        local spawnPos = QuestCFrame.Position + Vector3.new(0, PLAYER_FLY_Y, 0)
+                        local d = (root.Position - spawnPos).Magnitude
+                        if d > 20 then
+                            if not farmMoving then
+                                FlyTo(spawnPos)
+                            else
+                                farmTargetPos = spawnPos
+                            end
+                        end
+                    end
+                    return
+                end
+
                 local mRoot = GetMobParts(target)
                 if not mRoot then return end
 
@@ -1815,14 +1845,10 @@ end
                         farmTargetPos = newTarget
                     end
                 else
-                    -- Đã tới nơi → dừng bay, anchor
-                    StopActiveTween()
-                    if not BM_On then
-                        root.Anchored = true
-                        root.CFrame = CFrame.new(mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0))
-                        root.Velocity = Vector3.zero
-                        root.RotVelocity = Vector3.zero
-                    end
+                    -- Đã tới nơi → zero velocity, KHÔNG anchor
+                    farmMoving    = false
+                    farmTargetPos = nil
+                    if flyBV then flyBV.VectorVelocity = Vector3.zero end
                 end
 
                 -- ===== ĐÁNH =====
@@ -1868,35 +1894,6 @@ end
 end)
 
 -- ============================================================
--- STEPPED HANDLER (bám theo mob khi ở gần)
--- ============================================================
-RunService.Stepped:Connect(function()
-    if not AutoFarm or not currentTarget then return end
-    if BM_On then return end
-
-    local root = GetPlayerParts()
-    if not root then return end
-
-    local mRoot = GetMobParts(currentTarget)
-    if not mRoot then return end
-
-    -- Khoảng cách NGANG
-    local dx = root.Position.X - mRoot.Position.X
-    local dz = root.Position.Z - mRoot.Position.Z
-    local horizDist = math.sqrt(dx * dx + dz * dz)
-
-    -- Đã tới gần mob → bám theo mob khi nó di chuyển
-    if horizDist <= STOP_RANGE + 5 then
-        local target = mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0)
-        if target.Y < MIN_Y then
-            target = Vector3.new(target.X, MIN_Y, target.Z)
-        end
-        farmTargetPos = target
-        farmMoving    = true
-    end
-end)
-
--- ============================================================
 -- BRING MOB SYSTEM (TIGHT CLUSTER - KHÔNG VÒNG TRÒN)
 -- ============================================================
 
@@ -1909,7 +1906,13 @@ RestoreMob = function(mob)
     local mHum  = mob:FindFirstChild("Humanoid")
 
     if mRoot then
-        pcall(function() mRoot.Anchored = false end)
+        pcall(function()
+            -- Trả về vị trí gốc TRƯỚC khi unanchor
+            if data and data.OrigCFrame then
+                mRoot.CFrame = data.OrigCFrame
+            end
+            mRoot.Anchored = false
+        end)
     end
     if mHum and data then
         pcall(function()
@@ -1962,7 +1965,9 @@ RunService.Heartbeat:Connect(function()
 
     for i, entry in ipairs(list) do
         if i > max then
-            if BroughtMobData[entry.Mob] then RestoreMob(entry.Mob) end
+            if BroughtMobData[entry.Mob] then
+                RestoreMob(entry.Mob)
+            end
         else
             kept[entry.Mob] = true
             local mob, mRoot, mHum = entry.Mob, entry.Root, entry.Hum
@@ -1970,9 +1975,10 @@ RunService.Heartbeat:Connect(function()
             -- Lưu trạng thái gốc lần đầu gặp
             if not BroughtMobData[mob] then
                 BroughtMobData[mob] = {
-                    BaseY     = mRoot.Position.Y,
-                    WalkSpeed = mHum.WalkSpeed,
-                    JumpPower = mHum.JumpPower,
+                    BaseY      = mRoot.Position.Y,
+                    WalkSpeed  = mHum.WalkSpeed,
+                    JumpPower  = mHum.JumpPower,
+                    OrigCFrame = mRoot.CFrame,   -- lưu vị trí gốc
                 }
             end
             local data = BroughtMobData[mob]
@@ -2001,10 +2007,13 @@ RunService.Heartbeat:Connect(function()
             -- Clear debuff
             local busy = mob:FindFirstChild("Busy")
             if busy and busy:IsA("BoolValue") then busy.Value = false end
+
             local stun = mob:FindFirstChild("Stun")
             if stun and stun:IsA("BoolValue") then stun.Value = false end
+
             local stunned = mob:FindFirstChild("Stunned")
             if stunned and stunned:IsA("BoolValue") then stunned.Value = false end
+
             local grabbed = mob:FindFirstChild("Grabbed")
             if grabbed and grabbed:IsA("BoolValue") then grabbed.Value = false end
         end
