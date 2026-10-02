@@ -1731,22 +1731,23 @@ CleanupFly = function()
     SetNoclip(false)
 
     local char = LP.Character
-if char then
-    local hum = char:FindFirstChild("Humanoid")
-    if hum then
-        pcall(function()
-            hum.PlatformStand = false
-            hum.AutoRotate    = true     -- ★ restore tự xoay
-            hum.WalkSpeed     = 16
-            hum.JumpPower     = 50
-            hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
-            hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, true)
-            hum:SetStateEnabled(Enum.HumanoidStateType.Physics, true)
-            hum:SetStateEnabled(Enum.HumanoidStateType.Climbing, true)
-            hum:ChangeState(Enum.HumanoidStateType.GettingUp)
-        end)
+    if char then
+        local hum = char:FindFirstChild("Humanoid")
+        if hum then
+            pcall(function()
+                hum.PlatformStand = false
+                hum.AutoRotate    = true
+                hum.WalkSpeed     = 16
+                hum.JumpPower     = 50
+                hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
+                hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, true)
+                hum:SetStateEnabled(Enum.HumanoidStateType.Physics, true)
+                hum:SetStateEnabled(Enum.HumanoidStateType.Climbing, true)
+                hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+            end)
+        end
     end
-end
+end          -- ★ THÊM DÒNG NÀY
 
 -- ============================================================
 -- QUEST SYSTEM
