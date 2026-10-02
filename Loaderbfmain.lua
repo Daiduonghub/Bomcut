@@ -232,6 +232,7 @@ QuestCooldown = 0
 currentTarget = nil
 activeTween = nil
 StopActiveTween = function() end
+CleanupFly = function() end
 AddHighlight = function() end
 RemoveHighlight = function() end
 FA_On = false
@@ -1257,14 +1258,15 @@ Library:CreateToggle(Tab1, "Auto Farm Level", false, function(v)
         AddHighlight()
         Library:Notify("AbyssalHub", "Auto Farm: ON", 2)
     else
-        currentTarget = nil
-        if StopActiveTween then StopActiveTween() end
-        if LP and LP.Character then
-            local root = LP.Character:FindFirstChild("HumanoidRootPart")
-            if root then root.Anchored = false end
-        end
-        RemoveHighlight()
-        Library:Notify("AbyssalHub", "Auto Farm: OFF", 2)
+    currentTarget = nil
+    if StopActiveTween then StopActiveTween() end
+    CleanupFly()                                        -- ★ thêm dòng này
+    if LP and LP.Character then
+        local root = LP.Character:FindFirstChild("HumanoidRootPart")
+        if root then root.Anchored = false end
+    end
+    RemoveHighlight()
+    Library:Notify("AbyssalHub", "Auto Farm: OFF", 2)
     end
 end)
 
@@ -1464,7 +1466,7 @@ local FirstSeaQuests = {
 -- ============================================================
 if AttackDelay == nil then AttackDelay = 0.5 end
 if HitCount   == nil then HitCount = 3 end
-if TweenSpeed == nil then TweenSpeed = 150 end   -- 80 → 150   -- chậm nhanh, mượt hơn
+if TweenSpeed == nil then TweenSpeed = 120 end   -- 120 studs/s, bay nhẹ nhàng
 if CurrentMobName == nil then CurrentMobName = "Bandit" end
 if QuestCFrame == nil then QuestCFrame = CFrame.new(1059, 16, 1547) end
 if QuestCooldown == nil then QuestCooldown = 0 end
@@ -1546,18 +1548,61 @@ local function GetAttackParts(mob)
 end
 
 -- ============================================================
--- MOVEMENT SYSTEM (Heartbeat lerp, không dùng TweenService)
+-- MOVEMENT SYSTEM (LinearVelocity - bay bằng physics thật)
 -- ============================================================
 local farmTargetPos = nil
 local farmMoving    = false
+local flyBV         = nil
+local flyAttach     = nil
 
-StopActiveTween = function()
+-- Setup attachment + LinearVelocity 1 lần
+local function EnsureFlyObjects()
+    local root = GetPlayerParts()
+    if not root then return false end
+
+    if flyAttach and flyAttach.Parent == root and flyBV and flyBV.Parent == root then
+        return true
+    end
+
+    -- Cleanup cũ nếu có
+    if flyAttach and flyAttach.Parent then flyAttach:Destroy() end
+    if flyBV and flyBV.Parent then flyBV:Destroy() end
+
+    flyAttach = Instance.new("Attachment")
+    flyAttach.Name = "AbyssalFlyAttach"
+    flyAttach.Parent = root
+
+    flyBV = Instance.new("LinearVelocity")
+    flyBV.Name = "AbyssalFlyBV"
+    flyBV.Attachment0 = flyAttach
+    flyBV.MaxForce = math.huge            -- đủ mạnh để thắng gravity
+    flyBV.RelativeTo = Enum.ActuatorRelativeTo.World
+    flyBV.VectorVelocity = Vector3.zero
+    flyBV.Parent = root
+
+    -- Chuyển humanoid sang Physics để không bị state cản
+    local hum = root.Parent and root.Parent:FindFirstChild("Humanoid")
+    if hum then
+        pcall(function()
+            hum:ChangeState(Enum.HumanoidStateType.Physics)
+            hum.PlatformStand = true
+        end)
+    end
+
+    return true
+end
+
+local function DisableFly()
+    if flyBV then flyBV.VectorVelocity = Vector3.zero end
     farmMoving    = false
     farmTargetPos = nil
 end
 
+StopActiveTween = function()
+    DisableFly()
+end
+
 local function FlyTo(targetPos)
-    -- Clamp Y — không bay xuống dưới MIN_Y
     if targetPos.Y < MIN_Y then
         targetPos = Vector3.new(targetPos.X, MIN_Y, targetPos.Z)
     end
@@ -1565,49 +1610,66 @@ local function FlyTo(targetPos)
     farmMoving    = true
 end
 
--- Heartbeat di chuyển mượt
--- Heartbeat di chuyển mượt
+-- Heartbeat: cập nhật velocity mỗi frame
 RunService.Heartbeat:Connect(function(dt)
-    if not AutoFarm or not farmMoving or not farmTargetPos then return end
+    if not AutoFarm or not farmMoving or not farmTargetPos then
+        if flyBV then flyBV.VectorVelocity = Vector3.zero end
+        return
+    end
 
     local root = GetPlayerParts()
     if not root then
-        farmMoving = false
+        DisableFly()
         return
     end
 
     if BM_On then
-        farmMoving = false
+        DisableFly()
         return
     end
 
-    root.Anchored = true
+    if not EnsureFlyObjects() then return end
+    flyAttach.Parent = root
+    flyBV.Parent = root
 
     local current = root.Position
-    local target  = farmTargetPos
-    local dist    = (current - target).Magnitude
+    local dir     = farmTargetPos - current
+    local dist    = dir.Magnitude
 
-    if dist < 1 then
+    if dist < 2 then
+        -- Tới nơi — dừng mượt
+        flyBV.VectorVelocity = Vector3.zero
         farmMoving    = false
         farmTargetPos = nil
         return
     end
 
-    -- ★ Xa → teleport ngay, không bay từ từ
-    if dist > 50 then
-        root.CFrame = CFrame.new(target) * (root.CFrame - root.CFrame.Position)
-        farmMoving    = false
-        farmTargetPos = nil
-        return
+    -- Giảm tốc khi gần tới (mượt, không giật)
+    local speed = TweenSpeed
+    if dist < 30 then
+        speed = math.max(speed * (dist / 30), 15)   -- chậm dần
     end
 
-    -- Gần → lerp mượt
-    local step  = math.min(TweenSpeed * dt, dist)
-    local alpha = step / dist
-    local newPos = current:Lerp(target, alpha)
-
-    root.Position = newPos
+    -- Bay đều theo hướng target
+    flyBV.VectorVelocity = dir.Unit * speed
 end)
+
+-- Cleanup khi tắt farm
+CleanupFly = function()
+    if flyAttach then flyAttach:Destroy() flyAttach = nil end
+    if flyBV then flyBV:Destroy() flyBV = nil end
+
+    local char = LP.Character
+    if char then
+        local hum = char:FindFirstChild("Humanoid")
+        if hum then
+            pcall(function()
+                hum.PlatformStand = false
+                hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+            end)
+        end
+    end
+end
 
 -- ============================================================
 -- QUEST SYSTEM
@@ -1767,40 +1829,32 @@ task.spawn(function()
 end)
 
 -- ============================================================
--- STEPPED HANDLER
+-- STEPPED HANDLER (bám theo mob khi ở gần)
 -- ============================================================
 RunService.Stepped:Connect(function()
-    if not AutoFarm or not currentTarget then
-        local root = GetPlayerParts()
-        if root and root.Anchored then root.Anchored = false end
-        return
-    end
-
-    if farmMoving then return end
+    if not AutoFarm or not currentTarget then return end
     if BM_On then return end
 
     local root = GetPlayerParts()
     if not root then return end
 
     local mRoot = GetMobParts(currentTarget)
-    if not mRoot then
-        currentTarget = nil
-        if root.Anchored then root.Anchored = false end
-        return
-    end
+    if not mRoot then return end
 
     -- Khoảng cách NGANG
     local dx = root.Position.X - mRoot.Position.X
     local dz = root.Position.Z - mRoot.Position.Z
     local horizDist = math.sqrt(dx * dx + dz * dz)
 
-    if horizDist <= STOP_RANGE then
-        root.Anchored = true
-        root.CFrame = CFrame.new(mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0))
-        root.Velocity = Vector3.zero
-        root.RotVelocity = Vector3.zero
+    -- Đã tới gần mob → bám theo mob khi nó di chuyển
+    if horizDist <= STOP_RANGE + 5 then
+        local target = mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0)
+        if target.Y < MIN_Y then
+            target = Vector3.new(target.X, MIN_Y, target.Z)
+        end
+        farmTargetPos = target
+        farmMoving    = true
     end
-    -- ★ KHÔNG unanchor nữa — để Heartbeat giữ anchor suốt lúc bay
 end)
 
 -- ============================================================
