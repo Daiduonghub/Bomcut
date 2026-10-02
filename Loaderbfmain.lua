@@ -1593,11 +1593,11 @@ RunService.Heartbeat:Connect(function(dt)
         return
     end
 
-    local step  = math.min(TweenSpeed * dt, dist)
+        local step  = math.min(TweenSpeed * dt, dist)
     local alpha = step / dist
     local newPos = current:Lerp(target, alpha)
 
-    root.CFrame = CFrame.new(newPos) * (root.CFrame - root.CFrame.Position)
+    root.Position = newPos
 end)
 
 -- ============================================================
@@ -1790,9 +1790,8 @@ RunService.Stepped:Connect(function()
         root.CFrame = CFrame.new(mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0))
         root.Velocity = Vector3.zero
         root.RotVelocity = Vector3.zero
-    else
-        if root.Anchored then root.Anchored = false end
     end
+    -- ★ KHÔNG unanchor nữa — để Heartbeat giữ anchor suốt lúc bay
 end)
 
 -- ============================================================
