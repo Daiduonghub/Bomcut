@@ -1554,19 +1554,24 @@ local farmTargetPos = nil
 local farmMoving    = false
 local flyBV         = nil
 local flyAttach     = nil
+local flyAlign      = nil    -- ★ thêm dòng này
 
--- Setup attachment + LinearVelocity 1 lần
+-- ★ Thêm AlignOrientation chống xoay
+local flyAlign = nil
+
 local function EnsureFlyObjects()
     local root = GetPlayerParts()
     if not root then return false end
 
-    if flyAttach and flyAttach.Parent == root and flyBV and flyBV.Parent == root then
+    if flyAttach and flyAttach.Parent == root 
+       and flyBV and flyBV.Parent == root
+       and flyAlign and flyAlign.Parent == root then
         return true
     end
 
-    -- Cleanup cũ nếu có
     if flyAttach and flyAttach.Parent then flyAttach:Destroy() end
     if flyBV and flyBV.Parent then flyBV:Destroy() end
+    if flyAlign and flyAlign.Parent then flyAlign:Destroy() end
 
     flyAttach = Instance.new("Attachment")
     flyAttach.Name = "AbyssalFlyAttach"
@@ -1575,12 +1580,23 @@ local function EnsureFlyObjects()
     flyBV = Instance.new("LinearVelocity")
     flyBV.Name = "AbyssalFlyBV"
     flyBV.Attachment0 = flyAttach
-    flyBV.MaxForce = math.huge            -- đủ mạnh để thắng gravity
+    flyBV.MaxForce = math.huge
     flyBV.RelativeTo = Enum.ActuatorRelativeTo.World
     flyBV.VectorVelocity = Vector3.zero
     flyBV.Parent = root
 
-    -- Chuyển humanoid sang Physics để không bị state cản
+    -- ★ Cố định rotation — player đứng thẳng
+    flyAlign = Instance.new("AlignOrientation")
+    flyAlign.Name = "AbyssalFlyAlign"
+    flyAlign.Attachment0 = flyAttach
+    flyAlign.Mode = Enum.OrientationAlignmentMode.OneAttachment
+    flyAlign.MaxTorque = math.huge
+    flyAlign.Responsiveness = 50
+    flyAlign.PrimaryAxis = Vector3.new(0, 1, 0)     -- trục Y đứng thẳng
+    flyAlign.SecondaryAxis = Vector3.new(1, 0, 0)   -- trục X cố định
+    flyAlign.CFrame = CFrame.identity              -- hướng mặc định
+    flyAlign.Parent = root
+
     local hum = root.Parent and root.Parent:FindFirstChild("Humanoid")
     if hum then
         pcall(function()
@@ -1645,14 +1661,24 @@ RunService.Heartbeat:Connect(function(dt)
     end
 
     -- Giảm tốc khi gần tới (mượt, không giật)
-    local speed = TweenSpeed
-    if dist < 30 then
-        speed = math.max(speed * (dist / 30), 15)   -- chậm dần
-    end
+    -- Giảm tốc khi gần tới
+local speed = TweenSpeed
+if dist < 30 then
+    speed = math.max(speed * (dist / 30), 15)
+end
 
-    -- Bay đều theo hướng target
-    flyBV.VectorVelocity = dir.Unit * speed
-end)
+-- ★ Bay chéo: nếu target cao hơn nhiều → dành 60% lực cho Y trước
+local dirNorm = dir.Unit
+local yDiff   = farmTargetPos.Y - current.Y
+
+if yDiff > 10 then
+    -- Đang ở dưới target — bay chéo lên
+    local climb = Vector3.new(dirNorm.X, 1.5, dirNorm.Z).Unit
+    flyBV.VectorVelocity = climb * speed
+else
+    -- Ngang tầm — bay thẳng
+    flyBV.VectorVelocity = dirNorm * speed
+end
 
 -- Cleanup khi tắt farm
 CleanupFly = function()
@@ -1744,18 +1770,10 @@ task.spawn(function()
                 currentTarget = target
 
                 -- Không có mob → bay tới spawn quest
-                if not target then
-                    StopActiveTween()
-                    if QuestCFrame then
-                        local spawnPos = QuestCFrame.Position + Vector3.new(0, PLAYER_FLY_Y, 0)
-                        local d = (root.Position - spawnPos).Magnitude
-                        if d > 20 and not farmMoving then
-                            FlyTo(spawnPos)
-                        end
-                    end
-                    return
-                end
-
+-- Không có mob → chờ
+if not target then
+    return
+end
                 local mRoot = GetMobParts(target)
                 if not mRoot then return end
 
