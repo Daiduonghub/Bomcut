@@ -2407,7 +2407,7 @@ RunService.Heartbeat:Connect(function(dt)
 end)
 
 -- ============================================================
--- BOSS FARM LOOP
+-- BOSS FARM LOOP — gửi remote y hệt farm level
 -- ============================================================
 local function _FindBossInWorkspace(name)
     local containers = {
@@ -2444,7 +2444,7 @@ task.spawn(function()
                 local bossData = BossDB[SelectedBoss]
                 local boss, bossHum = _FindBossInWorkspace(SelectedBoss)
 
-                -- BOSS CHƯA SPAWN → bay tới spawn point đợi
+                -- boss chưa spawn → bay tới spawn đợi
                 if not boss then
                     BossTarget = nil
                     local spawnPos = bossData.Spawn.Position + Vector3.new(0, PLAYER_FLY_Y, 0)
@@ -2459,7 +2459,7 @@ task.spawn(function()
                     return
                 end
 
-                -- BOSS ĐANG SỐNG
+                -- boss đang sống
                 BossTarget = boss
                 local bossRoot = boss:FindFirstChild("HumanoidRootPart")
                 if not bossRoot then return end
@@ -2478,9 +2478,48 @@ task.spawn(function()
                     if flyBV then flyBV.VectorVelocity = Vector3.zero end
                 end
 
-                -- đánh — gửi remote y hệt farm level
+                -- ĐÁNH — y hệt farm level, gửi remote trực tiếp
                 if horizDist <= ATTACK_RANGE then
-                    DoAttack({boss})
+                    EquipFarmWeapon()
+
+                    -- ★ reset combo theo boss
+                    if boss ~= ComboTarget then
+                        ComboTarget = boss
+                        ComboPhase  = "melee"
+                        ComboStart  = tick()
+                    end
+                    if ComboPhase == "melee" and tick() - ComboStart > 1.5 then
+                        ComboPhase = "gun"
+                    end
+
+                    if FarmWeapon == "Gun" and ComboPhase == "gun" then
+                        -- gun phase — tap
+                        pcall(function()
+                            local camera = workspace.CurrentCamera
+                            if not camera then return end
+                            local head = boss:FindFirstChild("Head")
+                            if head then
+                                local sp, on = camera:WorldToScreenPoint(head.Position)
+                                if on then SimulateTap(sp.X, sp.Y) end
+                            end
+                        end)
+                    else
+                        -- melee / sword phase — remote
+                        pcall(function()
+                            RegisterAttack:FireServer(AttackDelay, HitCount)
+
+                            local loops = FA_On and 15 or HitCount
+                            local delay = FA_On and (FA_Delay or 0.03) or (AttackDelay / math.max(HitCount, 1))
+
+                            for _ = 1, loops do
+                                for _, p in ipairs(GetAttackParts(boss)) do
+                                    pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
+                                    pcall(function() RegisterHit:FireServer(p, {}) end)
+                                end
+                                task.wait(delay)
+                            end
+                        end)
+                    end
                 end
             end)
 
