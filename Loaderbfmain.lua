@@ -1422,24 +1422,26 @@ Library:CreateDropdown(TabFarm, "Select Boss", _bossOpts, "None", function(v)
     BossTarget = nil
 end)
 
-Library:CreateToggle(TabFarm, "Auto Farm Boss", false, function(v)
-    BossFarmOn = v
+Library:CreateToggle(TabFarm, "Auto Farm Level", false, function(v)
+    AutoFarm = v
 
-    if FirstBossToggleInit then
-        FirstBossToggleInit = false
+    if FirstToggleInit then
+        FirstToggleInit = false
         return
     end
 
     if v then
+        CurrentQuestName = nil
+        QuestCooldown = 0
         AddHighlight()
-        Library:Notify("AbyssalHub", "Boss Farm: ON — " .. tostring(SelectedBoss), 2)
+        Library:Notify("AbyssalHub", "Auto Farm: ON", 2)
     else
-        BossTarget = nil
-        if not AutoFarm then
-            CleanupFly()
-            RemoveHighlight()
-        end
-        Library:Notify("AbyssalHub", "Boss Farm: OFF", 2)
+        currentTarget = nil
+        if StopActiveTween then StopActiveTween() end
+        ForceRestoreAllMobs()  -- ★ force cleanup mob đang bring
+        CleanupFly()
+        RemoveHighlight()
+        Library:Notify("AbyssalHub", "Auto Farm: OFF", 2)
     end
 end)
 
@@ -2281,12 +2283,39 @@ RestoreMob = function(mob)
     BroughtMobData[mob] = nil
     if not mob or not mob.Parent then return end
 
-    local mHum = mob:FindFirstChild("Humanoid")
+    local mHum  = mob:FindFirstChild("Humanoid")
+    local mRoot = mob:FindFirstChild("HumanoidRootPart")
+
+    -- reset humanoid state
     if mHum and data then
         pcall(function()
-            mHum.WalkSpeed = data.WalkSpeed or 16
-            mHum.JumpPower = data.JumpPower or 50
+            mHum.WalkSpeed     = data.WalkSpeed or 16
+            mHum.JumpPower     = data.JumpPower or 50
+            mHum.PlatformStand = false
+            mHum:ChangeState(Enum.HumanoidStateType.Running)
         end)
+    end
+
+    -- ★ teleport về vị trí gốc + zero velocity
+    if mRoot and data and data.OrigCFrame then
+        pcall(function()
+            mRoot.CFrame = data.OrigCFrame
+            mRoot.AssemblyLinearVelocity  = Vector3.zero
+            mRoot.AssemblyAngularVelocity = Vector3.zero
+        end)
+    end
+end
+
+local function ForceRestoreAllMobs()
+    for mob in pairs(BroughtMobData) do
+        if mob and mob.Parent then
+            RestoreMob(mob)
+        end
+    end
+    BroughtMobData = {}
+    -- clear cache
+    for m in pairs(PART_CACHE) do
+        PART_CACHE[m] = nil
     end
 end
 
@@ -2332,11 +2361,12 @@ RunService.Heartbeat:Connect(function(dt)
         kept[mob] = true
 
         if not BroughtMobData[mob] then
-            BroughtMobData[mob] = {
-                WalkSpeed = mHum.WalkSpeed,
-                JumpPower = mHum.JumpPower,
-            }
-        end
+    BroughtMobData[mob] = {
+        WalkSpeed  = mHum.WalkSpeed,
+        JumpPower  = mHum.JumpPower,
+        OrigCFrame = mRoot.CFrame,   -- ★ lưu vị trí gốc trước khi bring
+    }
+end
 
         local currentPos = mRoot.Position
         local dir = anchorPos - currentPos
