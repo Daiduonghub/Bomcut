@@ -1500,14 +1500,6 @@ local RegisterAttack = Net:WaitForChild("RE/RegisterAttack")
 local RegisterHit    = Net:WaitForChild("RE/RegisterHit")
 local CommF_       = RS:WaitForChild("Remotes"):WaitForChild("CommF_")
 
--- ★ Gun mode remotes
-local Validator2     = RS:WaitForChild("Remotes"):WaitForChild("Validator2")
-local ShootGunEvent  = Net:WaitForChild("RE/ShootGunEvent")
-
--- ★ Gun config — anh sửa 2 số này nếu cần
-local GUN_TOOL_ID = 7052062   -- giá trị [1] của Validator2
-local GUN_ARG_2   = 10        -- giá trị [2] của Validator2
-
 -- ============================================================
 -- QUEST LIST
 -- ============================================================
@@ -2022,31 +2014,37 @@ task.spawn(function()
                     end
 
                     if FarmWeapon == "Gun" then
-                        -- ★ GUN MODE — gửi Validator2 + ShootGunEvent
+                        -- ★ GUN MODE — game tự bắn, chỉ gọi Activate
                         pcall(function()
-                            -- Validator2: kích hoạt gun (ID, arg2)
-                            Validator2:FireServer(GUN_TOOL_ID, GUN_ARG_2)
+                            local char = LP.Character
+                            if not char then return end
 
-                            -- ShootGunEvent cho từng mob (vị trí Head + list part)
-                            for _, m in ipairs(targets) do
-                                local head = m:FindFirstChild("Head")
-                                if head then
-                                    ShootGunEvent:FireServer(head.Position, {head})
+                            -- Tìm gun đang equipped
+                            local gun
+                            for _, tool in ipairs(char:GetChildren()) do
+                                if tool:IsA("Tool") then
+                                    gun = tool
+                                    break
                                 end
+                            end
+
+                            if gun then
+                                gun:Activate()
                             end
                         end)
 
-                        -- Loop thêm để damage liên tục
+                        -- Loop thêm để damage liên tục (giống spam click)
                         local loops = FA_On and 15 or HitCount
                         local delay = FA_On and (FA_Delay or 0.03) or (AttackDelay / math.max(HitCount, 1))
 
                         for _ = 2, loops do
                             task.wait(delay)
                             pcall(function()
-                                for _, m in ipairs(targets) do
-                                    local head = m:FindFirstChild("Head")
-                                    if head then
-                                        ShootGunEvent:FireServer(head.Position, {head})
+                                local char = LP.Character
+                                if not char then return end
+                                for _, tool in ipairs(char:GetChildren()) do
+                                    if tool:IsA("Tool") then
+                                        tool:Activate()
                                     end
                                 end
                             end)
