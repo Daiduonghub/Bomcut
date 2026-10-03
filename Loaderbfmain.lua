@@ -1341,6 +1341,45 @@ LP.CharacterAdded:Connect(function(char)
     end
 end)
 
+-- ══════════════════════════════════════════════
+-- BOSS FARM UI
+-- ══════════════════════════════════════════════
+Library:CreateLabel(TabFarm, "── BOSS FARM ──")
+
+-- build dropdown options sort theo Sea → Level
+local _bossOpts = {"None"}
+local _sorted = {}
+for nm, d in pairs(BossDB) do
+    table.insert(_sorted, {Name = nm, Level = d.Level, Sea = d.Sea})
+end
+table.sort(_sorted, function(a, b)
+    if a.Sea ~= b.Sea then return a.Sea < b.Sea end
+    return a.Level < b.Level
+end)
+for _, b in ipairs(_sorted) do
+    table.insert(_bossOpts, string.format("%s [Lv.%d]", b.Name, b.Level))
+end
+
+Library:CreateDropdown(TabFarm, "Select Boss", _bossOpts, "None", function(v)
+    if v == "None" then
+        SelectedBoss = "None"
+    else
+        -- cắt " [Lv.xxx]" ra lấy tên gốc
+        SelectedBoss = v:match("^(.-)%s*%[Lv") or v
+    end
+    BossTarget = nil
+end)
+
+Library:CreateToggle(TabFarm, "Auto Farm Boss", false, function(v)
+    BossFarmOn = v
+    if v then
+        Library:Notify("AbyssalHub", "Boss Farm: ON — " .. tostring(SelectedBoss), 2)
+    else
+        BossTarget = nil
+        Library:Notify("AbyssalHub", "Boss Farm: OFF", 2)
+    end
+end)
+
 Library:CreateDropdown(TabSettings, "Farm Weapon", {"None", "Melee", "Sword", "Gun"}, "None", function(v)
     FarmWeapon = (v == "None") and nil or v   -- lưu category
 end)
@@ -1652,7 +1691,7 @@ end)
 
 -- Ép đứng thẳng: RenderStepped (sau physics, trước render)
 RunService.RenderStepped:Connect(function()
-    if not AutoFarm then return end
+    if not AutoFarm and not BossFarmOn then return end
     if not noclipActive then return end
 
     local char = LP.Character
@@ -1762,7 +1801,7 @@ end
 -- HEARTBEAT — cập nhật velocity mỗi frame
 -- ============================================================
 RunService.Heartbeat:Connect(function(dt)
-    if not AutoFarm or not farmMoving or not farmTargetPos then
+    if (not AutoFarm and not BossFarmOn) or not farmMoving or not farmTargetPos then
         if flyBV then flyBV.VectorVelocity = Vector3.zero end
         return
     end
@@ -1791,7 +1830,6 @@ RunService.Heartbeat:Connect(function(dt)
         return
     end
 
-    -- Giảm tốc khi gần tới
     local speed = TweenSpeed
     if dist < 30 then
         speed = math.max(speed * (dist / 30), 15)
@@ -1801,11 +1839,9 @@ RunService.Heartbeat:Connect(function(dt)
     local yDiff   = farmTargetPos.Y - current.Y
 
     if yDiff > 10 then
-        -- Đang ở dưới target — bay chéo lên
         local climb = Vector3.new(dirNorm.X, 1.5, dirNorm.Z).Unit
         flyBV.VectorVelocity = climb * speed
     else
-        -- Ngang tầm — bay thẳng
         flyBV.VectorVelocity = dirNorm * speed
     end
 end)
@@ -1928,6 +1964,57 @@ local function AutoAcceptQuest()
     end
     return q
 end
+
+-- ============================================================
+-- BOSS DATABASE — spawn CFrame + respawn + sea
+-- ============================================================
+BossDB = {
+    -- ══════════ FIRST SEA ══════════
+    ["Gorilla King"]       = { Level = 25,   Sea = 1, HP = 2000,   Respawn = 90,  Spawn = CFrame.new(-1237,   6,   -510) },
+    ["Bobby"]              = { Level = 55,   Sea = 1, HP = 5000,   Respawn = 90,  Spawn = CFrame.new(-1140,   5,   3828) },
+    ["The Saw"]            = { Level = 100,  Sea = 1, HP = 8000,   Respawn = 120, Spawn = CFrame.new( 1361,  87,  -1544) },
+    ["Fajita"]             = { Level = 130,  Sea = 1, HP = 12000,  Respawn = 120, Spawn = CFrame.new( 1380,  87,  -1298) },
+    ["Saber Expert"]       = { Level = 175,  Sea = 1, HP = 20000,  Respawn = 180, Spawn = CFrame.new(-1405,  20,     45) },
+    ["Wysper"]             = { Level = 175,  Sea = 1, HP = 15000,  Respawn = 180, Spawn = CFrame.new(-5244, 431,  -2279) },
+    ["Thunder God"]        = { Level = 175,  Sea = 1, HP = 15000,  Respawn = 180, Spawn = CFrame.new(-5244, 431,  -2279) },
+    ["Iron Mace"]          = { Level = 285,  Sea = 1, HP = 35000,  Respawn = 240, Spawn = CFrame.new(-1840,   7,  -2735) },
+    ["Greybeard"]          = { Level = 375,  Sea = 1, HP = 50000,  Respawn = 300, Spawn = CFrame.new( 6112,  19,   1567) },
+    ["Vice Admiral"]       = { Level = 375,  Sea = 1, HP = 50000,  Respawn = 300, Spawn = CFrame.new(-2566,   6,   3314) },
+    ["Darkbeard"]          = { Level = 1000, Sea = 1, HP = 100000, Respawn = 600, Spawn = CFrame.new( 5790,  60,   4975) },
+
+    -- ══════════ SECOND SEA ══════════
+    ["Diamond"]            = { Level = 1000, Sea = 2, HP = 75000,  Respawn = 240, Spawn = CFrame.new(-1650,  20,   -200) },
+    ["Don Swan"]           = { Level = 1000, Sea = 2, HP = 80000,  Respawn = 300, Spawn = CFrame.new(-1580,   7,  -2992) },
+    ["Muscle King"]        = { Level = 850,  Sea = 2, HP = 60000,  Respawn = 240, Spawn = CFrame.new(-5808,  51,   8829) },
+    ["Pirate Big Brother"] = { Level = 1200, Sea = 2, HP = 95000,  Respawn = 300, Spawn = CFrame.new( 6337,  -1,   1145) },
+    ["Jeremy"]             = { Level = 1250, Sea = 2, HP = 100000, Respawn = 300, Spawn = CFrame.new( 1099,   5,    130) },
+    ["Cursed Captain"]     = { Level = 1325, Sea = 2, HP = 120000, Respawn = 300, Spawn = CFrame.new(-5808,  51,   8829) },
+
+    -- ══════════ THIRD SEA ══════════
+    ["Island Empress"]     = { Level = 1450, Sea = 3, HP = 180000, Respawn = 300, Spawn = CFrame.new( 5257,  39,   4051) },
+    ["Cursed Skeleton"]    = { Level = 1500, Sea = 3, HP = 180000, Respawn = 300, Spawn = CFrame.new(-5401,  18,   8450) },
+    ["Kilo Admiral"]       = { Level = 1525, Sea = 3, HP = 190000, Respawn = 300, Spawn = CFrame.new(-7657, 5607, -1412) },
+    ["Stone"]              = { Level = 1550, Sea = 3, HP = 200000, Respawn = 300, Spawn = CFrame.new(-7903, 5635, -1411) },
+    ["Cake Queen"]         = { Level = 1575, Sea = 3, HP = 200000, Respawn = 300, Spawn = CFrame.new(  487,   5,    327) },
+    ["King Cake"]          = { Level = 1600, Sea = 3, HP = 210000, Respawn = 300, Spawn = CFrame.new(  524,   5,    484) },
+    ["Misery"]             = { Level = 1600, Sea = 3, HP = 210000, Respawn = 300, Spawn = CFrame.new(-1580,   7,  -2992) },
+    ["Captain Elephant"]   = { Level = 1625, Sea = 3, HP = 220000, Respawn = 300, Spawn = CFrame.new(-7667, 5747, -1964) },
+    ["Beautiful Pirate"]   = { Level = 1650, Sea = 3, HP = 230000, Respawn = 300, Spawn = CFrame.new(-7819, 5545, -1727) },
+    ["Candy Pirate"]       = { Level = 1650, Sea = 3, HP = 220000, Respawn = 300, Spawn = CFrame.new(-1683,  50,    171) },
+    ["Cake Prince"]        = { Level = 1700, Sea = 3, HP = 240000, Respawn = 360, Spawn = CFrame.new(-1601,  37,    153) },
+    ["Soul Reaper"]        = { Level = 1700, Sea = 3, HP = 240000, Respawn = 360, Spawn = CFrame.new( 6090,  -1,   1494) },
+    ["Fishman Lord"]       = { Level = 1700, Sea = 3, HP = 240000, Respawn = 360, Spawn = CFrame.new(-5315,  12,   8515) },
+    ["Longma"]             = { Level = 1725, Sea = 3, HP = 250000, Respawn = 360, Spawn = CFrame.new(-4718, 850,  -1945) },
+    ["Cyborg"]             = { Level = 1725, Sea = 3, HP = 250000, Respawn = 360, Spawn = CFrame.new(-2440,  13,   3216) },
+    ["Tank"]               = { Level = 1750, Sea = 3, HP = 260000, Respawn = 360, Spawn = CFrame.new(-4842, 718,  -2622) },
+    ["Dough King"]         = { Level = 1800, Sea = 3, HP = 280000, Respawn = 600, Spawn = CFrame.new(-1498,  51,     60) },
+    ["Rip_Indra"]          = { Level = 3000, Sea = 3, HP = 500000, Respawn = 900, Spawn = CFrame.new(-4962, 281,  -2880) },
+}
+
+-- state boss farm
+BossFarmOn   = false
+SelectedBoss = "None"
+BossTarget   = nil
 
 -- ============================================================
 -- MOBILE TAP (giả lập chạm vào màn hình)
@@ -2150,7 +2237,6 @@ RunService.Heartbeat:Connect(function(dt)
     local enemies = workspace:FindFirstChild("Enemies")
     if not enemies then return end
 
-    -- Gom mob cùng loại trong DETECT_RANGE
     local list = {}
     for _, mob in ipairs(enemies:GetChildren()) do
         if mob.Name == CurrentMobName then
@@ -2166,21 +2252,18 @@ RunService.Heartbeat:Connect(function(dt)
     end
     table.sort(list, function(a, b) return a.Dist < b.Dist end)
 
-if #list < 2 then return end
+    if #list < 2 then return end
 
-local max  = BM_Max or 5
-local kept = {}
+    local max  = BM_Max or 5
+    local kept = {}
 
--- ★ A = mob gần player nhất, đóng vai trò anchor
-local anchorMob = list[1]
-local anchorPos = anchorMob.Root.Position
-kept[anchorMob.Mob] = true
+    local anchorMob = list[1]
+    local anchorPos = anchorMob.Root.Position
+    kept[anchorMob.Mob] = true
 
--- ★ Đợi player tới gần A rồi mới bring (không bring khi player còn xa)
-local distToA = (root.Position - anchorPos).Magnitude
-if distToA > 20 then return end
+    local distToA = (root.Position - anchorPos).Magnitude
+    if distToA > 20 then return end
 
--- ★ B, C, D... teleport từng bước về vị trí A
     for i = 2, math.min(#list, max) do
         local entry = list[i]
         local mob, mRoot, mHum = entry.Mob, entry.Root, entry.Hum
@@ -2193,13 +2276,12 @@ if distToA > 20 then return end
             }
         end
 
-        -- Di chuyển từng bước 10 studs/frame về phía A
         local currentPos = mRoot.Position
         local dir = anchorPos - currentPos
         local dist = dir.Magnitude
 
         if dist > 2 then
-            local step = math.min(dist, 10 * (dt or 0.016) * 60)  -- ~10 studs/frame
+            local step = math.min(dist, 10 * (dt or 0.016) * 60)
             local newPos = currentPos + dir.Unit * step
             pcall(function()
                 mRoot.CFrame = CFrame.new(newPos)
@@ -2212,7 +2294,6 @@ if distToA > 20 then return end
             mHum.PlatformStand = false
         end)
 
-        -- Clear debuff
         local busy = mob:FindFirstChild("Busy")
         if busy and busy:IsA("BoolValue") then busy.Value = false end
         local stun = mob:FindFirstChild("Stun")
@@ -2223,7 +2304,6 @@ if distToA > 20 then return end
         if grabbed and grabbed:IsA("BoolValue") then grabbed.Value = false end
     end
 
-    -- Restore mob ngoài slot
     local toRestore = {}
     for mob in pairs(BroughtMobData) do
         if not kept[mob] then
@@ -2232,6 +2312,101 @@ if distToA > 20 then return end
     end
     for _, mob in ipairs(toRestore) do
         RestoreMob(mob)
+    end
+end)
+
+-- ============================================================
+-- BOSS FARM LOOP
+-- ============================================================
+local function _FindBossInWorkspace(name)
+    local containers = {
+        workspace:FindFirstChild("Enemies"),
+        workspace:FindFirstChild("Bosses"),
+        workspace:FindFirstChild("Characters"),
+    }
+    for _, cont in ipairs(containers) do
+        if cont then
+            for _, obj in ipairs(cont:GetChildren()) do
+                if obj.Name == name and obj:IsA("Model") then
+                    local hum = obj:FindFirstChild("Humanoid")
+                    if hum and hum.Health > 0 then
+                        return obj, hum
+                    end
+                end
+            end
+        end
+    end
+    return nil
+end
+
+task.spawn(function()
+    while true do
+        task.wait(0.12)
+
+        if not BossFarmOn or SelectedBoss == "None" or not BossDB[SelectedBoss] then
+            task.wait(0.5)
+        else
+            local ok, err = pcall(function()
+                local root = GetPlayerParts()
+                if not root then return end
+
+                local bossData = BossDB[SelectedBoss]
+                local boss, bossHum = _FindBossInWorkspace(SelectedBoss)
+
+                -- BOSS CHƯA SPAWN → bay tới spawn point và đợi
+                if not boss then
+                    BossTarget = nil
+                    local spawnPos = bossData.Spawn.Position + Vector3.new(0, PLAYER_FLY_Y, 0)
+                    local d = (root.Position - spawnPos).Magnitude
+                    if d > 25 then
+                        if not farmMoving then FlyTo(spawnPos) else farmTargetPos = spawnPos end
+                    else
+                        farmMoving    = false
+                        farmTargetPos = nil
+                        if flyBV then flyBV.VectorVelocity = Vector3.zero end
+                    end
+                    return
+                end
+
+                -- BOSS ĐANG SỐNG
+                BossTarget = boss
+                local bossRoot = boss:FindFirstChild("HumanoidRootPart")
+                if not bossRoot then return end
+
+                local dx = root.Position.X - bossRoot.Position.X
+                local dz = root.Position.Z - bossRoot.Position.Z
+                local horizDist = math.sqrt(dx * dx + dz * dz)
+
+                if horizDist > STOP_RANGE then
+                    local goal = bossRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0)
+                    if not farmMoving then FlyTo(goal) else farmTargetPos = goal end
+                else
+                    farmMoving    = false
+                    farmTargetPos = nil
+                    if flyBV then flyBV.VectorVelocity = Vector3.zero end
+                end
+
+                if horizDist <= ATTACK_RANGE then
+                    EquipFarmWeapon()
+                    pcall(function()
+                        RegisterAttack:FireServer(AttackDelay, HitCount)
+                        local loops = FA_On and 15 or HitCount
+                        local delay = FA_On and (FA_Delay or 0.03) or (AttackDelay / math.max(HitCount, 1))
+                        for _ = 1, loops do
+                            for _, p in ipairs(GetAttackParts(boss)) do
+                                pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
+                                pcall(function() RegisterHit:FireServer(p, {}) end)
+                            end
+                            task.wait(delay)
+                        end
+                    end)
+                end
+            end)
+
+            if not ok then
+                warn("[AbyssalHub] Boss farm error: " .. tostring(err))
+            end
+        end
     end
 end)
 
