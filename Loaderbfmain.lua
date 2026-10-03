@@ -1236,8 +1236,8 @@ end)
 -- ДЕМОНСТРАЦИЯ (СОЗДАНИЕ ЭЛЕМЕНТОВ)
 -- ============================================================
 local TabStats = Library:CreateTab("Stats & Server")
-local TabSettings = Library:CreateTab("Settings")
-local Tab1 = Library:CreateTab("Main")
+local TabSettings = Library:CreateTab("Setting Farm")
+local Tab1 = Library:CreateTab("Farming")
 
 --  ---------UI CONTROL---------
 -- Thêm biến này TRƯỚC CreateToggle
@@ -1282,6 +1282,10 @@ Library:CreateSlider(TabSettings, "AtkSpeed", 0.01, 0.2, 0.03, function(v)
     FA_Delay = v
 end)
 
+Library:CreateTextBox(TabSettings, "Tween speed", 120, function(v)
+    TweenSpeed = math.clamp(math.floor(v), 30, 500)
+end)
+
 Library:CreateToggle(TabSettings, "BringMob", false, function(v)
     BM_On = v
     if not v then
@@ -1295,7 +1299,7 @@ Library:CreateToggle(TabSettings, "BringMob", false, function(v)
     end
 end)
 
-Library:CreateTextBox(TabSettings, "So mob gom (1-5)", 5, function(v)
+Library:CreateTextBox(TabSettings, "Mob count (1-5)", 5, function(v)
     BM_Max = math.clamp(math.floor(v), 1, 5)
 end)
 
