@@ -1500,6 +1500,14 @@ local RegisterAttack = Net:WaitForChild("RE/RegisterAttack")
 local RegisterHit    = Net:WaitForChild("RE/RegisterHit")
 local CommF_       = RS:WaitForChild("Remotes"):WaitForChild("CommF_")
 
+-- ★ Gun mode remotes
+local Validator2     = RS:WaitForChild("Remotes"):WaitForChild("Validator2")
+local ShootGunEvent  = Net:WaitForChild("RE/ShootGunEvent")
+
+-- ★ Gun config — anh sửa 2 số này nếu cần
+local GUN_TOOL_ID = 7052062   -- giá trị [1] của Validator2
+local GUN_ARG_2   = 10        -- giá trị [2] của Validator2
+
 -- ============================================================
 -- QUEST LIST
 -- ============================================================
@@ -1952,7 +1960,7 @@ task.spawn(function()
 
                 EquipFarmWeapon()   -- ★ tự động equip weapon trước khi farm
 
-local target = FindNearestMob(CurrentMobName, 2000)
+                local target = FindNearestMob(CurrentMobName, 2000)
 
                 -- Không có mob → bay tới spawn quest
                 if not target then
@@ -1998,36 +2006,71 @@ local target = FindNearestMob(CurrentMobName, 2000)
 
                 -- ===== ĐÁNH =====
                 if horizDist <= ATTACK_RANGE then
-                    pcall(function()
-                        RegisterAttack:FireServer(AttackDelay, HitCount)
 
-                        -- Gom tất cả mob cùng loại trong tầm
-                        local targets = {target}
-                        local enemies = workspace:FindFirstChild("Enemies")
-                        if enemies then
-                            for _, m in ipairs(enemies:GetChildren()) do
-                                if m.Name == CurrentMobName and m ~= target then
-                                    local mr = GetMobParts(m)
-                                    if mr and (root.Position - mr.Position).Magnitude <= ATTACK_RANGE then
-                                        table.insert(targets, m)
-                                    end
+                    -- Gom tất cả mob cùng loại trong tầm
+                    local targets = {target}
+                    local enemies = workspace:FindFirstChild("Enemies")
+                    if enemies then
+                        for _, m in ipairs(enemies:GetChildren()) do
+                            if m.Name == CurrentMobName and m ~= target then
+                                local mr = GetMobParts(m)
+                                if mr and (root.Position - mr.Position).Magnitude <= ATTACK_RANGE then
+                                    table.insert(targets, m)
                                 end
                             end
                         end
+                    end
 
+                    if FarmWeapon == "Gun" then
+                        -- ★ GUN MODE — gửi Validator2 + ShootGunEvent
+                        pcall(function()
+                            -- Validator2: kích hoạt gun (ID, arg2)
+                            Validator2:FireServer(GUN_TOOL_ID, GUN_ARG_2)
+
+                            -- ShootGunEvent cho từng mob (vị trí Head + list part)
+                            for _, m in ipairs(targets) do
+                                local head = m:FindFirstChild("Head")
+                                if head then
+                                    ShootGunEvent:FireServer(head.Position, {head})
+                                end
+                            end
+                        end)
+
+                        -- Loop thêm để damage liên tục
                         local loops = FA_On and 15 or HitCount
                         local delay = FA_On and (FA_Delay or 0.03) or (AttackDelay / math.max(HitCount, 1))
 
-                        for _ = 1, loops do
-                            for _, m in ipairs(targets) do
-                                for _, p in ipairs(GetAttackParts(m)) do
-                                    pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
-                                    pcall(function() RegisterHit:FireServer(p, {}) end)
-                                end
-                            end
+                        for _ = 2, loops do
                             task.wait(delay)
+                            pcall(function()
+                                for _, m in ipairs(targets) do
+                                    local head = m:FindFirstChild("Head")
+                                    if head then
+                                        ShootGunEvent:FireServer(head.Position, {head})
+                                    end
+                                end
+                            end)
                         end
-                    end)
+
+                    else
+                        -- ★ MELEE / SWORD MODE — gửi RegisterAttack + RegisterHit
+                        pcall(function()
+                            RegisterAttack:FireServer(AttackDelay, HitCount)
+
+                            local loops = FA_On and 15 or HitCount
+                            local delay = FA_On and (FA_Delay or 0.03) or (AttackDelay / math.max(HitCount, 1))
+
+                            for _ = 1, loops do
+                                for _, m in ipairs(targets) do
+                                    for _, p in ipairs(GetAttackParts(m)) do
+                                        pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
+                                        pcall(function() RegisterHit:FireServer(p, {}) end)
+                                    end
+                                end
+                                task.wait(delay)
+                            end
+                        end)
+                    end
                 end
             end)
 
