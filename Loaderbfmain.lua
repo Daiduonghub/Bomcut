@@ -1546,7 +1546,7 @@ if currentTarget == nil then currentTarget = nil end
 local PLAYER_FLY_Y  = 15
 local ATTACK_RANGE  = 30
 local STOP_RANGE    = 12
-local DETECT_RANGE  = 500
+local DETECT_RANGE  = 70
 local MIN_Y = -50     -- -50 thay vì 20, để bay vào Magma/Sky vẫn OK     -- không bay thấp hơn mức này (tránh rớt biển)
 local HitHash       = "168716de"
 
