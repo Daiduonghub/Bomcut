@@ -246,19 +246,19 @@ RestoreMob      = function() end
 -- ============================================================
 -- WEAPON DATABASE (thêm vũ khí ở đây)
 -- ============================================================
-FarmWeapon = nil   -- category: "Melee" / "Sword" / "Gun" / nil
+FarmWeapon = Melee   -- category: "Melee" / "Sword" / "Gun" / nil
 
 local WeaponDB = {
     Melee = {
         "Black Leg", "Electro", "Fishman Karate", "Superhuman",
-        "Death Step", "Sharkman Karate", "Electric Claw",
+        "Death Step",  "Dragon Claw", "Sharkman Karate", "Electric Claw",
         "Dragon Talon", "Godhuman", "Sanguine Art",
     },
     Sword = {
         "Katana", "Cutlass", "Iron Mace", "Triple Katana",
         "Dual Katana", "Saddi", "Wando", "Bisento",
         "Yama", "Dark Blade", "Shisui", "True Triple Katana",
-        "Cursed Dual Katana", "Dragon Claw", "Longsword",
+        "Cursed Dual Katana", "Longsword",
         "Buddy Sword", "Pole", "Koko", "Rengoku",
         "Midnight Blade", "Tushita", "Spikey Trident",
         "Hallow Scythe", "Dark Dagger", "Fox Lamp",
