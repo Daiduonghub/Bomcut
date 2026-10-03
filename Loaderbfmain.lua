@@ -2,6 +2,7 @@
 -- UI LIBRARY "ABYSSALHUB"
 -- ============================================================
 local CoreGui = game:GetService("CoreGui")
+local TextService = game:GetService("TextService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -242,6 +243,49 @@ BM_Max = 5  -- thay vì BM_Range / BM_Offset
 -- Bring Mob — khai báo trước để toggle thấy được
 BroughtMobData  = {}
 RestoreMob      = function() end
+-- ============================================================
+-- WEAPON DATABASE (thêm vũ khí ở đây)
+-- ============================================================
+FarmWeapon = nil   -- category: "Melee" / "Sword" / "Gun" / nil
+
+local WeaponDB = {
+    Melee = {
+        "Black Leg", "Electro", "Fishman Karate", "Superhuman",
+        "Death Step", "Sharkman Karate", "Electric Claw",
+        "Dragon Talon", "Godhuman", "Sanguine Art",
+    },
+    Sword = {
+        "Katana", "Cutlass", "Iron Mace", "Triple Katana",
+        "Dual Katana", "Saddi", "Wando", "Bisento",
+        "Yama", "Dark Blade", "Shisui", "True Triple Katana",
+        "Cursed Dual Katana", "Dragon Claw", "Longsword",
+        "Buddy Sword", "Pole", "Koko", "Rengoku",
+        "Midnight Blade", "Tushita", "Spikey Trident",
+        "Hallow Scythe", "Dark Dagger", "Fox Lamp",
+    },
+    Gun = {
+        "Flintlock", "Slingshot", "Musket", "Dual Flintlock",
+        "Cannon", "Kabucha", "Cursed Dual Pistol",
+        "Bizarre Rifle", "Acidum Rifle", "Serpent Bow",
+        "Soul Cane", "Dragonstorm",
+    },
+}
+
+local function FindWeaponByCategory(cat)
+    if not cat or cat == "None" then return nil end
+
+    local list = WeaponDB[cat]
+    if not list then return nil end
+
+    local bp = LP:FindFirstChild("Backpack")
+    if not bp then return nil end
+
+    -- Tìm vũ khí đầu tiên trong list mà player có
+    for _, name in ipairs(list) do
+        if bp:FindFirstChild(name) then return name end
+    end
+    return nil
+end
 
 -- ============================================================
 -- HIGHLIGHT PLAYER KHI BẬT AUTO FARM
@@ -286,96 +330,118 @@ RemoveHighlight = function()
     end
 end
 
-local ActiveNotifications = {}
+local ActiveNotifications = {}   -- list of { Frame = ..., Height = ... }
 
 local function UpdateNotifPositions()
+    local cumulative = 20   -- bottom margin
     for i, notif in ipairs(ActiveNotifications) do
-        if notif and notif.Parent then
-            local targetY = -90 - ((i - 1) * 80) -- mỗi notify cách 80px
-            TweenService:Create(notif, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                Position = UDim2.new(1, -340, 1, targetY)
+        if notif.Frame and notif.Frame.Parent then
+            cumulative = cumulative + notif.Height
+            local y = -cumulative
+            TweenService:Create(notif.Frame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Position = UDim2.new(1, -340, 1, y)
             }):Play()
+            cumulative = cumulative + 10   -- gap giữa các notif
         end
     end
 end
 
 function Library:Notify(title, text, duration)
     duration = duration or 4
-    
+
+    -- ★ Đo chiều cao text thực tế
+    local TEXT_WIDTH   = 320 - 40   -- khung 320 rộng, padding trái phải 20 mỗi bên
+    local TEXT_SIZE    = 12
+    local titleHeight  = 24
+    local topPad       = 10
+    local midGap       = 2
+    local bottomPad    = 12
+
+    local measured = TextService:GetTextSize(
+        text,
+        TEXT_SIZE,
+        Enum.Font.Gotham,
+        Vector2.new(TEXT_WIDTH, 1000)
+    )
+    local textHeight  = math.max(20, measured.Y)
+    local notifHeight = topPad + titleHeight + midGap + textHeight + bottomPad
+
     local NotifFrame = Instance.new("Frame")
-    NotifFrame.Size = UDim2.new(0, 320, 0, 70)
+    NotifFrame.Size = UDim2.new(0, 320, 0, notifHeight)   -- ★ chiều cao động
     NotifFrame.BackgroundColor3 = Color3.fromRGB(14, 10, 26)
     NotifFrame.BackgroundTransparency = 0.05
     NotifFrame.BorderSizePixel = 0
     NotifFrame.Parent = ScreenGui
-    
+
     local NotifCorner = Instance.new("UICorner")
     NotifCorner.CornerRadius = UDim.new(0, 12)
     NotifCorner.Parent = NotifFrame
-    
+
     local NotifStroke = Instance.new("UIStroke")
     NotifStroke.Color = Color3.fromRGB(140, 60, 255)
     NotifStroke.Thickness = 1
     NotifStroke.Transparency = 0.3
     NotifStroke.Parent = NotifFrame
-    
+
     local Accent = Instance.new("Frame")
     Accent.Size = UDim2.new(0, 4, 1, -16)
     Accent.Position = UDim2.new(0, 0, 0, 8)
     Accent.BackgroundColor3 = Color3.fromRGB(140, 60, 255)
     Accent.BorderSizePixel = 0
     Accent.Parent = NotifFrame
-    
+
     local AccentCorner = Instance.new("UICorner")
     AccentCorner.CornerRadius = UDim.new(0, 4)
     AccentCorner.Parent = Accent
-    
+
     local NotifTitle = Instance.new("TextLabel")
-    NotifTitle.Size = UDim2.new(1, -30, 0, 24)
-    NotifTitle.Position = UDim2.new(0, 18, 0, 10)
+    NotifTitle.Size = UDim2.new(1, -30, 0, titleHeight)
+    NotifTitle.Position = UDim2.new(0, 18, 0, topPad)
     NotifTitle.BackgroundTransparency = 1
     NotifTitle.Text = title
     NotifTitle.TextColor3 = Color3.fromRGB(235, 225, 255)
     NotifTitle.TextSize = 15
     NotifTitle.Font = Enum.Font.GothamBold
     NotifTitle.TextXAlignment = Enum.TextXAlignment.Left
+    NotifTitle.TextYAlignment = Enum.TextYAlignment.Top
     NotifTitle.Parent = NotifFrame
-    
+
     local NotifText = Instance.new("TextLabel")
-    NotifText.Size = UDim2.new(1, -30, 0, 20)
-    NotifText.Position = UDim2.new(0, 18, 0, 36)
+    NotifText.Size = UDim2.new(1, -30, 0, textHeight)   -- ★ dùng chiều cao đo được
+    NotifText.Position = UDim2.new(0, 18, 0, topPad + titleHeight + midGap)
     NotifText.BackgroundTransparency = 1
     NotifText.Text = text
     NotifText.TextColor3 = Color3.fromRGB(180, 180, 200)
-    NotifText.TextSize = 12
+    NotifText.TextSize = TEXT_SIZE
     NotifText.Font = Enum.Font.Gotham
     NotifText.TextXAlignment = Enum.TextXAlignment.Left
+    NotifText.TextYAlignment = Enum.TextYAlignment.Top
     NotifText.TextWrapped = true
     NotifText.Parent = NotifFrame
-    
-    -- Thêm vào đầu list (notify mới nhất ở index 1)
-    table.insert(ActiveNotifications, 1, NotifFrame)
-    
-    -- Vị trí ban đầu (ngoài màn hình bên phải, cùng Y như target)
-    NotifFrame.Position = UDim2.new(1, 20, 1, -90)
-    
-    -- Delay 1 frame để update position
+
+    -- Đẩy vào list — notif mới nhất ở index 1
+    table.insert(ActiveNotifications, 1, {
+        Frame  = NotifFrame,
+        Height = notifHeight,
+    })
+
+    -- Vị trí ban đầu: offscreen bên phải
+    NotifFrame.Position = UDim2.new(1, 20, 1, -notifHeight - 20)
+
     task.spawn(function()
         task.wait()
         UpdateNotifPositions()
     end)
-    
+
     -- Auto remove
     task.delay(duration, function()
-        -- Xóa khỏi list trước (để các notify khác dịch xuống)
         for i, n in ipairs(ActiveNotifications) do
-            if n == NotifFrame then
+            if n.Frame == NotifFrame then
                 table.remove(ActiveNotifications, i)
                 break
             end
         end
-        
-        -- Animate out
+
         local outPos = UDim2.new(1, 20, 1, NotifFrame.Position.Y.Offset)
         local out = TweenService:Create(NotifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
             Position = outPos,
@@ -1274,6 +1340,10 @@ LP.CharacterAdded:Connect(function(char)
     end
 end)
 
+Library:CreateDropdown(Tab1, "Farm Weapon", {"None", "Melee", "Sword", "Gun"}, "None", function(v)
+    FarmWeapon = (v == "None") and nil or v   -- lưu category
+end)
+
 Library:CreateToggle(TabSettings, "FastAtk", false, function(v)
     FA_On = v
 end)
@@ -1773,6 +1843,48 @@ CleanupFly = function()
         end
     end
 end          -- ★ THÊM DÒNG NÀY
+
+-- ============================================================
+-- EQUIP WEAPON
+-- ============================================================
+local function EquipFarmWeapon()
+    if not FarmWeapon or FarmWeapon == "None" then return end
+
+    local char = LP.Character
+    if not char then return end
+
+    -- Tìm weapon tương ứng với category (Melee/Sword/Gun)
+    local weaponName = FindWeaponByCategory(FarmWeapon)
+    if not weaponName then return end   -- không có weapon nào trong backpack
+
+    -- Đã equip đúng weapon → thôi
+    if char:FindFirstChild(weaponName) then return end
+
+    -- Tìm tool trong Backpack
+    local bp = LP:FindFirstChild("Backpack")
+    if not bp then return end
+
+    local tool = bp:FindFirstChild(weaponName)
+    if not tool then return end
+
+    -- BƯỚC 1: chuyển tool vào Character
+    local hum = char:FindFirstChild("Humanoid")
+    if hum then
+        pcall(function() hum:EquipTool(tool) end)
+    end
+
+    -- BƯỚC 2: đợi tool chuyển xong
+    task.wait(0.15)
+
+    -- BƯỚC 3: fire EquipEvent
+    local toolInChar = char:FindFirstChild(weaponName)
+    if toolInChar then
+        local eqEvent = toolInChar:FindFirstChild("EquipEvent")
+        if eqEvent then
+            pcall(function() eqEvent:FireServer(true) end)
+        end
+    end
+end
 
 -- ============================================================
 -- QUEST SYSTEM
