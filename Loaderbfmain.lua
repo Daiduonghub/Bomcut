@@ -2270,7 +2270,6 @@ end)
 -- ============================================================
 -- BRING MOB — B teleport tới vị trí A (mob gần player nhất)
 -- ============================================================
-
 RestoreMob = function(mob)
     PART_CACHE[mob] = nil
     local data = BroughtMobData[mob]
@@ -2286,17 +2285,40 @@ RestoreMob = function(mob)
             mHum.WalkSpeed     = data.WalkSpeed or 16
             mHum.JumpPower     = data.JumpPower or 50
             mHum.PlatformStand = false
+            mHum:SetStateEnabled(Enum.HumanoidStateType.Physics, true)
+            mHum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, true)
+            mHum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
             mHum:ChangeState(Enum.HumanoidStateType.Running)
         end)
     end
 
-    -- ★ teleport về vị trí gốc + zero velocity
-    if mRoot and data and data.OrigCFrame then
-        pcall(function()
-            mRoot.CFrame = data.OrigCFrame
-            mRoot.AssemblyLinearVelocity  = Vector3.zero
-            mRoot.AssemblyAngularVelocity = Vector3.zero
-        end)
+    -- ★ XÓA SẠCH StunObjects trong HRP
+    if mRoot then
+        for _, child in ipairs(mRoot:GetChildren()) do
+            if child.Name == "StunObjects" or child.Name == "StunObject" then
+                pcall(function() child:Destroy() end)
+            end
+        end
+        -- teleport về vị trí gốc
+        if data and data.OrigCFrame then
+            pcall(function()
+                mRoot.CFrame = data.OrigCFrame
+                mRoot.AssemblyLinearVelocity  = Vector3.zero
+                mRoot.AssemblyAngularVelocity = Vector3.zero
+            end)
+        end
+    end
+
+    -- ★ XÓA HẲN flag lock (không chỉ set false)
+    for _, flagName in ipairs({"Busy", "Stun", "Stunned", "Grabbed", "Attacking", "Blocking"}) do
+        local flag = mob:FindFirstChild(flagName)
+        if flag then
+            if flag:IsA("BoolValue") then
+                pcall(function() flag.Value = false end)
+            else
+                pcall(function() flag:Destroy() end)
+            end
+        end
     end
 end
 
@@ -2354,39 +2376,60 @@ RunService.Heartbeat:Connect(function(dt)
         kept[mob] = true
 
         if not BroughtMobData[mob] then
-    BroughtMobData[mob] = {
-        WalkSpeed  = mHum.WalkSpeed,
-        JumpPower  = mHum.JumpPower,
-        OrigCFrame = mRoot.CFrame,   -- ★ lưu vị trí gốc trước khi bring
-    }
-end
+            BroughtMobData[mob] = {
+                WalkSpeed  = mHum.WalkSpeed,
+                JumpPower  = mHum.JumpPower,
+                OrigCFrame = mRoot.CFrame,
+            }
+        end
 
         local currentPos = mRoot.Position
         local dir = anchorPos - currentPos
         local dist = dir.Magnitude
 
-        if dist > 2 then
-            local step = math.min(dist, 10 * (dt or 0.016) * 60)
+        -- ★ di chuyển bằng CFrame nhưng giữ rotation, step nhỏ hơn
+        if dist > 4 then
+            local step = math.min(dist, 12 * (dt or 0.016) * 60)
             local newPos = currentPos + dir.Unit * step
+            local oldCF = mRoot.CFrame
+            local newCF = CFrame.new(newPos) * (oldCF - oldCF.Position)
+
             pcall(function()
-                mRoot.CFrame = CFrame.new(newPos)
+                mRoot.CFrame = newCF
                 mRoot.AssemblyLinearVelocity  = Vector3.zero
                 mRoot.AssemblyAngularVelocity = Vector3.zero
             end)
         end
 
+        -- ★ xóa StunObjects liên tục mỗi frame
+        for _, child in ipairs(mRoot:GetChildren()) do
+            if child.Name == "StunObjects" or child.Name == "StunObject" then
+                pcall(function() child:Destroy() end)
+            end
+        end
+
+        -- ★ reset Humanoid state mạnh
         pcall(function()
             mHum.PlatformStand = false
+            mHum:SetStateEnabled(Enum.HumanoidStateType.Physics, false)
+            mHum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+            mHum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+            if mHum:GetState() ~= Enum.HumanoidStateType.Running then
+                mHum:ChangeState(Enum.HumanoidStateType.Running)
+            end
         end)
 
-        local busy = mob:FindFirstChild("Busy")
-        if busy and busy:IsA("BoolValue") then busy.Value = false end
-        local stun = mob:FindFirstChild("Stun")
-        if stun and stun:IsA("BoolValue") then stun.Value = false end
-        local stunned = mob:FindFirstChild("Stunned")
-        if stunned and stunned:IsA("BoolValue") then stunned.Value = false end
-        local grabbed = mob:FindFirstChild("Grabbed")
-        if grabbed and grabbed:IsA("BoolValue") then grabbed.Value = false end
+        -- ★ xóa hẳn flag lock khỏi mob (destroy luôn)
+        for _, flagName in ipairs({"Busy", "Stun", "Stunned", "Grabbed", "Attacking", "Blocking"}) do
+            local flag = mob:FindFirstChild(flagName)
+            if flag then
+                if flag:IsA("BoolValue") then
+                    pcall(function() flag.Value = false end)
+                else
+                    pcall(function() flag:Destroy() end)
+                end
+            end
+        end
     end
 
     local toRestore = {}
@@ -2397,6 +2440,58 @@ end
     end
     for _, mob in ipairs(toRestore) do
         RestoreMob(mob)
+    end
+end)
+
+-- ============================================================
+-- ANTI-LOCK — quét mob bị flag lock, tự động giải phóng
+-- ============================================================
+task.spawn(function()
+    while true do
+        task.wait(0.3)
+        if not (BM_On and AutoFarm) then continue end
+
+        local enemies = workspace:FindFirstChild("Enemies")
+        if not enemies then continue end
+
+        for _, mob in ipairs(enemies:GetChildren()) do
+            if mob.Name == CurrentMobName then
+                local hrp = mob:FindFirstChild("HumanoidRootPart")
+                local hum = mob:FindFirstChild("Humanoid")
+                if hrp and hum and hum.Health > 0 then
+                    -- xóa StunObjects
+                    for _, child in ipairs(hrp:GetChildren()) do
+                        if child.Name == "StunObjects" or child.Name == "StunObject" then
+                            pcall(function() child:Destroy() end)
+                        end
+                    end
+
+                    -- reset nếu state bị kẹt
+                    local state = hum:GetState()
+                    if state == Enum.HumanoidStateType.Physics 
+                       or state == Enum.HumanoidStateType.Ragdoll
+                       or state == Enum.HumanoidStateType.FallingDown 
+                       or state == Enum.HumanoidStateType.Dead then
+                        pcall(function()
+                            hum.PlatformStand = false
+                            hum:ChangeState(Enum.HumanoidStateType.Running)
+                        end)
+                    end
+
+                    -- xóa hẳn flag
+                    for _, flagName in ipairs({"Busy", "Stun", "Stunned", "Grabbed"}) do
+                        local flag = mob:FindFirstChild(flagName)
+                        if flag then
+                            if flag:IsA("BoolValue") then
+                                pcall(function() flag.Value = false end)
+                            else
+                                pcall(function() flag:Destroy() end)
+                            end
+                        end
+                    end
+                end
+            end
+        end
     end
 end)
 
