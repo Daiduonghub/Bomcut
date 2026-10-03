@@ -1772,11 +1772,6 @@ RunService.Heartbeat:Connect(function(dt)
         return
     end
 
-    if BM_On then
-        DisableFly()
-        return
-    end
-
     if not EnsureFlyObjects() then return end
 
     flyAttach.Parent    = root
@@ -2044,7 +2039,7 @@ local target = FindNearestMob(CurrentMobName, 2000)
 end)
 
 -- ============================================================
--- BRING MOB (kéo mob trong ownership range về slot quanh player)
+-- BRING MOB — B teleport tới vị trí A (mob gần player nhất)
 -- ============================================================
 
 RestoreMob = function(mob)
@@ -2061,7 +2056,7 @@ RestoreMob = function(mob)
     end
 end
 
-RunService.Heartbeat:Connect(function()
+RunService.Heartbeat:Connect(function(dt)
     if not AutoFarm or not BM_On then return end
 
     local root = GetPlayerParts()
@@ -2086,15 +2081,22 @@ RunService.Heartbeat:Connect(function()
     end
     table.sort(list, function(a, b) return a.Dist < b.Dist end)
 
+    if #list < 2 then return end
+
     local max  = BM_Max or 5
     local kept = {}
 
-    for i = 1, math.min(#list, max) do
+    -- ★ A = mob gần player nhất, đóng vai trò anchor
+    local anchorMob = list[1]
+    local anchorPos = anchorMob.Root.Position
+    kept[anchorMob.Mob] = true
+
+    -- ★ B, C, D... teleport từng bước về vị trí A
+    for i = 2, math.min(#list, max) do
         local entry = list[i]
         local mob, mRoot, mHum = entry.Mob, entry.Root, entry.Hum
         kept[mob] = true
 
-        -- Lưu state gốc lần đầu gặp
         if not BroughtMobData[mob] then
             BroughtMobData[mob] = {
                 WalkSpeed = mHum.WalkSpeed,
@@ -2102,18 +2104,21 @@ RunService.Heartbeat:Connect(function()
             }
         end
 
-        -- Slot cố định quanh player
-        local offset = SLOT_OFFSETS[i] or Vector3.new(0, 0, 0)
-        local targetPos = root.Position + Vector3.new(offset.X, 0, offset.Z)
+        -- Di chuyển từng bước 10 studs/frame về phía A
+        local currentPos = mRoot.Position
+        local dir = anchorPos - currentPos
+        local dist = dir.Magnitude
 
-        -- ★ CFrame cứng mỗi frame
-        pcall(function()
-            mRoot.CFrame = CFrame.new(targetPos)
-            mRoot.AssemblyLinearVelocity  = Vector3.zero
-            mRoot.AssemblyAngularVelocity = Vector3.zero
-        end)
+        if dist > 2 then
+            local step = math.min(dist, 10 * (dt or 0.016) * 60)  -- ~10 studs/frame
+            local newPos = currentPos + dir.Unit * step
+            pcall(function()
+                mRoot.CFrame = CFrame.new(newPos)
+                mRoot.AssemblyLinearVelocity  = Vector3.zero
+                mRoot.AssemblyAngularVelocity = Vector3.zero
+            end)
+        end
 
-        -- Không dùng PlatformStand — để physics tự do
         pcall(function()
             mHum.PlatformStand = false
         end)
