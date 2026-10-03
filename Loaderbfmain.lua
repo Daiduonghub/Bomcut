@@ -2044,187 +2044,80 @@ local target = FindNearestMob(CurrentMobName, 2000)
 end)
 
 -- ============================================================
--- BRING MOB SYSTEM (AlignPosition - physics replicate lên server)
+-- BRING MOB — "Bring Player" mode
+-- Teleport player đến từng mob trong cụm, gửi hit mỗi frame
 -- ============================================================
+RunService.Heartbeat:Connect(function()
+    if not AutoFarm or not BM_On then return end
 
-RestoreMob = function(mob)
-    local data = BroughtMobData[mob]
-    BroughtMobData[mob] = nil
-    if not mob or not mob.Parent then return end
+    local root = GetPlayerParts()
+    if not root then return end
 
-    local mRoot = mob:FindFirstChild("HumanoidRootPart")
-    local mHum  = mob:FindFirstChild("Humanoid")
-
-    if mRoot then
-        pcall(function()
-            -- Xoá constraints
-            local att   = mRoot:FindFirstChild("AbyssalMobAttach")
-            local align = mRoot:FindFirstChild("AbyssalMobAlign")
-            if att   then att:Destroy()   end
-            if align then align:Destroy() end
-
-            -- Trả về vị trí gốc
-            if data and data.OrigCFrame then
-                mRoot.CFrame = data.OrigCFrame
-            end
-            mRoot.Anchored = false
-        end)
-    end
-
-    if mHum and data then
-        pcall(function()
-            mHum.PlatformStand = false
-            mHum.WalkSpeed     = data.WalkSpeed or 16
-            mHum.JumpPower     = data.JumpPower or 50
-            mHum:ChangeState(Enum.HumanoidStateType.GettingUp)
-        end)
-    end
-end
-
-local function GatherNearbyMobs(mobName, rootPos, maxDist)
     local enemies = workspace:FindFirstChild("Enemies")
-    if not enemies then return {} end
+    if not enemies then return end
 
+    -- Gom mob cùng loại trong tầm
     local list = {}
     for _, mob in ipairs(enemies:GetChildren()) do
-        if mob.Name == mobName then
+        if mob.Name == CurrentMobName then
             local mRoot = mob:FindFirstChild("HumanoidRootPart")
             local mHum  = mob:FindFirstChild("Humanoid")
             if mRoot and mHum and mHum.Health > 0 then
-                local d = (rootPos - mRoot.Position).Magnitude
-                if d <= maxDist then
+                local d = (root.Position - mRoot.Position).Magnitude
+                if d <= DETECT_RANGE then
                     table.insert(list, {Mob = mob, Root = mRoot, Hum = mHum, Dist = d})
                 end
             end
         end
     end
     table.sort(list, function(a, b) return a.Dist < b.Dist end)
-    return list
-end
 
-RunService.Heartbeat:Connect(function()
-    -- Tắt farm / tắt BM → restore hết
-    if not AutoFarm or not BM_On then
-        for mob in pairs(BroughtMobData) do
-            if mob and mob.Parent then
-                RestoreMob(mob)
-            else
-                BroughtMobData[mob] = nil
-            end
-        end
-        return
+    local max = BM_Max or 5
+    if #list == 0 then return end
+
+    -- Chỉ lấy tối đa BM_Max mob gần nhất
+    local targets = {}
+    for i = 1, math.min(#list, max) do
+        table.insert(targets, list[i])
     end
 
-    local root = GetPlayerParts()
-    if not root then return end
-
-    local list = GatherNearbyMobs(CurrentMobName, root.Position, DETECT_RANGE)
-    local max  = BM_Max or 5
-    local kept = {}
-
-    for i, entry in ipairs(list) do
-        if i > max then
-            if BroughtMobData[entry.Mob] then
-                RestoreMob(entry.Mob)
-            end
-        else
-            kept[entry.Mob] = true
-            local mob, mRoot, mHum = entry.Mob, entry.Root, entry.Hum
-
-            -- Lưu trạng thái gốc lần đầu gặp
-            if not BroughtMobData[mob] then
-                BroughtMobData[mob] = {
-                    BaseY      = mRoot.Position.Y,
-                    WalkSpeed  = mHum.WalkSpeed,
-                    JumpPower  = mHum.JumpPower,
-                    OrigCFrame = mRoot.CFrame,
-                    AlignAtt   = nil,
-                    AlignPos   = nil,
-                }
-            end
-            local data = BroughtMobData[mob]
-
-            -- Slot cố định quanh player
-            local offset = SLOT_OFFSETS[i] or Vector3.new(0, 0, 0)
-            local targetPos = Vector3.new(
-                root.Position.X + offset.X,
-                data.BaseY,
-                root.Position.Z + offset.Z
-            )
-
-            -- ★ Setup AlignPosition lần đầu
-            if not data.AlignPos or not data.AlignPos.Parent then
-                pcall(function()
-                    -- Xoá cũ nếu có
-                    local oldAtt   = mRoot:FindFirstChild("AbyssalMobAttach")
-                    local oldAlign = mRoot:FindFirstChild("AbyssalMobAlign")
-                    if oldAtt   then oldAtt:Destroy()   end
-                    if oldAlign then oldAlign:Destroy() end
-
-                    local att = Instance.new("Attachment")
-                    att.Name = "AbyssalMobAttach"
-                    att.Parent = mRoot
-
-                    local align = Instance.new("AlignPosition")
-                    align.Name = "AbyssalMobAlign"
-                    align.Attachment0 = att
-                    align.Mode = Enum.PositionAlignmentMode.OneAttachment
-                    align.MaxForce = 1e9
-                    align.Responsiveness = 200
-                    align.Position = targetPos
-                    align.Parent = mRoot
-
-                    data.AlignAtt = att
-                    data.AlignPos = align
-                end)
-            end
-
-            -- ★ Cập nhật target position mỗi frame
-            if data.AlignPos then
-                pcall(function()
-                    data.AlignPos.Position = targetPos
-                end)
-            end
-
-            -- ★ Khoá AI mob bằng PlatformStand (không dùng Anchored)
-            pcall(function()
-                mHum.PlatformStand = true
-            end)
-
-            -- Clear debuff
-            local busy = mob:FindFirstChild("Busy")
-            if busy and busy:IsA("BoolValue") then busy.Value = false end
-
-            local stun = mob:FindFirstChild("Stun")
-            if stun and stun:IsA("BoolValue") then stun.Value = false end
-
-            local stunned = mob:FindFirstChild("Stunned")
-            if stunned and stunned:IsA("BoolValue") then stunned.Value = false end
-
-            local grabbed = mob:FindFirstChild("Grabbed")
-            if grabbed and grabbed:IsA("BoolValue") then grabbed.Value = false end
-        end
-    end
-
-    -- Cleanup mob ngoài slot
-    for mob in pairs(BroughtMobData) do
-        if not kept[mob] then
-            if mob and mob.Parent then
-                RestoreMob(mob)
-            else
-                BroughtMobData[mob] = nil
-            end
-        end
-    end
-
-    -- Anchor player trên đầu mob gần nhất — CHỈ khi đang không bay
-    if #list > 0 and not farmMoving then
-        local fRoot = list[1].Root
+    -- Đứng tại vị trí từng mob, gửi hit cho tất cả mob trong tầm khi đứng ở mỗi vị trí
+    -- → Vì đứng trên đầu 1 mob, các mob khác ở gần đó cũng trong tầm hit
+    local closest = targets[1]
+    if closest then
+        -- Teleport player tới trên đầu mob gần nhất
         pcall(function()
             root.Anchored = true
-            root.CFrame   = CFrame.new(fRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0))
-            root.Velocity     = Vector3.zero
-            root.RotVelocity  = Vector3.zero
+            root.CFrame = CFrame.new(closest.Root.Position + Vector3.new(0, PLAYER_FLY_Y, 0))
+            root.Velocity = Vector3.zero
+            root.RotVelocity = Vector3.zero
+        end)
+
+        -- Gửi hit cho TẤT CẢ mob trong cụm (khi player đứng gần)
+        pcall(function()
+            RegisterAttack:FireServer(AttackDelay, HitCount)
+
+            local enemies = workspace:FindFirstChild("Enemies")
+            if not enemies then return end
+
+            for _, m in ipairs(enemies:GetChildren()) do
+                if m.Name == CurrentMobName then
+                    local mr = m:FindFirstChild("HumanoidRootPart")
+                    local mh = m:FindFirstChild("Humanoid")
+                    if mr and mh and mh.Health > 0 then
+                        local d = (root.Position - mr.Position).Magnitude
+                        if d <= ATTACK_RANGE then
+                            -- Hit tất cả part của mob này
+                            for _, p in ipairs(m:GetDescendants()) do
+                                if p:IsA("BasePart") then
+                                    pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
+                                    pcall(function() RegisterHit:FireServer(p, {}) end)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
         end)
     end
 end)
