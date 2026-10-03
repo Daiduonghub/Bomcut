@@ -243,6 +243,7 @@ BM_Max = 5  -- thay vì BM_Range / BM_Offset
 -- Bring Mob — khai báo trước để toggle thấy được
 BroughtMobData  = {}
 RestoreMob      = function() end
+ForceRestoreAllMobs = function() end   -- ★ stub, gán thực sau
 -- ★ Combo state
 ComboPhase  = "melee"
 ComboTarget = nil
@@ -1364,7 +1365,6 @@ local FirstToggleInit = true
 Library:CreateToggle(TabFarm, "Auto Farm Level", false, function(v)
     AutoFarm = v
 
-    -- Chặn notify lần init đầu tiên (khi tạo toggle)
     if FirstToggleInit then
         FirstToggleInit = false
         return
@@ -1378,6 +1378,7 @@ Library:CreateToggle(TabFarm, "Auto Farm Level", false, function(v)
     else
         currentTarget = nil
         if StopActiveTween then StopActiveTween() end
+        ForceRestoreAllMobs()  -- ★ force cleanup mob đang bring
         CleanupFly()
         RemoveHighlight()
         Library:Notify("AbyssalHub", "Auto Farm: OFF", 2)
@@ -1422,26 +1423,25 @@ Library:CreateDropdown(TabFarm, "Select Boss", _bossOpts, "None", function(v)
     BossTarget = nil
 end)
 
-Library:CreateToggle(TabFarm, "Auto Farm Level", false, function(v)
-    AutoFarm = v
+Library:CreateToggle(TabFarm, "Auto Farm Boss", false, function(v)
+    BossFarmOn = v
 
-    if FirstToggleInit then
-        FirstToggleInit = false
+    if FirstBossToggleInit then
+        FirstBossToggleInit = false
         return
     end
 
     if v then
-        CurrentQuestName = nil
-        QuestCooldown = 0
         AddHighlight()
-        Library:Notify("AbyssalHub", "Auto Farm: ON", 2)
+        Library:Notify("AbyssalHub", "Boss Farm: ON — " .. tostring(SelectedBoss), 2)
     else
-        currentTarget = nil
-        if StopActiveTween then StopActiveTween() end
-        ForceRestoreAllMobs()  -- ★ force cleanup mob đang bring
-        CleanupFly()
-        RemoveHighlight()
-        Library:Notify("AbyssalHub", "Auto Farm: OFF", 2)
+        BossTarget = nil
+        ForceRestoreAllMobs()  -- ★
+        if not AutoFarm then
+            CleanupFly()
+            RemoveHighlight()
+        end
+        Library:Notify("AbyssalHub", "Boss Farm: OFF", 2)
     end
 end)
 
@@ -1464,13 +1464,7 @@ end)
 Library:CreateToggle(TabSettings, "BringMob", false, function(v)
     BM_On = v
     if not v then
-        -- trả hết mob đang bị mang về trạng thái gốc
-        for mob in pairs(BroughtMobData) do
-            if mob and mob.Parent then
-                RestoreMob(mob)
-            end
-        end
-        BroughtMobData = {}
+        ForceRestoreAllMobs()
     end
 end)
 
@@ -2306,14 +2300,13 @@ RestoreMob = function(mob)
     end
 end
 
-local function ForceRestoreAllMobs()
+ForceRestoreAllMobs = function()
     for mob in pairs(BroughtMobData) do
         if mob and mob.Parent then
             RestoreMob(mob)
         end
     end
     BroughtMobData = {}
-    -- clear cache
     for m in pairs(PART_CACHE) do
         PART_CACHE[m] = nil
     end
