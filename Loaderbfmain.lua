@@ -1546,7 +1546,7 @@ if currentTarget == nil then currentTarget = nil end
 local PLAYER_FLY_Y  = 15
 local ATTACK_RANGE  = 60
 local STOP_RANGE    = 12
-local DETECT_RANGE  = 60
+local DETECT_RANGE  = 300
 local MIN_Y = -50     -- -50 thay vì 20, để bay vào Magma/Sky vẫn OK     -- không bay thấp hơn mức này (tránh rớt biển)
 local HitHash       = "168716de"
 
@@ -1651,7 +1651,7 @@ end)
 
 -- Ép đứng thẳng: RenderStepped (sau physics, trước render)
 RunService.RenderStepped:Connect(function()
-    if not AutoFarm or BM_On then return end
+    if not AutoFarm then return end
     if not noclipActive then return end
 
     local char = LP.Character
@@ -2081,17 +2081,21 @@ RunService.Heartbeat:Connect(function(dt)
     end
     table.sort(list, function(a, b) return a.Dist < b.Dist end)
 
-    if #list < 2 then return end
+if #list < 2 then return end
 
-    local max  = BM_Max or 5
-    local kept = {}
+local max  = BM_Max or 5
+local kept = {}
 
-    -- ★ A = mob gần player nhất, đóng vai trò anchor
-    local anchorMob = list[1]
-    local anchorPos = anchorMob.Root.Position
-    kept[anchorMob.Mob] = true
+-- ★ A = mob gần player nhất, đóng vai trò anchor
+local anchorMob = list[1]
+local anchorPos = anchorMob.Root.Position
+kept[anchorMob.Mob] = true
 
-    -- ★ B, C, D... teleport từng bước về vị trí A
+-- ★ Đợi player tới gần A rồi mới bring (không bring khi player còn xa)
+local distToA = (root.Position - anchorPos).Magnitude
+if distToA > 20 then return end
+
+-- ★ B, C, D... teleport từng bước về vị trí A
     for i = 2, math.min(#list, max) do
         local entry = list[i]
         local mob, mRoot, mHum = entry.Mob, entry.Root, entry.Hum
