@@ -1706,17 +1706,30 @@ local function FindNearestMob(name, maxDist)
     return best, bestDist
 end
 
+-- ★ BATCH PARTS — chỉ lấy 5 parts chính, cache lại
+local PART_CACHE = {}
+
 local function GetAttackParts(mob)
+    local cached = PART_CACHE[mob]
+    if cached and cached[1] and cached[1].Parent then
+        return cached
+    end
+
+    local names = {"Head", "UpperTorso", "LowerTorso", "LeftHand", "RightHand"}
     local parts = {}
-    for _, p in ipairs(mob:GetDescendants()) do
-        if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then
+    for _, n in ipairs(names) do
+        local p = mob:FindFirstChild(n)
+        if p and p:IsA("BasePart") then
             table.insert(parts, p)
         end
     end
+
     if #parts == 0 then
         local hrp = mob:FindFirstChild("HumanoidRootPart")
         if hrp then table.insert(parts, hrp) end
     end
+
+    PART_CACHE[mob] = parts
     return parts
 end
 
@@ -2078,6 +2091,9 @@ end
 -- ============================================================
 -- ATTACK HELPER — dùng chung cho farm level và boss
 -- ============================================================
+-- ============================================================
+-- ATTACK HELPER — burst spam, dùng chung farm level + boss
+-- ============================================================
 local function DoAttack(targets)
     if not targets or #targets == 0 then return end
 
@@ -2095,60 +2111,59 @@ local function DoAttack(targets)
 
     if FarmWeapon == "Gun" then
         if ComboPhase == "melee" then
-            pcall(function()
-                local char = LP.Character
-                local hum  = char and char:FindFirstChild("Humanoid")
-                if hum then hum:UnequipTools() end
+            -- ★ MELEE BURST
+            local char = LP.Character
+            local hum  = char and char:FindFirstChild("Humanoid")
+            if hum then pcall(function() hum:UnequipTools() end) end
 
-                RegisterAttack:FireServer(AttackDelay, HitCount)
+            RegisterAttack:FireServer(0.1, 5)
 
-                local loops = FA_On and 15 or HitCount
-                local delay = FA_On and (FA_Delay or 0.03) or (AttackDelay / math.max(HitCount, 1))
-
-                for _ = 1, loops do
-                    for _, m in ipairs(targets) do
-                        for _, p in ipairs(GetAttackParts(m)) do
-                            pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
-                            pcall(function() RegisterHit:FireServer(p, {}) end)
-                        end
-                    end
-                    task.wait(delay)
+            for _, m in ipairs(targets) do
+                local parts = GetAttackParts(m)
+                for _, p in ipairs(parts) do
+                    RegisterHit:FireServer(p, {}, HitHash)
+                    RegisterHit:FireServer(p, {})
                 end
-            end)
+            end
         else
+            -- ★ GUN PHASE — equip gun + tap
             EquipFarmWeapon()
-            pcall(function()
-                local camera = workspace.CurrentCamera
-                if not camera then return end
-                for _, m in ipairs(targets) do
-                    local head = m:FindFirstChild("Head")
-                    if head then
-                        local screenPos, onScreen = camera:WorldToScreenPoint(head.Position)
-                        if onScreen then
-                            SimulateTap(screenPos.X, screenPos.Y)
-                        end
-                    end
+            local camera = workspace.CurrentCamera
+            if not camera then return end
+            for _, m in ipairs(targets) do
+                local head = m:FindFirstChild("Head")
+                if head then
+                    local sp, on = camera:WorldToScreenPoint(head.Position)
+                    if on then SimulateTap(sp.X, sp.Y) end
                 end
-            end)
+            end
         end
     else
+        -- ★ MELEE / SWORD BURST
         EquipFarmWeapon()
-        pcall(function()
-            RegisterAttack:FireServer(AttackDelay, HitCount)
 
-            local loops = FA_On and 15 or HitCount
-            local delay = FA_On and (FA_Delay or 0.03) or (AttackDelay / math.max(HitCount, 1))
+        RegisterAttack:FireServer(0.1, 5)
 
-            for _ = 1, loops do
+        for _, m in ipairs(targets) do
+            local parts = GetAttackParts(m)
+            for _, p in ipairs(parts) do
+                RegisterHit:FireServer(p, {}, HitHash)
+                RegisterHit:FireServer(p, {})
+            end
+        end
+
+        -- FastAtk: spam thêm 3 lượt ngay lập tức
+        if FA_On then
+            for _ = 1, 3 do
                 for _, m in ipairs(targets) do
-                    for _, p in ipairs(GetAttackParts(m)) do
-                        pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
-                        pcall(function() RegisterHit:FireServer(p, {}) end)
+                    local parts = GetAttackParts(m)
+                    for _, p in ipairs(parts) do
+                        RegisterHit:FireServer(p, {}, HitHash)
+                        RegisterHit:FireServer(p, {})
                     end
                 end
-                task.wait(delay)
             end
-        end)
+        end
     end
 end
 
@@ -2157,7 +2172,15 @@ end
 -- ============================================================
 task.spawn(function()
     while true do
-        task.wait(0.08)
+        task.wait(0.01)
+
+        -- cleanup cache mob chết mỗi 100 loop
+if not _cleanupTick or tick() - _cleanupTick > 5 then
+    _cleanupTick = tick()
+    for m, _ in pairs(PART_CACHE) do
+        if not m.Parent then PART_CACHE[m] = nil end
+    end
+end
 
         if not AutoFarm then
             if not BossFarmOn then
@@ -2199,7 +2222,7 @@ task.spawn(function()
                 local mRoot = GetMobParts(target)
                 if not mRoot then return end
 
-                -- Khoảng cách NGANG (bỏ Y để tránh bug 15 studs)
+                -- Khoảng cách NGANG (bỏ Y)
                 local dx = root.Position.X - mRoot.Position.X
                 local dz = root.Position.Z - mRoot.Position.Z
                 local horizDist = math.sqrt(dx * dx + dz * dz)
@@ -2223,7 +2246,6 @@ task.spawn(function()
 
                 -- ===== ĐÁNH =====
                 if horizDist <= ATTACK_RANGE then
-
                     -- Gom tất cả mob cùng loại trong tầm
                     local targets = {target}
                     local enemies = workspace:FindFirstChild("Enemies")
@@ -2238,79 +2260,7 @@ task.spawn(function()
                         end
                     end
 
-                    -- reset combo theo target
-                    if target ~= ComboTarget then
-                        ComboTarget = target
-                        ComboPhase  = "melee"
-                        ComboStart  = tick()
-                    end
-                    if ComboPhase == "melee" and tick() - ComboStart > 1.5 then
-                        ComboPhase = "gun"
-                    end
-
-                    if FarmWeapon == "Gun" then
-                        if ComboPhase == "melee" then
-                            -- ★ MELEE PHASE — unequip, đấm tay
-                            pcall(function()
-                                local char = LP.Character
-                                local hum  = char and char:FindFirstChild("Humanoid")
-                                if hum then hum:UnequipTools() end
-
-                                RegisterAttack:FireServer(AttackDelay, HitCount)
-
-                                local loops = FA_On and 15 or HitCount
-                                local delay = FA_On and (FA_Delay or 0.03) or (AttackDelay / math.max(HitCount, 1))
-
-                                for _ = 1, loops do
-                                    for _, m in ipairs(targets) do
-                                        for _, p in ipairs(GetAttackParts(m)) do
-                                            pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
-                                            pcall(function() RegisterHit:FireServer(p, {}) end)
-                                        end
-                                    end
-                                    task.wait(delay)
-                                end
-                            end)
-                        else
-                            -- ★ GUN PHASE — equip gun + tap vào mob
-                            EquipFarmWeapon()
-
-                            pcall(function()
-                                local camera = workspace.CurrentCamera
-                                if not camera then return end
-
-                                for _, m in ipairs(targets) do
-                                    local head = m:FindFirstChild("Head")
-                                    if head then
-                                        local screenPos, onScreen = camera:WorldToScreenPoint(head.Position)
-                                        if onScreen then
-                                            SimulateTap(screenPos.X, screenPos.Y)
-                                        end
-                                    end
-                                end
-                            end)
-                        end
-                    else
-                        -- ★ MELEE / SWORD / NONE — equip rồi gửi remote
-                        EquipFarmWeapon()
-
-                        pcall(function()
-                            RegisterAttack:FireServer(AttackDelay, HitCount)
-
-                            local loops = FA_On and 15 or HitCount
-                            local delay = FA_On and (FA_Delay or 0.03) or (AttackDelay / math.max(HitCount, 1))
-
-                            for _ = 1, loops do
-                                for _, m in ipairs(targets) do
-                                    for _, p in ipairs(GetAttackParts(m)) do
-                                        pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
-                                        pcall(function() RegisterHit:FireServer(p, {}) end)
-                                    end
-                                end
-                                task.wait(delay)
-                            end
-                        end)
-                    end
+                    DoAttack(targets)
                 end
             end)
 
@@ -2326,6 +2276,7 @@ end)
 -- ============================================================
 
 RestoreMob = function(mob)
+    PART_CACHE[mob] = nil
     local data = BroughtMobData[mob]
     BroughtMobData[mob] = nil
     if not mob or not mob.Parent then return end
@@ -2427,7 +2378,7 @@ RunService.Heartbeat:Connect(function(dt)
 end)
 
 -- ============================================================
--- BOSS FARM LOOP — gửi remote y hệt farm level
+-- BOSS FARM LOOP
 -- ============================================================
 local function _norm(s)
     return (s or ""):lower():gsub("[%s_%-]", "")
@@ -2443,23 +2394,21 @@ local function _FindBossInWorkspace(name, spawnPos)
         workspace:FindFirstChild("Mobs"),
     }
 
-    -- PASS 1: match tên chính xác / normalized
+    -- PASS 1: match normalized
     for _, cont in ipairs(containers) do
         if cont then
             for _, obj in ipairs(cont:GetChildren()) do
-                if obj:IsA("Model") then
-                    if _norm(obj.Name) == target then
-                        local hum = obj:FindFirstChild("Humanoid")
-                        if hum and hum.Health > 0 then
-                            return obj, hum
-                        end
+                if obj:IsA("Model") and _norm(obj.Name) == target then
+                    local hum = obj:FindFirstChild("Humanoid")
+                    if hum and hum.Health > 0 then
+                        return obj, hum
                     end
                 end
             end
         end
     end
 
-    -- PASS 2: fallback — quét theo bán kính spawn (50 studs)
+    -- PASS 2: quét bán kính spawn
     if spawnPos then
         local best, bestD = nil, 50
         for _, cont in ipairs(containers) do
@@ -2479,12 +2428,10 @@ local function _FindBossInWorkspace(name, spawnPos)
                 end
             end
         end
-        if best then
-            return best, best:FindFirstChild("Humanoid")
-        end
+        if best then return best, best:FindFirstChild("Humanoid") end
     end
 
-    -- PASS 3: quét toàn workspace nếu vẫn không thấy
+    -- PASS 3: quét toàn workspace
     for _, obj in ipairs(workspace:GetDescendants()) do
         if obj:IsA("Model") and _norm(obj.Name) == target then
             local hum = obj:FindFirstChild("Humanoid")
@@ -2499,7 +2446,7 @@ end
 
 task.spawn(function()
     while true do
-        task.wait(0.08)
+        task.wait(0.01)
 
         if not BossFarmOn or SelectedBoss == "None" or not BossDB[SelectedBoss] then
             task.wait(0.5)
@@ -2510,16 +2457,6 @@ task.spawn(function()
 
                 local bossData = BossDB[SelectedBoss]
                 local boss, bossHum = _FindBossInWorkspace(SelectedBoss, bossData.Spawn.Position)
-
-                -- DEBUG log
-                if boss then
-                    local brp = boss:FindFirstChild("HumanoidRootPart")
-                    if brp then
-                        warn(string.format("[Boss] found: %s | dist: %d", boss.Name, math.floor((root.Position - brp.Position).Magnitude)))
-                    end
-                else
-                    warn(string.format("[Boss] NOT FOUND: %s | spawn: %s", SelectedBoss, tostring(bossData.Spawn.Position)))
-                end
 
                 -- boss chưa spawn → bay tới spawn đợi
                 if not boss then
@@ -2555,48 +2492,9 @@ task.spawn(function()
                     if flyBV then flyBV.VectorVelocity = Vector3.zero end
                 end
 
-                -- ĐÁNH — y hệt farm level, gửi remote trực tiếp
+                -- ĐÁNH — dùng chung DoAttack với farm level
                 if horizDist <= ATTACK_RANGE then
-                    EquipFarmWeapon()
-
-                    -- ★ reset combo theo boss
-                    if boss ~= ComboTarget then
-                        ComboTarget = boss
-                        ComboPhase  = "melee"
-                        ComboStart  = tick()
-                    end
-                    if ComboPhase == "melee" and tick() - ComboStart > 1.5 then
-                        ComboPhase = "gun"
-                    end
-
-                    if FarmWeapon == "Gun" and ComboPhase == "gun" then
-                        -- gun phase — tap
-                        pcall(function()
-                            local camera = workspace.CurrentCamera
-                            if not camera then return end
-                            local head = boss:FindFirstChild("Head")
-                            if head then
-                                local sp, on = camera:WorldToScreenPoint(head.Position)
-                                if on then SimulateTap(sp.X, sp.Y) end
-                            end
-                        end)
-                    else
-                        -- melee / sword phase — remote
-                        pcall(function()
-                            RegisterAttack:FireServer(AttackDelay, HitCount)
-
-                            local loops = FA_On and 15 or HitCount
-                            local delay = FA_On and (FA_Delay or 0.03) or (AttackDelay / math.max(HitCount, 1))
-
-                            for _ = 1, loops do
-                                for _, p in ipairs(GetAttackParts(boss)) do
-                                    pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
-                                    pcall(function() RegisterHit:FireServer(p, {}) end)
-                                end
-                                task.wait(delay)
-                            end
-                        end)
-                    end
+                    DoAttack({boss})
                 end
             end)
 
