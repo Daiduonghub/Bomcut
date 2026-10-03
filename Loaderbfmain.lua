@@ -289,6 +289,57 @@ local function FindWeaponByCategory(cat)
 end
 
 -- ============================================================
+-- BOSS DATABASE — spawn CFrame + respawn + sea
+-- ============================================================
+BossDB = {
+    -- ══════════ FIRST SEA ══════════
+    ["Gorilla King"]       = { Level = 25,   Sea = 1, HP = 2000,   Respawn = 90,  Spawn = CFrame.new(-1237,   6,   -510) },
+    ["Bobby"]              = { Level = 55,   Sea = 1, HP = 5000,   Respawn = 90,  Spawn = CFrame.new(-1140,   5,   3828) },
+    ["The Saw"]            = { Level = 100,  Sea = 1, HP = 8000,   Respawn = 120, Spawn = CFrame.new( 1361,  87,  -1544) },
+    ["Fajita"]             = { Level = 130,  Sea = 1, HP = 12000,  Respawn = 120, Spawn = CFrame.new( 1380,  87,  -1298) },
+    ["Saber Expert"]       = { Level = 175,  Sea = 1, HP = 20000,  Respawn = 180, Spawn = CFrame.new(-1405,  20,     45) },
+    ["Wysper"]             = { Level = 175,  Sea = 1, HP = 15000,  Respawn = 180, Spawn = CFrame.new(-5244, 431,  -2279) },
+    ["Thunder God"]        = { Level = 175,  Sea = 1, HP = 15000,  Respawn = 180, Spawn = CFrame.new(-5244, 431,  -2279) },
+    ["Iron Mace"]          = { Level = 285,  Sea = 1, HP = 35000,  Respawn = 240, Spawn = CFrame.new(-1840,   7,  -2735) },
+    ["Greybeard"]          = { Level = 375,  Sea = 1, HP = 50000,  Respawn = 300, Spawn = CFrame.new( 6112,  19,   1567) },
+    ["Vice Admiral"]       = { Level = 375,  Sea = 1, HP = 50000,  Respawn = 300, Spawn = CFrame.new(-2566,   6,   3314) },
+    ["Darkbeard"]          = { Level = 1000, Sea = 1, HP = 100000, Respawn = 600, Spawn = CFrame.new( 5790,  60,   4975) },
+
+    -- ══════════ SECOND SEA ══════════
+    ["Diamond"]            = { Level = 1000, Sea = 2, HP = 75000,  Respawn = 240, Spawn = CFrame.new(-1650,  20,   -200) },
+    ["Don Swan"]           = { Level = 1000, Sea = 2, HP = 80000,  Respawn = 300, Spawn = CFrame.new(-1580,   7,  -2992) },
+    ["Muscle King"]        = { Level = 850,  Sea = 2, HP = 60000,  Respawn = 240, Spawn = CFrame.new(-5808,  51,   8829) },
+    ["Pirate Big Brother"] = { Level = 1200, Sea = 2, HP = 95000,  Respawn = 300, Spawn = CFrame.new( 6337,  -1,   1145) },
+    ["Jeremy"]             = { Level = 1250, Sea = 2, HP = 100000, Respawn = 300, Spawn = CFrame.new( 1099,   5,    130) },
+    ["Cursed Captain"]     = { Level = 1325, Sea = 2, HP = 120000, Respawn = 300, Spawn = CFrame.new(-5808,  51,   8829) },
+
+    -- ══════════ THIRD SEA ══════════
+    ["Island Empress"]     = { Level = 1450, Sea = 3, HP = 180000, Respawn = 300, Spawn = CFrame.new( 5257,  39,   4051) },
+    ["Cursed Skeleton"]    = { Level = 1500, Sea = 3, HP = 180000, Respawn = 300, Spawn = CFrame.new(-5401,  18,   8450) },
+    ["Kilo Admiral"]       = { Level = 1525, Sea = 3, HP = 190000, Respawn = 300, Spawn = CFrame.new(-7657, 5607, -1412) },
+    ["Stone"]              = { Level = 1550, Sea = 3, HP = 200000, Respawn = 300, Spawn = CFrame.new(-7903, 5635, -1411) },
+    ["Cake Queen"]         = { Level = 1575, Sea = 3, HP = 200000, Respawn = 300, Spawn = CFrame.new(  487,   5,    327) },
+    ["King Cake"]          = { Level = 1600, Sea = 3, HP = 210000, Respawn = 300, Spawn = CFrame.new(  524,   5,    484) },
+    ["Misery"]             = { Level = 1600, Sea = 3, HP = 210000, Respawn = 300, Spawn = CFrame.new(-1580,   7,  -2992) },
+    ["Captain Elephant"]   = { Level = 1625, Sea = 3, HP = 220000, Respawn = 300, Spawn = CFrame.new(-7667, 5747, -1964) },
+    ["Beautiful Pirate"]   = { Level = 1650, Sea = 3, HP = 230000, Respawn = 300, Spawn = CFrame.new(-7819, 5545, -1727) },
+    ["Candy Pirate"]       = { Level = 1650, Sea = 3, HP = 220000, Respawn = 300, Spawn = CFrame.new(-1683,  50,    171) },
+    ["Cake Prince"]        = { Level = 1700, Sea = 3, HP = 240000, Respawn = 360, Spawn = CFrame.new(-1601,  37,    153) },
+    ["Soul Reaper"]        = { Level = 1700, Sea = 3, HP = 240000, Respawn = 360, Spawn = CFrame.new( 6090,  -1,   1494) },
+    ["Fishman Lord"]       = { Level = 1700, Sea = 3, HP = 240000, Respawn = 360, Spawn = CFrame.new(-5315,  12,   8515) },
+    ["Longma"]             = { Level = 1725, Sea = 3, HP = 250000, Respawn = 360, Spawn = CFrame.new(-4718, 850,  -1945) },
+    ["Cyborg"]             = { Level = 1725, Sea = 3, HP = 250000, Respawn = 360, Spawn = CFrame.new(-2440,  13,   3216) },
+    ["Tank"]               = { Level = 1750, Sea = 3, HP = 260000, Respawn = 360, Spawn = CFrame.new(-4842, 718,  -2622) },
+    ["Dough King"]         = { Level = 1800, Sea = 3, HP = 280000, Respawn = 600, Spawn = CFrame.new(-1498,  51,     60) },
+    ["Rip_Indra"]          = { Level = 3000, Sea = 3, HP = 500000, Respawn = 900, Spawn = CFrame.new(-4962, 281,  -2880) },
+}
+
+-- state boss farm
+BossFarmOn   = false
+SelectedBoss = "None"
+BossTarget   = nil
+
+-- ============================================================
 -- HIGHLIGHT PLAYER KHI BẬT AUTO FARM
 -- ============================================================
 local PlayerHighlight = nil
@@ -1964,57 +2015,6 @@ local function AutoAcceptQuest()
     end
     return q
 end
-
--- ============================================================
--- BOSS DATABASE — spawn CFrame + respawn + sea
--- ============================================================
-BossDB = {
-    -- ══════════ FIRST SEA ══════════
-    ["Gorilla King"]       = { Level = 25,   Sea = 1, HP = 2000,   Respawn = 90,  Spawn = CFrame.new(-1237,   6,   -510) },
-    ["Bobby"]              = { Level = 55,   Sea = 1, HP = 5000,   Respawn = 90,  Spawn = CFrame.new(-1140,   5,   3828) },
-    ["The Saw"]            = { Level = 100,  Sea = 1, HP = 8000,   Respawn = 120, Spawn = CFrame.new( 1361,  87,  -1544) },
-    ["Fajita"]             = { Level = 130,  Sea = 1, HP = 12000,  Respawn = 120, Spawn = CFrame.new( 1380,  87,  -1298) },
-    ["Saber Expert"]       = { Level = 175,  Sea = 1, HP = 20000,  Respawn = 180, Spawn = CFrame.new(-1405,  20,     45) },
-    ["Wysper"]             = { Level = 175,  Sea = 1, HP = 15000,  Respawn = 180, Spawn = CFrame.new(-5244, 431,  -2279) },
-    ["Thunder God"]        = { Level = 175,  Sea = 1, HP = 15000,  Respawn = 180, Spawn = CFrame.new(-5244, 431,  -2279) },
-    ["Iron Mace"]          = { Level = 285,  Sea = 1, HP = 35000,  Respawn = 240, Spawn = CFrame.new(-1840,   7,  -2735) },
-    ["Greybeard"]          = { Level = 375,  Sea = 1, HP = 50000,  Respawn = 300, Spawn = CFrame.new( 6112,  19,   1567) },
-    ["Vice Admiral"]       = { Level = 375,  Sea = 1, HP = 50000,  Respawn = 300, Spawn = CFrame.new(-2566,   6,   3314) },
-    ["Darkbeard"]          = { Level = 1000, Sea = 1, HP = 100000, Respawn = 600, Spawn = CFrame.new( 5790,  60,   4975) },
-
-    -- ══════════ SECOND SEA ══════════
-    ["Diamond"]            = { Level = 1000, Sea = 2, HP = 75000,  Respawn = 240, Spawn = CFrame.new(-1650,  20,   -200) },
-    ["Don Swan"]           = { Level = 1000, Sea = 2, HP = 80000,  Respawn = 300, Spawn = CFrame.new(-1580,   7,  -2992) },
-    ["Muscle King"]        = { Level = 850,  Sea = 2, HP = 60000,  Respawn = 240, Spawn = CFrame.new(-5808,  51,   8829) },
-    ["Pirate Big Brother"] = { Level = 1200, Sea = 2, HP = 95000,  Respawn = 300, Spawn = CFrame.new( 6337,  -1,   1145) },
-    ["Jeremy"]             = { Level = 1250, Sea = 2, HP = 100000, Respawn = 300, Spawn = CFrame.new( 1099,   5,    130) },
-    ["Cursed Captain"]     = { Level = 1325, Sea = 2, HP = 120000, Respawn = 300, Spawn = CFrame.new(-5808,  51,   8829) },
-
-    -- ══════════ THIRD SEA ══════════
-    ["Island Empress"]     = { Level = 1450, Sea = 3, HP = 180000, Respawn = 300, Spawn = CFrame.new( 5257,  39,   4051) },
-    ["Cursed Skeleton"]    = { Level = 1500, Sea = 3, HP = 180000, Respawn = 300, Spawn = CFrame.new(-5401,  18,   8450) },
-    ["Kilo Admiral"]       = { Level = 1525, Sea = 3, HP = 190000, Respawn = 300, Spawn = CFrame.new(-7657, 5607, -1412) },
-    ["Stone"]              = { Level = 1550, Sea = 3, HP = 200000, Respawn = 300, Spawn = CFrame.new(-7903, 5635, -1411) },
-    ["Cake Queen"]         = { Level = 1575, Sea = 3, HP = 200000, Respawn = 300, Spawn = CFrame.new(  487,   5,    327) },
-    ["King Cake"]          = { Level = 1600, Sea = 3, HP = 210000, Respawn = 300, Spawn = CFrame.new(  524,   5,    484) },
-    ["Misery"]             = { Level = 1600, Sea = 3, HP = 210000, Respawn = 300, Spawn = CFrame.new(-1580,   7,  -2992) },
-    ["Captain Elephant"]   = { Level = 1625, Sea = 3, HP = 220000, Respawn = 300, Spawn = CFrame.new(-7667, 5747, -1964) },
-    ["Beautiful Pirate"]   = { Level = 1650, Sea = 3, HP = 230000, Respawn = 300, Spawn = CFrame.new(-7819, 5545, -1727) },
-    ["Candy Pirate"]       = { Level = 1650, Sea = 3, HP = 220000, Respawn = 300, Spawn = CFrame.new(-1683,  50,    171) },
-    ["Cake Prince"]        = { Level = 1700, Sea = 3, HP = 240000, Respawn = 360, Spawn = CFrame.new(-1601,  37,    153) },
-    ["Soul Reaper"]        = { Level = 1700, Sea = 3, HP = 240000, Respawn = 360, Spawn = CFrame.new( 6090,  -1,   1494) },
-    ["Fishman Lord"]       = { Level = 1700, Sea = 3, HP = 240000, Respawn = 360, Spawn = CFrame.new(-5315,  12,   8515) },
-    ["Longma"]             = { Level = 1725, Sea = 3, HP = 250000, Respawn = 360, Spawn = CFrame.new(-4718, 850,  -1945) },
-    ["Cyborg"]             = { Level = 1725, Sea = 3, HP = 250000, Respawn = 360, Spawn = CFrame.new(-2440,  13,   3216) },
-    ["Tank"]               = { Level = 1750, Sea = 3, HP = 260000, Respawn = 360, Spawn = CFrame.new(-4842, 718,  -2622) },
-    ["Dough King"]         = { Level = 1800, Sea = 3, HP = 280000, Respawn = 600, Spawn = CFrame.new(-1498,  51,     60) },
-    ["Rip_Indra"]          = { Level = 3000, Sea = 3, HP = 500000, Respawn = 900, Spawn = CFrame.new(-4962, 281,  -2880) },
-}
-
--- state boss farm
-BossFarmOn   = false
-SelectedBoss = "None"
-BossTarget   = nil
 
 -- ============================================================
 -- MOBILE TAP (giả lập chạm vào màn hình)
