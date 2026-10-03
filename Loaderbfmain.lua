@@ -1395,6 +1395,7 @@ end)
 -- ══════════════════════════════════════════════
 -- BOSS FARM UI
 -- ══════════════════════════════════════════════
+local FirstBossToggleInit = true
 Library:CreateLabel(TabFarm, "── BOSS FARM ──")
 
 -- build dropdown options sort theo Sea → Level
@@ -1423,10 +1424,21 @@ end)
 
 Library:CreateToggle(TabFarm, "Auto Farm Boss", false, function(v)
     BossFarmOn = v
+
+    if FirstBossToggleInit then
+        FirstBossToggleInit = false
+        return
+    end
+
     if v then
+        AddHighlight()
         Library:Notify("AbyssalHub", "Boss Farm: ON — " .. tostring(SelectedBoss), 2)
     else
         BossTarget = nil
+        if not AutoFarm then
+            CleanupFly()
+            RemoveHighlight()
+        end
         Library:Notify("AbyssalHub", "Boss Farm: OFF", 2)
     end
 end)
@@ -2047,12 +2059,14 @@ task.spawn(function()
         task.wait(0.08)
 
         if not AutoFarm then
-            StopActiveTween()
-            currentTarget = nil
-            ComboPhase  = "melee"
-            ComboTarget = nil
-            local root = GetPlayerParts()
-            if root and root.Anchored then root.Anchored = false end
+            if not BossFarmOn then
+                StopActiveTween()
+                currentTarget = nil
+                ComboPhase  = "melee"
+                ComboTarget = nil
+                local root = GetPlayerParts()
+                if root and root.Anchored then root.Anchored = false end
+            end
         else
             local ok, err = pcall(function()
                 local root = GetPlayerParts()
