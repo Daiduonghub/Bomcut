@@ -2409,24 +2409,71 @@ end)
 -- ============================================================
 -- BOSS FARM LOOP — gửi remote y hệt farm level
 -- ============================================================
-local function _FindBossInWorkspace(name)
+local function _norm(s)
+    return (s or ""):lower():gsub("[%s_%-]", "")
+end
+
+local function _FindBossInWorkspace(name, spawnPos)
+    local target = _norm(name)
     local containers = {
         workspace:FindFirstChild("Enemies"),
         workspace:FindFirstChild("Bosses"),
         workspace:FindFirstChild("Characters"),
+        workspace:FindFirstChild("NPCs"),
+        workspace:FindFirstChild("Mobs"),
     }
+
+    -- PASS 1: match tên chính xác / normalized
     for _, cont in ipairs(containers) do
         if cont then
             for _, obj in ipairs(cont:GetChildren()) do
-                if obj.Name == name and obj:IsA("Model") then
-                    local hum = obj:FindFirstChild("Humanoid")
-                    if hum and hum.Health > 0 then
-                        return obj, hum
+                if obj:IsA("Model") then
+                    if _norm(obj.Name) == target then
+                        local hum = obj:FindFirstChild("Humanoid")
+                        if hum and hum.Health > 0 then
+                            return obj, hum
+                        end
                     end
                 end
             end
         end
     end
+
+    -- PASS 2: fallback — quét theo bán kính spawn (50 studs)
+    if spawnPos then
+        local best, bestD = nil, 50
+        for _, cont in ipairs(containers) do
+            if cont then
+                for _, obj in ipairs(cont:GetChildren()) do
+                    if obj:IsA("Model") then
+                        local hrp = obj:FindFirstChild("HumanoidRootPart")
+                        local hum = obj:FindFirstChild("Humanoid")
+                        if hrp and hum and hum.Health > 0 then
+                            local d = (hrp.Position - spawnPos).Magnitude
+                            if d < bestD then
+                                bestD = d
+                                best = obj
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        if best then
+            return best, best:FindFirstChild("Humanoid")
+        end
+    end
+
+    -- PASS 3: quét toàn workspace nếu vẫn không thấy
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") and _norm(obj.Name) == target then
+            local hum = obj:FindFirstChild("Humanoid")
+            if hum and hum.Health > 0 then
+                return obj, hum
+            end
+        end
+    end
+
     return nil
 end
 
@@ -2442,7 +2489,17 @@ task.spawn(function()
                 if not root then return end
 
                 local bossData = BossDB[SelectedBoss]
-                local boss, bossHum = _FindBossInWorkspace(SelectedBoss)
+                local boss, bossHum = _FindBossInWorkspace(SelectedBoss, bossData.Spawn.Position)
+
+                -- DEBUG log
+                if boss then
+                    local brp = boss:FindFirstChild("HumanoidRootPart")
+                    if brp then
+                        warn(string.format("[Boss] found: %s | dist: %d", boss.Name, math.floor((root.Position - brp.Position).Magnitude)))
+                    end
+                else
+                    warn(string.format("[Boss] NOT FOUND: %s | spawn: %s", SelectedBoss, tostring(bossData.Spawn.Position)))
+                end
 
                 -- boss chưa spawn → bay tới spawn đợi
                 if not boss then
