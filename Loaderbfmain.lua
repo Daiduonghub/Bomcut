@@ -1303,13 +1303,13 @@ end)
 -- ============================================================
 local TabStats = Library:CreateTab("Stats & Server")
 local TabSettings = Library:CreateTab("Setting Farm")
-local Tab1 = Library:CreateTab("Farming")
+local TabFarm = Library:CreateTab("Farming")
 
 --  ---------UI CONTROL---------
 -- Thêm biến này TRƯỚC CreateToggle
 local FirstToggleInit = true
 
-Library:CreateToggle(Tab1, "Auto Farm Level", false, function(v)
+Library:CreateToggle(TabFarm, "Auto Farm Level", false, function(v)
     AutoFarm = v
 
     -- Chặn notify lần init đầu tiên (khi tạo toggle)
@@ -1340,7 +1340,7 @@ LP.CharacterAdded:Connect(function(char)
     end
 end)
 
-Library:CreateDropdown(Tab1, "Farm Weapon", {"None", "Melee", "Sword", "Gun"}, "None", function(v)
+Library:CreateDropdown(TabSettings, "Farm Weapon", {"None", "Melee", "Sword", "Gun"}, "None", function(v)
     FarmWeapon = (v == "None") and nil or v   -- lưu category
 end)
 
@@ -1955,8 +1955,9 @@ task.spawn(function()
 
                 pcall(AutoAcceptQuest)
 
-                local target = FindNearestMob(CurrentMobName, 2000)
-                currentTarget = target
+                EquipFarmWeapon()   -- ★ tự động equip weapon trước khi farm
+
+local target = FindNearestMob(CurrentMobName, 2000)
 
                 -- Không có mob → bay tới spawn quest
                 if not target then
