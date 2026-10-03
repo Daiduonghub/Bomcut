@@ -1500,99 +1500,35 @@ local RegisterAttack = Net:WaitForChild("RE/RegisterAttack")
 local RegisterHit    = Net:WaitForChild("RE/RegisterHit")
 local CommF_       = RS:WaitForChild("Remotes"):WaitForChild("CommF_")
 
-local AllSeaQuests = {
-    -- ══════════════════════════════════════════════════════
-    -- SEA 3 (Level 1500 - 2550)
-    -- ══════════════════════════════════════════════════════
-    { MinLevel = 2450, MaxLevel = 2550, QuestName = "TikiQuest",           QuestId = 1, NpcName = "Tiki Outpost",     MobName = "Isle Outlaw" },
-    { MinLevel = 2425, MaxLevel = 2449, QuestName = "CandyQuest2",         QuestId = 1, NpcName = "Candy Land",       MobName = "Isle Champion" },
-    { MinLevel = 2400, MaxLevel = 2424, QuestName = "CandyQuest1",         QuestId = 2, NpcName = "Candy Land",       MobName = "Snow Demon" },
-    { MinLevel = 2375, MaxLevel = 2399, QuestName = "CandyQuest1",         QuestId = 1, NpcName = "Candy Land",       MobName = "Candy Pirate" },
-    { MinLevel = 2350, MaxLevel = 2374, QuestName = "ChocQuest2",          QuestId = 2, NpcName = "Chocolate Land",   MobName = "Candy Rebel" },
-    { MinLevel = 2325, MaxLevel = 2349, QuestName = "ChocQuest2",          QuestId = 1, NpcName = "Chocolate Land",   MobName = "Sweet Thief" },
-    { MinLevel = 2300, MaxLevel = 2324, QuestName = "ChocQuest1",          QuestId = 2, NpcName = "Chocolate Land",   MobName = "Chocolate Bar Battler" },
-    { MinLevel = 2275, MaxLevel = 2299, QuestName = "ChocQuest1",          QuestId = 1, NpcName = "Chocolate Land",   MobName = "Cocoa Warrior" },
-    { MinLevel = 2250, MaxLevel = 2274, QuestName = "CakeQuest4",          QuestId = 2, NpcName = "Cake Land",        MobName = "Head Baker" },
-    { MinLevel = 2225, MaxLevel = 2249, QuestName = "CakeQuest4",          QuestId = 1, NpcName = "Cake Land",        MobName = "Baking Staff" },
-    { MinLevel = 2200, MaxLevel = 2224, QuestName = "CakeQuest3",          QuestId = 2, NpcName = "Cake Land",        MobName = "Cake Guard" },
-    { MinLevel = 2175, MaxLevel = 2199, QuestName = "CakeQuest3",          QuestId = 1, NpcName = "Cake Land",        MobName = "Cookie Crafter" },
-    { MinLevel = 2150, MaxLevel = 2174, QuestName = "CakeQuest2",          QuestId = 2, NpcName = "Cake Land",        MobName = "Ice Cream Commander" },
-    { MinLevel = 2125, MaxLevel = 2149, QuestName = "CakeQuest2",          QuestId = 1, NpcName = "Cake Land",        MobName = "Ice Cream Chef" },
-    { MinLevel = 2100, MaxLevel = 2124, QuestName = "CakeQuest1",          QuestId = 2, NpcName = "Cake Land",        MobName = "Peanut President" },
-    { MinLevel = 2075, MaxLevel = 2099, QuestName = "CakeQuest1",          QuestId = 1, NpcName = "Cake Land",        MobName = "Peanut Scout" },
-    { MinLevel = 2050, MaxLevel = 2074, QuestName = "HauntedQuest2",       QuestId = 2, NpcName = "Haunted Castle",   MobName = "Possessed Mummy" },
-    { MinLevel = 2025, MaxLevel = 2049, QuestName = "HauntedQuest2",       QuestId = 1, NpcName = "Haunted Castle",   MobName = "Demonic Soul" },
-    { MinLevel = 2000, MaxLevel = 2024, QuestName = "HauntedQuest1",       QuestId = 2, NpcName = "Haunted Castle",   MobName = "Living Zombie" },
-    { MinLevel = 1975, MaxLevel = 1999, QuestName = "HauntedQuest1",       QuestId = 1, NpcName = "Haunted Castle",   MobName = "Reborn Skeleton" },
-    { MinLevel = 1925, MaxLevel = 1974, QuestName = "DeepForestIsland2",   QuestId = 2, NpcName = "Floating Turtle",   MobName = "Musketeer Pirate" },
-    { MinLevel = 1900, MaxLevel = 1924, QuestName = "DeepForestIsland2",   QuestId = 1, NpcName = "Floating Turtle",   MobName = "Jungle Pirate" },
-    { MinLevel = 1850, MaxLevel = 1899, QuestName = "DeepForestIsland",    QuestId = 2, NpcName = "Floating Turtle",   MobName = "Mythological Pirate" },
-    { MinLevel = 1825, MaxLevel = 1849, QuestName = "DeepForestIsland",    QuestId = 1, NpcName = "Floating Turtle",   MobName = "Forest Pirate" },
-    { MinLevel = 1800, MaxLevel = 1824, QuestName = "DeepForestIsland3",   QuestId = 2, NpcName = "Floating Turtle",   MobName = "Fishman Captain" },
-    { MinLevel = 1775, MaxLevel = 1799, QuestName = "DeepForestIsland3",   QuestId = 1, NpcName = "Floating Turtle",   MobName = "Fishman Raider" },
-    { MinLevel = 1725, MaxLevel = 1774, QuestName = "MarineTreeQuest",     QuestId = 2, NpcName = "Great Tree",        MobName = "Marine Rear Admiral" },
-    { MinLevel = 1700, MaxLevel = 1724, QuestName = "MarineTreeQuest",     QuestId = 1, NpcName = "Great Tree",        MobName = "Marine Commodore" },
-    { MinLevel = 1650, MaxLevel = 1699, QuestName = "FemaleIslandQuest",   QuestId = 2, NpcName = "Hydra Island",      MobName = "Giant Islander" },
-    { MinLevel = 1625, MaxLevel = 1649, QuestName = "FemaleIslandQuest",   QuestId = 1, NpcName = "Hydra Island",      MobName = "Female Islander" },
-    { MinLevel = 1600, MaxLevel = 1624, QuestName = "AmazonQuest",         QuestId = 2, NpcName = "Hydra Island",      MobName = "Dragon Crew Archer" },
-    { MinLevel = 1575, MaxLevel = 1599, QuestName = "AmazonQuest",         QuestId = 1, NpcName = "Hydra Island",      MobName = "Dragon Crew Warrior" },
-    { MinLevel = 1525, MaxLevel = 1574, QuestName = "PiratePortQuest",     QuestId = 2, NpcName = "Pirate Port",       MobName = "Pistol Billionaire" },
-    { MinLevel = 1500, MaxLevel = 1524, QuestName = "PiratePortQuest",     QuestId = 1, NpcName = "Pirate Port",       MobName = "Pirate Millionaire" },
-
-    -- ══════════════════════════════════════════════════════
-    -- SEA 2 (Level 700 - 1499)
-    -- ══════════════════════════════════════════════════════
-    { MinLevel = 1425, MaxLevel = 1499, QuestName = "ForgottenQuest",      QuestId = 2, NpcName = "Forgotten Island",  MobName = "Water Fighter" },
-    { MinLevel = 1400, MaxLevel = 1424, QuestName = "ForgottenQuest",      QuestId = 1, NpcName = "Forgotten Island",  MobName = "Sea Soldier" },
-    { MinLevel = 1375, MaxLevel = 1399, QuestName = "FrostQuest",          QuestId = 2, NpcName = "Arctic Warrior",     MobName = "Snow Lurker" },
-    { MinLevel = 1350, MaxLevel = 1374, QuestName = "FrostQuest",          QuestId = 1, NpcName = "Arctic Warrior",     MobName = "Arctic Warrior" },
-    { MinLevel = 1325, MaxLevel = 1349, QuestName = "ShipQuest2",          QuestId = 2, NpcName = "Ship Officer",       MobName = "Ship Officer" },
-    { MinLevel = 1300, MaxLevel = 1324, QuestName = "ShipQuest2",          QuestId = 1, NpcName = "Ship Officer",       MobName = "Ship Steward" },
-    { MinLevel = 1275, MaxLevel = 1299, QuestName = "ShipQuest1",          QuestId = 2, NpcName = "Ship Engineer",      MobName = "Ship Engineer" },
-    { MinLevel = 1250, MaxLevel = 1274, QuestName = "ShipQuest1",          QuestId = 1, NpcName = "Ship Engineer",      MobName = "Ship Deckhand" },
-    { MinLevel = 1200, MaxLevel = 1249, QuestName = "FireSideQuest",       QuestId = 2, NpcName = "Hot Side",          MobName = "Lava Pirate" },
-    { MinLevel = 1175, MaxLevel = 1199, QuestName = "FireSideQuest",       QuestId = 1, NpcName = "Hot Side",          MobName = "Magma Ninja" },
-    { MinLevel = 1125, MaxLevel = 1174, QuestName = "IceSideQuest",        QuestId = 2, NpcName = "Ice Side",          MobName = "Horned Warrior" },
-    { MinLevel = 1100, MaxLevel = 1124, QuestName = "IceSideQuest",        QuestId = 1, NpcName = "Ice Side",          MobName = "Lab Subordinate" },
-    { MinLevel = 1050, MaxLevel = 1099, QuestName = "SnowMountainQuest",   QuestId = 2, NpcName = "Snow Mountain",     MobName = "Winter Warrior" },
-    { MinLevel = 1000, MaxLevel = 1049, QuestName = "SnowMountainQuest",   QuestId = 1, NpcName = "Snow Mountain",     MobName = "Snow Trooper" },
-    { MinLevel = 975,  MaxLevel = 999,  QuestName = "ZombieQuest",         QuestId = 2, NpcName = "Graveyard",         MobName = "Vampire" },
-    { MinLevel = 950,  MaxLevel = 974,  QuestName = "ZombieQuest",         QuestId = 1, NpcName = "Graveyard",         MobName = "Zombie" },
-    { MinLevel = 900,  MaxLevel = 949,  QuestName = "MarineQuest3",        QuestId = 2, NpcName = "Marine Lieutenant",  MobName = "Marine Captain" },
-    { MinLevel = 875,  MaxLevel = 899,  QuestName = "MarineQuest3",        QuestId = 1, NpcName = "Marine Lieutenant",  MobName = "Marine Lieutenant" },
-    { MinLevel = 800,  MaxLevel = 874,  QuestName = "SwanQuest",           QuestId = 2, NpcName = "Swan",              MobName = "Factory Staff" },
-    { MinLevel = 775,  MaxLevel = 799,  QuestName = "SwanQuest",           QuestId = 1, NpcName = "Swan",              MobName = "Swan Pirate" },
-    { MinLevel = 725,  MaxLevel = 774,  QuestName = "Area1Quest",          QuestId = 2, NpcName = "Villager",          MobName = "Mercenary" },
-    { MinLevel = 700,  MaxLevel = 724,  QuestName = "Area1Quest",          QuestId = 1, NpcName = "Villager",          MobName = "Raider" },
-
-    -- ══════════════════════════════════════════════════════
-    -- SEA 1 (Level 1 - 700) — CÓ MobSpawn + NpcPosition
-    -- ══════════════════════════════════════════════════════
-    { MinLevel = 650, MaxLevel = 700, QuestName = "FountainQuest",  QuestId = 2, NpcName = "Hero",              NpcPosition = CFrame.new(5257, 39, 4051),         MobName = "Galley Captain",      MobSpawn = CFrame.new(5790, 60, 4975) },
-    { MinLevel = 625, MaxLevel = 649, QuestName = "FountainQuest",  QuestId = 1, NpcName = "Hero",              NpcPosition = CFrame.new(5257, 39, 4051),         MobName = "Galley Pirate",       MobSpawn = CFrame.new(5554, 82, 3971) },
-    { MinLevel = 550, MaxLevel = 624, QuestName = "SkyExp2Quest",   QuestId = 2, NpcName = "Conylee",           NpcPosition = CFrame.new(-7903, 5635, -1411),     MobName = "Nomadic Pirate",      MobSpawn = CFrame.new(-7819, 5545, -1727) },
-    { MinLevel = 525, MaxLevel = 549, QuestName = "SkyExp2Quest",   QuestId = 1, NpcName = "Conylee",           NpcPosition = CFrame.new(-7903, 5635, -1411),     MobName = "Royal Squad",         MobSpawn = CFrame.new(-7667, 5747, -1964) },
-    { MinLevel = 475, MaxLevel = 524, QuestName = "SkyExp1Quest",   QuestId = 2, NpcName = "Instance",          NpcPosition = CFrame.new(-7903, 5635, -1411),     MobName = "Shanda",              MobSpawn = CFrame.new(-7657, 5607, -1412) },
-    { MinLevel = 450, MaxLevel = 474, QuestName = "SkyExp1Quest",   QuestId = 1, NpcName = "Instance",          NpcPosition = CFrame.new(-7903, 5635, -1411),     MobName = "God's Guard",         MobSpawn = CFrame.new(-4718, 850, -1945) },
-    { MinLevel = 400, MaxLevel = 449, QuestName = "FishmanQuest",   QuestId = 2, NpcName = "Villager",          NpcPosition = CFrame.new(6112, 19, 1567),         MobName = "Fishman Commando",    MobSpawn = CFrame.new(6337, -1, 1145) },
-    { MinLevel = 375, MaxLevel = 399, QuestName = "FishmanQuest",   QuestId = 1, NpcName = "Villager",          NpcPosition = CFrame.new(6112, 19, 1567),         MobName = "Fishman Warrior",     MobSpawn = CFrame.new(6090, -1, 1494) },
-    { MinLevel = 325, MaxLevel = 374, QuestName = "MagmaQuest",     QuestId = 2, NpcName = "Military Spy",      NpcPosition = CFrame.new(-5315, 12, 8515),        MobName = "Military Spy",        MobSpawn = CFrame.new(-5808, 51, 8829) },
-    { MinLevel = 300, MaxLevel = 324, QuestName = "MagmaQuest",     QuestId = 1, NpcName = "Military Spy",      NpcPosition = CFrame.new(-5315, 12, 8515),        MobName = "Military Soldier",    MobSpawn = CFrame.new(-5401, 18, 8450) },
-    { MinLevel = 250, MaxLevel = 299, QuestName = "ColosseumQuest", QuestId = 1, NpcName = "Noble",             NpcPosition = CFrame.new(-1580, 7, -2992),        MobName = "Toga Warrior",        MobSpawn = CFrame.new(-1840, 7, -2735) },
-    { MinLevel = 210, MaxLevel = 249, QuestName = "PrisonerQuest",  QuestId = 2, NpcName = "Military Detective",NpcPosition = CFrame.new(487, 5, 327),            MobName = "Dangerous Prisoner",  MobSpawn = CFrame.new(1099, 5, 130) },
-    { MinLevel = 190, MaxLevel = 209, QuestName = "PrisonerQuest",  QuestId = 1, NpcName = "Military Detective",NpcPosition = CFrame.new(487, 5, 327),            MobName = "Prisoner",            MobSpawn = CFrame.new(524, 5, 484) },
-    { MinLevel = 175, MaxLevel = 189, QuestName = "SkyQuest",       QuestId = 2, NpcName = "Mad Scientist",     NpcPosition = CFrame.new(-4842, 718, -2622),      MobName = "Dark Master",         MobSpawn = CFrame.new(-5244, 431, -2279) },
-    { MinLevel = 150, MaxLevel = 174, QuestName = "SkyQuest",       QuestId = 1, NpcName = "Mad Scientist",     NpcPosition = CFrame.new(-4842, 718, -2622),      MobName = "Sky Bandit",          MobSpawn = CFrame.new(-4962, 281, -2880) },
-    { MinLevel = 120, MaxLevel = 149, QuestName = "MarineQuest2",   QuestId = 1, NpcName = "Navy Lieutenant",   NpcPosition = CFrame.new(-2440, 13, 3216),        MobName = "Chief Petty Officer", MobSpawn = CFrame.new(-2566, 6, 3314) },
-    { MinLevel = 100, MaxLevel = 119, QuestName = "SnowQuest",      QuestId = 2, NpcName = "Snow Adventurer",   NpcPosition = CFrame.new(1386, 87, -1298),        MobName = "Snowman",             MobSpawn = CFrame.new(1361, 87, -1544) },
-    { MinLevel = 90,  MaxLevel = 99,  QuestName = "SnowQuest",      QuestId = 1, NpcName = "Snow Adventurer",   NpcPosition = CFrame.new(1386, 87, -1298),        MobName = "Snow Bandit",         MobSpawn = CFrame.new(1279, 104, -1433) },
-    { MinLevel = 75,  MaxLevel = 89,  QuestName = "DesertQuest",    QuestId = 2, NpcName = "Desert Adventurer", NpcPosition = CFrame.new(897, 7, 4388),           MobName = "Desert Officer",      MobSpawn = CFrame.new(1134, 10, 4424) },
-    { MinLevel = 60,  MaxLevel = 74,  QuestName = "DesertQuest",    QuestId = 1, NpcName = "Desert Adventurer", NpcPosition = CFrame.new(897, 7, 4388),           MobName = "Desert Bandit",       MobSpawn = CFrame.new(944, 7, 4277) },
-    { MinLevel = 40,  MaxLevel = 59,  QuestName = "BuggyQuest1",    QuestId = 2, NpcName = "Rich Man",          NpcPosition = CFrame.new(-1140, 5, 3828),         MobName = "Brute",               MobSpawn = CFrame.new(-1390, 16, 4101) },
-    { MinLevel = 30,  MaxLevel = 39,  QuestName = "BuggyQuest1",    QuestId = 1, NpcName = "Rich Man",          NpcPosition = CFrame.new(-1140, 5, 3828),         MobName = "Pirate",              MobSpawn = CFrame.new(-1201, 14, 3938) },
-    { MinLevel = 15,  MaxLevel = 29,  QuestName = "JungleQuest",    QuestId = 2, NpcName = "Adventurer",        NpcPosition = CFrame.new(-1601, 37, 153),         MobName = "Gorilla",             MobSpawn = CFrame.new(-1237, 6, -510) },
-    { MinLevel = 10,  MaxLevel = 14,  QuestName = "JungleQuest",    QuestId = 1, NpcName = "Adventurer",        NpcPosition = CFrame.new(-1683.78, 50.35, 171.07),MobName = "Monkey",              MobSpawn = CFrame.new(-1498, 51, 60) },
-    { MinLevel = 1,   MaxLevel = 9,   QuestName = "BanditQuest1",   QuestId = 1, NpcName = "Bandit Hero",       NpcPosition = CFrame.new(1059, 16, 1549),         MobName = "Bandit",              MobSpawn = CFrame.new(1141, 17, 1690) },
+-- ============================================================
+-- QUEST LIST
+-- ============================================================
+local FirstSeaQuests = {
+    { MinLevel = 650, MaxLevel = 700, QuestName = "FountainQuest", QuestId = 2, NpcName = "Hero", NpcPosition = CFrame.new(5257, 39, 4051), MobName = "Galley Captain", MobSpawn = CFrame.new(5790, 60, 4975) },
+    { MinLevel = 625, MaxLevel = 649, QuestName = "FountainQuest", QuestId = 1, NpcName = "Hero", NpcPosition = CFrame.new(5257, 39, 4051), MobName = "Galley Pirate", MobSpawn = CFrame.new(5554, 82, 3971) },
+    { MinLevel = 550, MaxLevel = 624, QuestName = "SkyExp2Quest", QuestId = 2, NpcName = "Conylee", NpcPosition = CFrame.new(-7903, 5635, -1411), MobName = "Nomadic Pirate", MobSpawn = CFrame.new(-7819, 5545, -1727) },
+    { MinLevel = 525, MaxLevel = 549, QuestName = "SkyExp2Quest", QuestId = 1, NpcName = "Conylee", NpcPosition = CFrame.new(-7903, 5635, -1411), MobName = "Royal Squad", MobSpawn = CFrame.new(-7667, 5747, -1964) },
+    { MinLevel = 475, MaxLevel = 524, QuestName = "SkyExp1Quest", QuestId = 2, NpcName = "Instance", NpcPosition = CFrame.new(-7903, 5635, -1411), MobName = "Shanda", MobSpawn = CFrame.new(-7657, 5607, -1412) },
+    { MinLevel = 450, MaxLevel = 474, QuestName = "SkyExp1Quest", QuestId = 1, NpcName = "Instance", NpcPosition = CFrame.new(-7903, 5635, -1411), MobName = "God's Guard", MobSpawn = CFrame.new(-4718, 850, -1945) },
+    { MinLevel = 400, MaxLevel = 449, QuestName = "FishmanQuest", QuestId = 2, NpcName = "Villager", NpcPosition = CFrame.new(6112, 19, 1567), MobName = "Fishman Commando", MobSpawn = CFrame.new(6337, -1, 1145) },
+    { MinLevel = 375, MaxLevel = 399, QuestName = "FishmanQuest", QuestId = 1, NpcName = "Villager", NpcPosition = CFrame.new(6112, 19, 1567), MobName = "Fishman Warrior", MobSpawn = CFrame.new(6090, -1, 1494) },
+    { MinLevel = 325, MaxLevel = 374, QuestName = "MagmaQuest", QuestId = 2, NpcName = "Military Spy", NpcPosition = CFrame.new(-5315, 12, 8515), MobName = "Military Spy", MobSpawn = CFrame.new(-5808, 51, 8829) },
+    { MinLevel = 300, MaxLevel = 324, QuestName = "MagmaQuest", QuestId = 1, NpcName = "Military Spy", NpcPosition = CFrame.new(-5315, 12, 8515), MobName = "Military Soldier", MobSpawn = CFrame.new(-5401, 18, 8450) },
+    { MinLevel = 250, MaxLevel = 299, QuestName = "ColosseumQuest", QuestId = 1, NpcName = "Noble", NpcPosition = CFrame.new(-1580, 7, -2992), MobName = "Toga Warrior", MobSpawn = CFrame.new(-1840, 7, -2735) },
+    { MinLevel = 210, MaxLevel = 249, QuestName = "PrisonerQuest", QuestId = 2, NpcName = "Military Detective", NpcPosition = CFrame.new(487, 5, 327), MobName = "Dangerous Prisoner", MobSpawn = CFrame.new(1099, 5, 130) },
+    { MinLevel = 190, MaxLevel = 209, QuestName = "PrisonerQuest", QuestId = 1, NpcName = "Military Detective", NpcPosition = CFrame.new(487, 5, 327), MobName = "Prisoner", MobSpawn = CFrame.new(524, 5, 484) },
+    { MinLevel = 175, MaxLevel = 189, QuestName = "SkyQuest", QuestId = 2, NpcName = "Mad Scientist", NpcPosition = CFrame.new(-4842, 718, -2622), MobName = "Dark Master", MobSpawn = CFrame.new(-5244, 431, -2279) },
+    { MinLevel = 150, MaxLevel = 174, QuestName = "SkyQuest", QuestId = 1, NpcName = "Mad Scientist", NpcPosition = CFrame.new(-4842, 718, -2622), MobName = "Sky Bandit", MobSpawn = CFrame.new(-4962, 281, -2880) },
+    { MinLevel = 120, MaxLevel = 149, QuestName = "MarineQuest2", QuestId = 1, NpcName = "Navy Lieutenant", NpcPosition = CFrame.new(-2440, 13, 3216), MobName = "Chief Petty Officer", MobSpawn = CFrame.new(-2566, 6, 3314) },
+    { MinLevel = 100, MaxLevel = 119, QuestName = "SnowQuest", QuestId = 2, NpcName = "Snow Adventurer", NpcPosition = CFrame.new(1386, 87, -1298), MobName = "Snowman", MobSpawn = CFrame.new(1361, 87, -1544) },
+    { MinLevel = 90, MaxLevel = 99, QuestName = "SnowQuest", QuestId = 1, NpcName = "Snow Adventurer", NpcPosition = CFrame.new(1386, 87, -1298), MobName = "Snow Bandit", MobSpawn = CFrame.new(1279, 104, -1433) },
+    { MinLevel = 75, MaxLevel = 89, QuestName = "DesertQuest", QuestId = 2, NpcName = "Desert Adventurer", NpcPosition = CFrame.new(897, 7, 4388), MobName = "Desert Officer", MobSpawn = CFrame.new(1134, 10, 4424) },
+    { MinLevel = 60, MaxLevel = 74, QuestName = "DesertQuest", QuestId = 1, NpcName = "Desert Adventurer", NpcPosition = CFrame.new(897, 7, 4388), MobName = "Desert Bandit", MobSpawn = CFrame.new(944, 7, 4277) },
+    { MinLevel = 40, MaxLevel = 59, QuestName = "BuggyQuest1", QuestId = 2, NpcName = "Rich Man", NpcPosition = CFrame.new(-1140, 5, 3828), MobName = "Brute", MobSpawn = CFrame.new(-1390, 16, 4101) },
+    { MinLevel = 30, MaxLevel = 39, QuestName = "BuggyQuest1", QuestId = 1, NpcName = "Rich Man", NpcPosition = CFrame.new(-1140, 5, 3828), MobName = "Pirate", MobSpawn = CFrame.new(-1201, 14, 3938) },
+    { MinLevel = 15, MaxLevel = 29, QuestName = "JungleQuest", QuestId = 2, NpcName = "Adventurer", NpcPosition = CFrame.new(-1601, 37, 153), MobName = "Gorilla", MobSpawn = CFrame.new(-1237, 6, -510) },
+    { MinLevel = 10, MaxLevel = 14, QuestName = "JungleQuest", QuestId = 1, NpcName = "Adventurer", NpcPosition = CFrame.new(-1683.78, 50.35, 171.07), MobName = "Monkey", MobSpawn = CFrame.new(-1498, 51, 60) },
+    { MinLevel = 1,  MaxLevel = 9,   QuestName = "BanditQuest1", QuestId = 1, NpcName = "Bandit Hero", NpcPosition = CFrame.new(1059, 16, 1549), MobName = "Bandit", MobSpawn = CFrame.new(1141, 17, 1690) }
 }
 
 -- ============================================================
@@ -1961,10 +1897,10 @@ local function HasActiveQuest()
 end
 
 local function FindQuestByLevel(level)
-    for _, q in ipairs(AllSeaQuests) do
+    for _, q in ipairs(FirstSeaQuests) do
         if level >= q.MinLevel and level <= q.MaxLevel then return q end
     end
-    return AllSeaQuests[1]
+    return FirstSeaQuests[1]
 end
 
 local function AutoAcceptQuest()
