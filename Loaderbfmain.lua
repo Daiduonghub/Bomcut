@@ -2052,6 +2052,83 @@ local function SimulateTap(x, y)
 end
 
 -- ============================================================
+-- ATTACK HELPER — dùng chung cho farm level và boss
+-- ============================================================
+local function DoAttack(targets)
+    if not targets or #targets == 0 then return end
+
+    local firstTarget = targets[1]
+
+    if firstTarget ~= ComboTarget then
+        ComboTarget = firstTarget
+        ComboPhase  = "melee"
+        ComboStart  = tick()
+    end
+
+    if ComboPhase == "melee" and tick() - ComboStart > 1.5 then
+        ComboPhase = "gun"
+    end
+
+    if FarmWeapon == "Gun" then
+        if ComboPhase == "melee" then
+            pcall(function()
+                local char = LP.Character
+                local hum  = char and char:FindFirstChild("Humanoid")
+                if hum then hum:UnequipTools() end
+
+                RegisterAttack:FireServer(AttackDelay, HitCount)
+
+                local loops = FA_On and 15 or HitCount
+                local delay = FA_On and (FA_Delay or 0.03) or (AttackDelay / math.max(HitCount, 1))
+
+                for _ = 1, loops do
+                    for _, m in ipairs(targets) do
+                        for _, p in ipairs(GetAttackParts(m)) do
+                            pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
+                            pcall(function() RegisterHit:FireServer(p, {}) end)
+                        end
+                    end
+                    task.wait(delay)
+                end
+            end)
+        else
+            EquipFarmWeapon()
+            pcall(function()
+                local camera = workspace.CurrentCamera
+                if not camera then return end
+                for _, m in ipairs(targets) do
+                    local head = m:FindFirstChild("Head")
+                    if head then
+                        local screenPos, onScreen = camera:WorldToScreenPoint(head.Position)
+                        if onScreen then
+                            SimulateTap(screenPos.X, screenPos.Y)
+                        end
+                    end
+                end
+            end)
+        end
+    else
+        EquipFarmWeapon()
+        pcall(function()
+            RegisterAttack:FireServer(AttackDelay, HitCount)
+
+            local loops = FA_On and 15 or HitCount
+            local delay = FA_On and (FA_Delay or 0.03) or (AttackDelay / math.max(HitCount, 1))
+
+            for _ = 1, loops do
+                for _, m in ipairs(targets) do
+                    for _, p in ipairs(GetAttackParts(m)) do
+                        pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
+                        pcall(function() RegisterHit:FireServer(p, {}) end)
+                    end
+                end
+                task.wait(delay)
+            end
+        end)
+    end
+end
+
+-- ============================================================
 -- MAIN FARM LOOP
 -- ============================================================
 task.spawn(function()
@@ -2355,7 +2432,7 @@ end
 
 task.spawn(function()
     while true do
-        task.wait(0.12)
+        task.wait(0.08)
 
         if not BossFarmOn or SelectedBoss == "None" or not BossDB[SelectedBoss] then
             task.wait(0.5)
@@ -2367,7 +2444,7 @@ task.spawn(function()
                 local bossData = BossDB[SelectedBoss]
                 local boss, bossHum = _FindBossInWorkspace(SelectedBoss)
 
-                -- BOSS CHƯA SPAWN → bay tới spawn point và đợi
+                -- BOSS CHƯA SPAWN → bay tới spawn point đợi
                 if not boss then
                     BossTarget = nil
                     local spawnPos = bossData.Spawn.Position + Vector3.new(0, PLAYER_FLY_Y, 0)
@@ -2391,6 +2468,7 @@ task.spawn(function()
                 local dz = root.Position.Z - bossRoot.Position.Z
                 local horizDist = math.sqrt(dx * dx + dz * dz)
 
+                -- di chuyển
                 if horizDist > STOP_RANGE then
                     local goal = bossRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0)
                     if not farmMoving then FlyTo(goal) else farmTargetPos = goal end
@@ -2400,20 +2478,9 @@ task.spawn(function()
                     if flyBV then flyBV.VectorVelocity = Vector3.zero end
                 end
 
+                -- đánh — gửi remote y hệt farm level
                 if horizDist <= ATTACK_RANGE then
-                    EquipFarmWeapon()
-                    pcall(function()
-                        RegisterAttack:FireServer(AttackDelay, HitCount)
-                        local loops = FA_On and 15 or HitCount
-                        local delay = FA_On and (FA_Delay or 0.03) or (AttackDelay / math.max(HitCount, 1))
-                        for _ = 1, loops do
-                            for _, p in ipairs(GetAttackParts(boss)) do
-                                pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
-                                pcall(function() RegisterHit:FireServer(p, {}) end)
-                            end
-                            task.wait(delay)
-                        end
-                    end)
+                    DoAttack({boss})
                 end
             end)
 
