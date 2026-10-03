@@ -1928,6 +1928,16 @@ end)
 -- CLEANUP khi tắt farm
 -- ============================================================
 CleanupFly = function()
+    local char = LP.Character
+    if char then
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if root then
+            -- ★ zero velocity TRƯỚC khi destroy, không để char bay tiếp
+            root.AssemblyLinearVelocity  = Vector3.zero
+            root.AssemblyAngularVelocity = Vector3.zero
+        end
+    end
+
     if flyAttach   then flyAttach:Destroy()   flyAttach   = nil end
     if flyAlignAtt then flyAlignAtt:Destroy() flyAlignAtt = nil end
     if flyBV       then flyBV:Destroy()       flyBV       = nil end
@@ -1935,7 +1945,6 @@ CleanupFly = function()
 
     SetNoclip(false)
 
-    local char = LP.Character
     if char then
         local hum = char:FindFirstChild("Humanoid")
         if hum then
@@ -1952,7 +1961,7 @@ CleanupFly = function()
             end)
         end
     end
-end          -- ★ THÊM DÒNG NÀY
+end
 
 -- ============================================================
 -- EQUIP WEAPON
@@ -2229,21 +2238,19 @@ task.spawn(function()
                         end
                     end
 
-                    -- Reset combo khi target đổi
+                    -- reset combo theo target
                     if target ~= ComboTarget then
                         ComboTarget = target
                         ComboPhase  = "melee"
                         ComboStart  = tick()
                     end
-
-                    -- Auto switch melee → gun sau 1.5s
                     if ComboPhase == "melee" and tick() - ComboStart > 1.5 then
                         ComboPhase = "gun"
                     end
 
                     if FarmWeapon == "Gun" then
                         if ComboPhase == "melee" then
-                            -- ★ MELEE PHASE — đấm võ
+                            -- ★ MELEE PHASE — unequip, đấm tay
                             pcall(function()
                                 local char = LP.Character
                                 local hum  = char and char:FindFirstChild("Humanoid")
@@ -2264,7 +2271,6 @@ task.spawn(function()
                                     task.wait(delay)
                                 end
                             end)
-
                         else
                             -- ★ GUN PHASE — equip gun + tap vào mob
                             EquipFarmWeapon()
@@ -2284,9 +2290,8 @@ task.spawn(function()
                                 end
                             end)
                         end
-
                     else
-                        -- ★ MELEE / SWORD MODE bình thường
+                        -- ★ MELEE / SWORD / NONE — equip rồi gửi remote
                         EquipFarmWeapon()
 
                         pcall(function()
