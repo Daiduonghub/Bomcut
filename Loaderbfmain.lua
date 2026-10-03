@@ -246,7 +246,7 @@ RestoreMob      = function() end
 -- ============================================================
 -- WEAPON DATABASE (thêm vũ khí ở đây)
 -- ============================================================
-FarmWeapon = Melee   -- category: "Melee" / "Sword" / "Gun" / nil
+FarmWeapon = nil  -- category: "Melee" / "Sword" / "Gun" / nil
 
 local WeaponDB = {
     Melee = {
@@ -1341,7 +1341,7 @@ LP.CharacterAdded:Connect(function(char)
 end)
 
 Library:CreateDropdown(TabSettings, "Farm Weapon", {"None", "Melee", "Sword", "Gun"}, "None", function(v)
-    FarmWeapon = (v == "None") and nil or v   -- lưu category
+    FarmWeapon = (v == "Melee") and nil or v   -- lưu category
 end)
 
 Library:CreateToggle(TabSettings, "FastAtk", false, function(v)
