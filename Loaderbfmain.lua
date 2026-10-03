@@ -1544,9 +1544,9 @@ if CurrentQuestName == nil then CurrentQuestName = nil end
 if currentTarget == nil then currentTarget = nil end
 
 local PLAYER_FLY_Y  = 15
-local ATTACK_RANGE  = 30
+local ATTACK_RANGE  = 60
 local STOP_RANGE    = 12
-local DETECT_RANGE  = 70
+local DETECT_RANGE  = 60
 local MIN_Y = -50     -- -50 thay vì 20, để bay vào Magma/Sky vẫn OK     -- không bay thấp hơn mức này (tránh rớt biển)
 local HitHash       = "168716de"
 
@@ -2044,9 +2044,23 @@ local target = FindNearestMob(CurrentMobName, 2000)
 end)
 
 -- ============================================================
--- BRING MOB — "Bring Player" mode
--- Teleport player đến từng mob trong cụm, gửi hit mỗi frame
+-- BRING MOB (kéo mob trong ownership range về slot quanh player)
 -- ============================================================
+
+RestoreMob = function(mob)
+    local data = BroughtMobData[mob]
+    BroughtMobData[mob] = nil
+    if not mob or not mob.Parent then return end
+
+    local mHum = mob:FindFirstChild("Humanoid")
+    if mHum and data then
+        pcall(function()
+            mHum.WalkSpeed = data.WalkSpeed or 16
+            mHum.JumpPower = data.JumpPower or 50
+        end)
+    end
+end
+
 RunService.Heartbeat:Connect(function()
     if not AutoFarm or not BM_On then return end
 
@@ -2056,7 +2070,7 @@ RunService.Heartbeat:Connect(function()
     local enemies = workspace:FindFirstChild("Enemies")
     if not enemies then return end
 
-    -- Gom mob cùng loại trong tầm
+    -- Gom mob cùng loại trong DETECT_RANGE
     local list = {}
     for _, mob in ipairs(enemies:GetChildren()) do
         if mob.Name == CurrentMobName then
@@ -2072,53 +2086,58 @@ RunService.Heartbeat:Connect(function()
     end
     table.sort(list, function(a, b) return a.Dist < b.Dist end)
 
-    local max = BM_Max or 5
-    if #list == 0 then return end
+    local max  = BM_Max or 5
+    local kept = {}
 
-    -- Chỉ lấy tối đa BM_Max mob gần nhất
-    local targets = {}
     for i = 1, math.min(#list, max) do
-        table.insert(targets, list[i])
+        local entry = list[i]
+        local mob, mRoot, mHum = entry.Mob, entry.Root, entry.Hum
+        kept[mob] = true
+
+        -- Lưu state gốc lần đầu gặp
+        if not BroughtMobData[mob] then
+            BroughtMobData[mob] = {
+                WalkSpeed = mHum.WalkSpeed,
+                JumpPower = mHum.JumpPower,
+            }
+        end
+
+        -- Slot cố định quanh player
+        local offset = SLOT_OFFSETS[i] or Vector3.new(0, 0, 0)
+        local targetPos = root.Position + Vector3.new(offset.X, 0, offset.Z)
+
+        -- ★ CFrame cứng mỗi frame
+        pcall(function()
+            mRoot.CFrame = CFrame.new(targetPos)
+            mRoot.AssemblyLinearVelocity  = Vector3.zero
+            mRoot.AssemblyAngularVelocity = Vector3.zero
+        end)
+
+        -- Không dùng PlatformStand — để physics tự do
+        pcall(function()
+            mHum.PlatformStand = false
+        end)
+
+        -- Clear debuff
+        local busy = mob:FindFirstChild("Busy")
+        if busy and busy:IsA("BoolValue") then busy.Value = false end
+        local stun = mob:FindFirstChild("Stun")
+        if stun and stun:IsA("BoolValue") then stun.Value = false end
+        local stunned = mob:FindFirstChild("Stunned")
+        if stunned and stunned:IsA("BoolValue") then stunned.Value = false end
+        local grabbed = mob:FindFirstChild("Grabbed")
+        if grabbed and grabbed:IsA("BoolValue") then grabbed.Value = false end
     end
 
-    -- Đứng tại vị trí từng mob, gửi hit cho tất cả mob trong tầm khi đứng ở mỗi vị trí
-    -- → Vì đứng trên đầu 1 mob, các mob khác ở gần đó cũng trong tầm hit
-    local closest = targets[1]
-    if closest then
-        -- Teleport player tới trên đầu mob gần nhất
-        pcall(function()
-            root.Anchored = true
-            root.CFrame = CFrame.new(closest.Root.Position + Vector3.new(0, PLAYER_FLY_Y, 0))
-            root.Velocity = Vector3.zero
-            root.RotVelocity = Vector3.zero
-        end)
-
-        -- Gửi hit cho TẤT CẢ mob trong cụm (khi player đứng gần)
-        pcall(function()
-            RegisterAttack:FireServer(AttackDelay, HitCount)
-
-            local enemies = workspace:FindFirstChild("Enemies")
-            if not enemies then return end
-
-            for _, m in ipairs(enemies:GetChildren()) do
-                if m.Name == CurrentMobName then
-                    local mr = m:FindFirstChild("HumanoidRootPart")
-                    local mh = m:FindFirstChild("Humanoid")
-                    if mr and mh and mh.Health > 0 then
-                        local d = (root.Position - mr.Position).Magnitude
-                        if d <= ATTACK_RANGE then
-                            -- Hit tất cả part của mob này
-                            for _, p in ipairs(m:GetDescendants()) do
-                                if p:IsA("BasePart") then
-                                    pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
-                                    pcall(function() RegisterHit:FireServer(p, {}) end)
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-        end)
+    -- Restore mob ngoài slot
+    local toRestore = {}
+    for mob in pairs(BroughtMobData) do
+        if not kept[mob] then
+            table.insert(toRestore, mob)
+        end
+    end
+    for _, mob in ipairs(toRestore) do
+        RestoreMob(mob)
     end
 end)
 
