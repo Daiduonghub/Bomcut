@@ -243,9 +243,10 @@ BM_Max = 5  -- thay vì BM_Range / BM_Offset
 -- Bring Mob — khai báo trước để toggle thấy được
 BroughtMobData  = {}
 RestoreMob      = function() end
--- ============================================================
--- WEAPON DATABASE (thêm vũ khí ở đây)
--- ============================================================
+-- ★ Combo state
+ComboPhase  = "melee"
+ComboTarget = nil
+ComboStart  = 0
 FarmWeapon = nil  -- category: "Melee" / "Sword" / "Gun" / nil
 
 local WeaponDB = {
@@ -1929,6 +1930,29 @@ local function AutoAcceptQuest()
 end
 
 -- ============================================================
+-- MOBILE TAP (giả lập chạm vào màn hình)
+-- ============================================================
+local function SimulateTap(x, y)
+    -- Ưu tiên executor function (Delta, Codex, ...)
+    if mousemoveabs and mouse1click then
+        pcall(function()
+            mousemoveabs(x, y)
+            task.wait(0.02)
+            mouse1click()
+        end)
+        return
+    end
+
+    -- Fallback: VirtualInputManager
+    local VIM = game:GetService("VirtualInputManager")
+    pcall(function()
+        VIM:SendMouseButtonEvent(x, y, 0, true, game, 1)
+        task.wait(0.02)
+        VIM:SendMouseButtonEvent(x, y, 0, false, game, 1)
+    end)
+end
+
+-- ============================================================
 -- MAIN FARM LOOP
 -- ============================================================
 task.spawn(function()
@@ -1938,6 +1962,8 @@ task.spawn(function()
         if not AutoFarm then
             StopActiveTween()
             currentTarget = nil
+            ComboPhase  = "melee"
+            ComboTarget = nil
             local root = GetPlayerParts()
             if root and root.Anchored then root.Anchored = false end
         else
@@ -1949,8 +1975,6 @@ task.spawn(function()
                 end
 
                 pcall(AutoAcceptQuest)
-
-                EquipFarmWeapon()   -- ★ tự động equip weapon trước khi farm
 
                 local target = FindNearestMob(CurrentMobName, 2000)
 
@@ -1990,7 +2014,6 @@ task.spawn(function()
                         farmTargetPos = newTarget
                     end
                 else
-                    -- Đã tới nơi → zero velocity, KHÔNG anchor
                     farmMoving    = false
                     farmTargetPos = nil
                     if flyBV then flyBV.VectorVelocity = Vector3.zero end
@@ -2013,45 +2036,66 @@ task.spawn(function()
                         end
                     end
 
+                    -- Reset combo khi target đổi
+                    if target ~= ComboTarget then
+                        ComboTarget = target
+                        ComboPhase  = "melee"
+                        ComboStart  = tick()
+                    end
+
+                    -- Auto switch melee → gun sau 1.5s
+                    if ComboPhase == "melee" and tick() - ComboStart > 1.5 then
+                        ComboPhase = "gun"
+                    end
+
                     if FarmWeapon == "Gun" then
-                        -- ★ GUN MODE — game tự bắn, chỉ gọi Activate
-                        pcall(function()
-                            local char = LP.Character
-                            if not char then return end
-
-                            -- Tìm gun đang equipped
-                            local gun
-                            for _, tool in ipairs(char:GetChildren()) do
-                                if tool:IsA("Tool") then
-                                    gun = tool
-                                    break
-                                end
-                            end
-
-                            if gun then
-                                gun:Activate()
-                            end
-                        end)
-
-                        -- Loop thêm để damage liên tục (giống spam click)
-                        local loops = FA_On and 15 or HitCount
-                        local delay = FA_On and (FA_Delay or 0.03) or (AttackDelay / math.max(HitCount, 1))
-
-                        for _ = 2, loops do
-                            task.wait(delay)
+                        if ComboPhase == "melee" then
+                            -- ★ MELEE PHASE — đấm võ
                             pcall(function()
                                 local char = LP.Character
-                                if not char then return end
-                                for _, tool in ipairs(char:GetChildren()) do
-                                    if tool:IsA("Tool") then
-                                        tool:Activate()
+                                local hum  = char and char:FindFirstChild("Humanoid")
+                                if hum then hum:UnequipTools() end
+
+                                RegisterAttack:FireServer(AttackDelay, HitCount)
+
+                                local loops = FA_On and 15 or HitCount
+                                local delay = FA_On and (FA_Delay or 0.03) or (AttackDelay / math.max(HitCount, 1))
+
+                                for _ = 1, loops do
+                                    for _, m in ipairs(targets) do
+                                        for _, p in ipairs(GetAttackParts(m)) do
+                                            pcall(function() RegisterHit:FireServer(p, {}, HitHash) end)
+                                            pcall(function() RegisterHit:FireServer(p, {}) end)
+                                        end
+                                    end
+                                    task.wait(delay)
+                                end
+                            end)
+
+                        else
+                            -- ★ GUN PHASE — equip gun + tap vào mob
+                            EquipFarmWeapon()
+
+                            pcall(function()
+                                local camera = workspace.CurrentCamera
+                                if not camera then return end
+
+                                for _, m in ipairs(targets) do
+                                    local head = m:FindFirstChild("Head")
+                                    if head then
+                                        local screenPos, onScreen = camera:WorldToScreenPoint(head.Position)
+                                        if onScreen then
+                                            SimulateTap(screenPos.X, screenPos.Y)
+                                        end
                                     end
                                 end
                             end)
                         end
 
                     else
-                        -- ★ MELEE / SWORD MODE — gửi RegisterAttack + RegisterHit
+                        -- ★ MELEE / SWORD MODE bình thường
+                        EquipFarmWeapon()
+
                         pcall(function()
                             RegisterAttack:FireServer(AttackDelay, HitCount)
 
