@@ -293,8 +293,8 @@ end
 -- ============================================================
 BossDB = {
     -- ══════════ FIRST SEA ══════════
-    ["Gorilla King"]       = { Level = 25,   Sea = 1, HP = 2000,   Respawn = 90,  Spawn = CFrame.new(-1237,   6,   -510) },
-    ["Bobby"]              = { Level = 55,   Sea = 1, HP = 5000,   Respawn = 90,  Spawn = CFrame.new(-1140,   5,   3828) },
+    ["Gorilla King"]       = { Level = 25,   Sea = 1, HP = 2000,   Respawn = 120,Spawn = CFrame.new(-1189.11267, 13.9037971, -552.591553) },
+    ["Bobby"]              = { Level = 55,   Sea = 1, HP = 5000,   Respawn = 90,  Spawn = CFrame.new(-1121.37622, 52.1586761, 4121.94678) },
     ["The Saw"]            = { Level = 100,  Sea = 1, HP = 8000,   Respawn = 120, Spawn = CFrame.new( 1361,  87,  -1544) },
     ["Fajita"]             = { Level = 130,  Sea = 1, HP = 12000,  Respawn = 120, Spawn = CFrame.new( 1380,  87,  -1298) },
     ["Saber Expert"]       = { Level = 175,  Sea = 1, HP = 20000,  Respawn = 180, Spawn = CFrame.new(-1405,  20,     45) },
@@ -1883,30 +1883,45 @@ RunService.Heartbeat:Connect(function(dt)
     flyAlign.Parent     = root
 
     local current = root.Position
-    local dir     = farmTargetPos - current
-    local dist    = dir.Magnitude
+    local dx = farmTargetPos.X - current.X
+    local dz = farmTargetPos.Z - current.Z
+    local yDiff = farmTargetPos.Y - current.Y
 
-    if dist < 2 then
+    local horizDir  = Vector3.new(dx, 0, dz)
+    local horizDist = horizDir.Magnitude
+    local dist3D    = (farmTargetPos - current).Magnitude
+
+    -- tới nơi
+    if dist3D < 3 and math.abs(yDiff) < 3 then
         flyBV.VectorVelocity = Vector3.zero
         farmMoving    = false
         farmTargetPos = nil
         return
     end
 
-    local speed = TweenSpeed
-    if dist < 30 then
-        speed = math.max(speed * (dist / 30), 15)
+    -- === HORIZONTAL ===
+    local hSpeed = TweenSpeed
+    if horizDist < 60 then
+        hSpeed = math.max(TweenSpeed * (horizDist / 60), 5)
     end
 
-    local dirNorm = dir.Unit
-    local yDiff   = farmTargetPos.Y - current.Y
-
-    if yDiff > 10 then
-        local climb = Vector3.new(dirNorm.X, 1.5, dirNorm.Z).Unit
-        flyBV.VectorVelocity = climb * speed
-    else
-        flyBV.VectorVelocity = dirNorm * speed
+    local horizVel = Vector3.zero
+    if horizDist > 1 then
+        horizVel = horizDir.Unit * hSpeed
     end
+
+    -- === VERTICAL (tách riêng, tỉ lệ + deadzone) ===
+    local vVel = 0
+    if math.abs(yDiff) > 2 then
+        -- vận tốc tỉ lệ khoảng cách Y, cap ở 0.7 * TweenSpeed
+        vVel = math.clamp(yDiff * 3, -TweenSpeed * 0.7, TweenSpeed * 0.7)
+    end
+
+    local targetVel = horizVel + Vector3.new(0, vVel, 0)
+
+    -- lerp mượt — triệt tiêu giật
+    local curVel = flyBV.VectorVelocity
+    flyBV.VectorVelocity = curVel:Lerp(targetVel, math.min(dt * 12, 1))
 end)
 
 -- ============================================================
