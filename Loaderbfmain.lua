@@ -257,7 +257,7 @@ local WeaponDB = {
         "Dragon Talon", "Godhuman", "Sanguine Art",
     },
     Sword = {
-        "Katana", "Cutlass", "Iron Mace", "Triple Katana",
+        "Katana", "Saber", "Cutlass", "Iron Mace", "Triple Katana",
         "Dual Katana", "Saddi", "Wando", "Bisento",
         "Yama", "Dark Blade", "Shisui", "True Triple Katana",
         "Cursed Dual Katana", "Longsword",
