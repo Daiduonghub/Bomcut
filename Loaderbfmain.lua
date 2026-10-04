@@ -2287,14 +2287,14 @@ RestoreMob = function(mob)
     end
 
     if mHum and data then
-        pcall(function()
-            mHum.WalkSpeed     = data.WalkSpeed or 16
-            mHum.JumpPower     = data.JumpPower or 50
-            mHum.PlatformStand = false
-            mHum:ChangeState(Enum.HumanoidStateType.Running)
-        end)
-    end
-
+    pcall(function()
+        mHum.WalkSpeed     = data.WalkSpeed or 16
+        mHum.JumpPower     = data.JumpPower or 50
+        mHum.PlatformStand = false
+        mHum:ChangeState(Enum.HumanoidStateType.Running)
+    end)
+end
+-- không teleport, mob tự đi về (với WalkSpeed gốc)
     if mRoot then
         for _, child in ipairs(mRoot:GetChildren()) do
             if child.Name == "StunObjects" or child.Name == "StunObject" then
@@ -2361,8 +2361,7 @@ RunService.Heartbeat:Connect(function(dt)
     local anchorPos = anchorMob.Root.Position
     kept[anchorMob.Mob] = true
 
-    local distToA = (root.Position - anchorPos).Magnitude
-    if distToA > 20 then return end
+    if (root.Position - anchorPos).Magnitude > 20 then return end
 
     for i = 2, math.min(#list, max) do
         local entry = list[i]
@@ -2374,52 +2373,21 @@ RunService.Heartbeat:Connect(function(dt)
                 WalkSpeed  = mHum.WalkSpeed,
                 JumpPower  = mHum.JumpPower,
                 OrigCFrame = mRoot.CFrame,
-                HadOwnership = false,
             }
         end
 
-        -- ★ TAKE NETWORK OWNERSHIP — server trust client position
+        -- ★ WALKSPEED cao + MoveTo — AI hợp lệ
         pcall(function()
-            if mRoot:GetNetworkOwner() ~= LP then
-                mRoot:SetNetworkOwner(LP)
-                if BroughtMobData[mob] then
-                    BroughtMobData[mob].HadOwnership = true
-                end
-            end
+            mHum.WalkSpeed = 500
+            mHum:MoveTo(anchorPos)
         end)
 
-        -- di chuyển — giữ rotation
-        local currentPos = mRoot.Position
-        local dir = anchorPos - currentPos
-        local dist = dir.Magnitude
-
-        if dist > 4 then
-            local step = math.min(dist, 15 * (dt or 0.016) * 60)
-            local newPos = currentPos + dir.Unit * step
-            local oldCF = mRoot.CFrame
-            local newCF = CFrame.new(newPos) * (oldCF - oldCF.Position)
-
-            pcall(function()
-                mRoot.CFrame = newCF
-                mRoot.AssemblyLinearVelocity  = Vector3.zero
-                mRoot.AssemblyAngularVelocity = Vector3.zero
-            end)
-        end
-
-        -- xóa StunObjects
+        -- xóa StunObjects liên tục
         for _, child in ipairs(mRoot:GetChildren()) do
             if child.Name == "StunObjects" or child.Name == "StunObject" then
                 pcall(function() child:Destroy() end)
             end
         end
-
-        -- reset state
-        pcall(function()
-            mHum.PlatformStand = false
-            mHum:SetStateEnabled(Enum.HumanoidStateType.Physics, false)
-            mHum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
-            mHum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-        end)
 
         -- clear flag
         for _, flagName in ipairs({"Busy", "Stun", "Stunned", "Grabbed"}) do
@@ -2430,9 +2398,7 @@ RunService.Heartbeat:Connect(function(dt)
 
     local toRestore = {}
     for mob in pairs(BroughtMobData) do
-        if not kept[mob] then
-            table.insert(toRestore, mob)
-        end
+        if not kept[mob] then table.insert(toRestore, mob) end
     end
     for _, mob in ipairs(toRestore) do
         RestoreMob(mob)
