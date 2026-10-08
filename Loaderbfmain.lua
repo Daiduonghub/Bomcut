@@ -97,7 +97,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -60, 1, 0)
 Title.Position = UDim2.new(0, 38, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "ABYSSALHUB"
+Title.Text = "Kairos Hub"
 Title.TextColor3 = Color3.fromRGB(235, 225, 255)
 Title.TextSize = 21
 Title.Font = Enum.Font.GothamBold
@@ -108,7 +108,7 @@ local SubTitle = Instance.new("TextLabel")
 SubTitle.Size = UDim2.new(0, 80, 1, 0)
 SubTitle.Position = UDim2.new(0, 178, 0, 0)
 SubTitle.BackgroundTransparency = 1
-SubTitle.Text = "v1.0-Blox fruits"
+SubTitle.Text = "v1.0 - Blox fruits [Premium]"
 SubTitle.TextColor3 = Color3.fromRGB(140, 60, 255)
 SubTitle.TextSize = 12
 SubTitle.Font = Enum.Font.Gotham
@@ -1275,7 +1275,7 @@ OpenButton.Size = UDim2.new(0, 90, 0, 34)
 OpenButton.Position = UDim2.new(0, 20, 0, 20)
 OpenButton.BackgroundColor3 = Color3.fromRGB(140, 60, 255)
 OpenButton.BackgroundTransparency = 0.15
-OpenButton.Text = "Abyssal[Premium]"
+OpenButton.Text = "Kairos_Toggle"
 OpenButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 OpenButton.TextSize = 12
 OpenButton.Font = Enum.Font.GothamBold
@@ -1338,7 +1338,7 @@ MaximizeBtn.MouseButton1Click:Connect(function()
         -- Переключение иконок
         MaximizeIcon.Visible = false
         MinimizeIcon.Visible = true
-        Library:Notify("AbyssalHub", "Da phong to UI", 2)
+        Library:Notify("KairosHub", "Da phong to UI", 2)
     else
         TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
             Size = OriginalSize,
@@ -1347,7 +1347,7 @@ MaximizeBtn.MouseButton1Click:Connect(function()
         -- Переключение иконок
         MaximizeIcon.Visible = true
         MinimizeIcon.Visible = false
-        Library:Notify("AbyssalHub", "Da thu nho UI", 2)
+        Library:Notify("KairosHub", "Da thu nho UI", 2)
     end
 end)
 
@@ -1374,14 +1374,14 @@ Library:CreateToggle(TabFarm, "Auto Farm Level", false, function(v)
         CurrentQuestName = nil
         QuestCooldown = 0
         AddHighlight()
-        Library:Notify("AbyssalHub", "Auto Farm: ON", 2)
+        Library:Notify("KairosHub", "Auto Farm: ON", 2)
     else
         currentTarget = nil
         if StopActiveTween then StopActiveTween() end
         ForceRestoreAllMobs()  -- ★ force cleanup mob đang bring
         CleanupFly()
         RemoveHighlight()
-        Library:Notify("AbyssalHub", "Auto Farm: OFF", 2)
+        Library:Notify("KairosHub", "Auto Farm: OFF", 2)
     end
 end)
 
@@ -1433,7 +1433,7 @@ Library:CreateToggle(TabFarm, "Auto Farm Boss", false, function(v)
 
     if v then
         AddHighlight()
-        Library:Notify("AbyssalHub", "Boss Farm: ON — " .. tostring(SelectedBoss), 2)
+        Library:Notify("KairosHub", "Boss Farm: ON — " .. tostring(SelectedBoss), 2)
     else
         BossTarget = nil
         ForceRestoreAllMobs()  -- ★
@@ -1441,7 +1441,7 @@ Library:CreateToggle(TabFarm, "Auto Farm Boss", false, function(v)
             CleanupFly()
             RemoveHighlight()
         end
-        Library:Notify("AbyssalHub", "Boss Farm: OFF", 2)
+        Library:Notify("KairosHub", "Boss Farm: OFF", 2)
     end
 end)
 
@@ -2085,9 +2085,6 @@ local function SimulateTap(x, y)
 end
 
 -- ============================================================
--- ATTACK HELPER — dùng chung cho farm level và boss
--- ============================================================
--- ============================================================
 -- ATTACK HELPER — burst spam, dùng chung farm level + boss
 -- ============================================================
 local function DoAttack(targets)
@@ -2261,14 +2258,14 @@ end
             end)
 
             if not ok then
-                warn("[AbyssalHub] Farm error: " .. tostring(err))
+                warn("[KairosHub] Farm error: " .. tostring(err))
             end
         end
     end
 end)
 
 -- ============================================================
--- BRING MOB — B teleport tới vị trí A (mob gần player nhất)
+-- BRING MOB BẰNG VELOCITY — không flag, không cần equip
 -- ============================================================
 RestoreMob = function(mob)
     PART_CACHE[mob] = nil
@@ -2279,40 +2276,25 @@ RestoreMob = function(mob)
     local mHum  = mob:FindFirstChild("Humanoid")
     local mRoot = mob:FindFirstChild("HumanoidRootPart")
 
-    -- ★ TRẢ NETWORK về server trước khi teleport về
-    if mRoot and data and data.HadOwnership then
+    if mHum and data then
         pcall(function()
-            mRoot:SetNetworkOwnershipAuto()
+            mHum.WalkSpeed     = data.WalkSpeed or 16
+            mHum.JumpPower     = data.JumpPower or 50
+            mHum.PlatformStand = false
+            mHum:ChangeState(Enum.HumanoidStateType.Running)
         end)
     end
 
-    if mHum and data then
-    pcall(function()
-        mHum.WalkSpeed     = data.WalkSpeed or 16
-        mHum.JumpPower     = data.JumpPower or 50
-        mHum.PlatformStand = false
-        mHum:ChangeState(Enum.HumanoidStateType.Running)
-    end)
-end
--- không teleport, mob tự đi về (với WalkSpeed gốc)
     if mRoot then
         for _, child in ipairs(mRoot:GetChildren()) do
             if child.Name == "StunObjects" or child.Name == "StunObject" then
                 pcall(function() child:Destroy() end)
             end
         end
-        if data and data.OrigCFrame then
-            pcall(function()
-                mRoot.CFrame = data.OrigCFrame
-                mRoot.AssemblyLinearVelocity  = Vector3.zero
-                mRoot.AssemblyAngularVelocity = Vector3.zero
-            end)
-        end
-    end
-
-    for _, flagName in ipairs({"Busy", "Stun", "Stunned", "Grabbed", "Attacking", "Blocking"}) do
-        local flag = mob:FindFirstChild(flagName)
-        if flag and flag:IsA("BoolValue") then flag.Value = false end
+        pcall(function()
+            mRoot.AssemblyLinearVelocity  = Vector3.zero
+            mRoot.AssemblyAngularVelocity = Vector3.zero
+        end)
     end
 end
 
@@ -2337,6 +2319,9 @@ RunService.Heartbeat:Connect(function(dt)
     local enemies = workspace:FindFirstChild("Enemies")
     if not enemies then return end
 
+    -- điểm tụ — trước mặt player 6 studs
+    local anchorPos = root.Position - (root.CFrame.LookVector * 6) + Vector3.new(0, 1, 0)
+
     local list = {}
     for _, mob in ipairs(enemies:GetChildren()) do
         if mob.Name == CurrentMobName then
@@ -2354,14 +2339,11 @@ RunService.Heartbeat:Connect(function(dt)
 
     if #list < 2 then return end
 
-    local max  = BM_Max or 5
+    local max = BM_Max or 5
     local kept = {}
 
-    local anchorMob = list[1]
-    local anchorPos = anchorMob.Root.Position
-    kept[anchorMob.Mob] = true
-
-    if (root.Position - anchorPos).Magnitude > 20 then return end
+    -- mob gần nhất = anchor, không di chuyển
+    kept[list[1].Mob] = true
 
     for i = 2, math.min(#list, max) do
         local entry = list[i]
@@ -2376,17 +2358,29 @@ RunService.Heartbeat:Connect(function(dt)
             }
         end
 
-        -- ★ WALKSPEED cao + MoveTo — AI hợp lệ
-        pcall(function()
-            mHum.WalkSpeed = 500
-            mHum:MoveTo(anchorPos)
-        end)
-
-        -- xóa StunObjects liên tục
+        -- xóa StunObjects mỗi frame
         for _, child in ipairs(mRoot:GetChildren()) do
             if child.Name == "StunObjects" or child.Name == "StunObject" then
                 pcall(function() child:Destroy() end)
             end
+        end
+
+        -- reset state
+        pcall(function()
+            mHum.PlatformStand = false
+            mHum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+            mHum:SetStateEnabled(Enum.HumanoidStateType.Physics, false)
+        end)
+
+        -- ★ KÉO BẰNG VELOCITY — không CFrame
+        local dist = (anchorPos - mRoot.Position).Magnitude
+        if dist > 8 then
+            local dir = (anchorPos - mRoot.Position).Unit
+            mRoot.AssemblyLinearVelocity  = dir * 100
+            mRoot.AssemblyAngularVelocity = Vector3.zero
+        else
+            mRoot.AssemblyLinearVelocity  = Vector3.zero
+            mRoot.AssemblyAngularVelocity = Vector3.zero
         end
 
         -- clear flag
@@ -2396,9 +2390,12 @@ RunService.Heartbeat:Connect(function(dt)
         end
     end
 
+    -- restore mob ngoài slot
     local toRestore = {}
     for mob in pairs(BroughtMobData) do
-        if not kept[mob] then table.insert(toRestore, mob) end
+        if not kept[mob] then
+            table.insert(toRestore, mob)
+        end
     end
     for _, mob in ipairs(toRestore) do
         RestoreMob(mob)
@@ -2579,7 +2576,7 @@ task.spawn(function()
             end)
 
             if not ok then
-                warn("[AbyssalHub] Boss farm error: " .. tostring(err))
+                warn("[KairoslHub] Boss farm error: " .. tostring(err))
             end
         end
     end
@@ -2589,7 +2586,7 @@ end)
 -- АВТОВЫБОР ПЕРВОЙ ВКЛАДКИ
 -- ============================================================
 pcall(function()
-    Library:Notify("AbyssalHub", "Script loaded successfully!", 5)
+    Library:Notify("KairosHub", "Script loaded successfully!", 5)
 end)
 
 pcall(function()
