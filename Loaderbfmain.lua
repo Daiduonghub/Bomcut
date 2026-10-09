@@ -1461,10 +1461,21 @@ Library:CreateTextBox(TabSettings, "Tween speed", 120, function(v)
     TweenSpeed = math.clamp(math.floor(v), 30, 500)
 end)
 
+local FirstBringToggleInit = true
+
 Library:CreateToggle(TabSettings, "BringMob", false, function(v)
     BM_On = v
-    if not v then
+
+    if FirstBringToggleInit then
+        FirstBringToggleInit = false
+        return
+    end
+
+    if v then
+        Library:Notify("KairosHub", "BringMob ON — SimulationRadius bypass", 2)
+    else
         ForceRestoreAllMobs()
+        Library:Notify("KairosHub", "BringMob OFF", 2)
     end
 end)
 
@@ -2265,7 +2276,7 @@ end
 end)
 
 -- ============================================================
--- BRING MOB BẰNG VELOCITY — không flag, không cần equip
+-- BRING MOB V2 — SimulationRadius + CFrame direct
 -- ============================================================
 RestoreMob = function(mob)
     PART_CACHE[mob] = nil
@@ -2276,24 +2287,30 @@ RestoreMob = function(mob)
     local mHum  = mob:FindFirstChild("Humanoid")
     local mRoot = mob:FindFirstChild("HumanoidRootPart")
 
+    if mRoot and data then
+        pcall(function()
+            mRoot.Size = data.OrigSize or Vector3.new(2, 2, 1)
+            mRoot.Transparency = 0
+            mRoot.CanCollide = true
+            if data.OrigCFrame then
+                mRoot.CFrame = data.OrigCFrame
+            end
+            mRoot.AssemblyLinearVelocity  = Vector3.zero
+            mRoot.AssemblyAngularVelocity = Vector3.zero
+        end)
+    end
+
+    local head = mob:FindFirstChild("Head")
+    if head then
+        pcall(function() head.CanCollide = true end)
+    end
+
     if mHum and data then
         pcall(function()
             mHum.WalkSpeed     = data.WalkSpeed or 16
             mHum.JumpPower     = data.JumpPower or 50
             mHum.PlatformStand = false
-            mHum:ChangeState(Enum.HumanoidStateType.Running)
-        end)
-    end
-
-    if mRoot then
-        for _, child in ipairs(mRoot:GetChildren()) do
-            if child.Name == "StunObjects" or child.Name == "StunObject" then
-                pcall(function() child:Destroy() end)
-            end
-        end
-        pcall(function()
-            mRoot.AssemblyLinearVelocity  = Vector3.zero
-            mRoot.AssemblyAngularVelocity = Vector3.zero
+            mHum:ChangeState(Enum.HumanoidStateType.GettingUp)
         end)
     end
 end
@@ -2310,145 +2327,86 @@ ForceRestoreAllMobs = function()
     end
 end
 
-RunService.Heartbeat:Connect(function(dt)
-    if not AutoFarm or not BM_On then return end
-
-    local root = GetPlayerParts()
-    if not root then return end
-
-    local enemies = workspace:FindFirstChild("Enemies")
-    if not enemies then return end
-
-    -- điểm tụ — trước mặt player 6 studs
-    local anchorPos = root.Position - (root.CFrame.LookVector * 6) + Vector3.new(0, 1, 0)
-
-    local list = {}
-    for _, mob in ipairs(enemies:GetChildren()) do
-        if mob.Name == CurrentMobName then
-            local mRoot = mob:FindFirstChild("HumanoidRootPart")
-            local mHum  = mob:FindFirstChild("Humanoid")
-            if mRoot and mHum and mHum.Health > 0 then
-                local d = (root.Position - mRoot.Position).Magnitude
-                if d <= DETECT_RANGE then
-                    table.insert(list, {Mob = mob, Root = mRoot, Hum = mHum, Dist = d})
-                end
-            end
-        end
-    end
-    table.sort(list, function(a, b) return a.Dist < b.Dist end)
-
-    if #list < 2 then return end
-
-    local max = BM_Max or 5
-    local kept = {}
-
-    -- mob gần nhất = anchor, không di chuyển
-    kept[list[1].Mob] = true
-
-    for i = 2, math.min(#list, max) do
-        local entry = list[i]
-        local mob, mRoot, mHum = entry.Mob, entry.Root, entry.Hum
-        kept[mob] = true
-
-        if not BroughtMobData[mob] then
-            BroughtMobData[mob] = {
-                WalkSpeed  = mHum.WalkSpeed,
-                JumpPower  = mHum.JumpPower,
-                OrigCFrame = mRoot.CFrame,
-            }
+task.spawn(function()
+    while task.wait() do
+        if not (AutoFarm and BM_On) then
+            task.wait(0.5)
+            continue
         end
 
-        -- xóa StunObjects mỗi frame
-        for _, child in ipairs(mRoot:GetChildren()) do
-            if child.Name == "StunObjects" or child.Name == "StunObject" then
-                pcall(function() child:Destroy() end)
-            end
-        end
-
-        -- reset state
         pcall(function()
-            mHum.PlatformStand = false
-            mHum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
-            mHum:SetStateEnabled(Enum.HumanoidStateType.Physics, false)
+            -- ★ SimulationRadius = inf MỖI FRAME
+            sethiddenproperty(LP, "SimulationRadius", math.huge)
+            sethiddenproperty(LP, "MaxSimulationRadius", math.huge)
         end)
 
-        -- ★ KÉO BẰNG VELOCITY — không CFrame
-        local dist = (anchorPos - mRoot.Position).Magnitude
-        if dist > 8 then
-            local dir = (anchorPos - mRoot.Position).Unit
-            mRoot.AssemblyLinearVelocity  = dir * 100
-            mRoot.AssemblyAngularVelocity = Vector3.zero
-        else
-            mRoot.AssemblyLinearVelocity  = Vector3.zero
-            mRoot.AssemblyAngularVelocity = Vector3.zero
-        end
-
-        -- clear flag
-        for _, flagName in ipairs({"Busy", "Stun", "Stunned", "Grabbed"}) do
-            local flag = mob:FindFirstChild(flagName)
-            if flag and flag:IsA("BoolValue") then flag.Value = false end
-        end
-    end
-
-    -- restore mob ngoài slot
-    local toRestore = {}
-    for mob in pairs(BroughtMobData) do
-        if not kept[mob] then
-            table.insert(toRestore, mob)
-        end
-    end
-    for _, mob in ipairs(toRestore) do
-        RestoreMob(mob)
-    end
-end)
-
--- ============================================================
--- ANTI-LOCK — quét mob bị flag lock, tự động giải phóng
--- ============================================================
-task.spawn(function()
-    while true do
-        task.wait(0.3)
-        if not (BM_On and AutoFarm) then continue end
+        local root = GetPlayerParts()
+        if not root then continue end
 
         local enemies = workspace:FindFirstChild("Enemies")
         if not enemies then continue end
 
+        -- điểm tụ — trước mặt player 5 studs
+        local FarmPos = root.CFrame * CFrame.new(0, 2, -5)
+        local kept = {}
+
         for _, mob in ipairs(enemies:GetChildren()) do
             if mob.Name == CurrentMobName then
-                local hrp = mob:FindFirstChild("HumanoidRootPart")
-                local hum = mob:FindFirstChild("Humanoid")
-                if hrp and hum and hum.Health > 0 then
-                    -- xóa StunObjects
-                    for _, child in ipairs(hrp:GetChildren()) do
-                        if child.Name == "StunObjects" or child.Name == "StunObject" then
-                            pcall(function() child:Destroy() end)
-                        end
-                    end
+                local mHum  = mob:FindFirstChild("Humanoid")
+                local mRoot = mob:FindFirstChild("HumanoidRootPart")
+                local mHead = mob:FindFirstChild("Head")
 
-                    -- reset nếu state bị kẹt
-                    local state = hum:GetState()
-                    if state == Enum.HumanoidStateType.Physics 
-                       or state == Enum.HumanoidStateType.Ragdoll
-                       or state == Enum.HumanoidStateType.FallingDown 
-                       or state == Enum.HumanoidStateType.Dead then
-                        pcall(function()
-                            hum.PlatformStand = false
-                            hum:ChangeState(Enum.HumanoidStateType.Running)
-                        end)
-                    end
+                if not (mHum and mRoot and mHum.Health > 0) then continue end
 
-                    -- xóa hẳn flag
-                    for _, flagName in ipairs({"Busy", "Stun", "Stunned", "Grabbed"}) do
-                        local flag = mob:FindFirstChild(flagName)
-                        if flag then
-                            if flag:IsA("BoolValue") then
-                                pcall(function() flag.Value = false end)
-                            else
-                                pcall(function() flag:Destroy() end)
-                            end
-                        end
-                    end
+                local dist = (mRoot.Position - root.Position).Magnitude
+                if dist > 500 then continue end
+
+                kept[mob] = true
+
+                -- lưu data gốc lần đầu
+                if not BroughtMobData[mob] then
+                    BroughtMobData[mob] = {
+                        WalkSpeed  = mHum.WalkSpeed,
+                        JumpPower  = mHum.JumpPower,
+                        OrigCFrame = mRoot.CFrame,
+                        OrigSize   = mRoot.Size,
+                    }
                 end
+
+                -- ★ CFrame trực tiếp — work vì SimulationRadius
+                pcall(function()
+                    mRoot.CFrame = FarmPos
+                    mRoot.Size = Vector3.new(60, 60, 60)
+                    mRoot.Transparency = 1
+                    mRoot.CanCollide = false
+
+                    mHum.JumpPower = 0
+                    mHum.WalkSpeed = 0
+                    mHum.PlatformStand = true
+                    mHum:ChangeState(Enum.HumanoidStateType.Physics)
+                    mHum:ChangeState(Enum.HumanoidStateType.FallingDown)
+
+                    -- destroy Animator — chặn animation lock
+                    local animator = mHum:FindFirstChildOfClass("Animator")
+                    if animator then animator:Destroy() end
+
+                    if mHead then
+                        mHead.CanCollide = false
+                    end
+                end)
+
+                -- clear flag
+                for _, flagName in ipairs({"Busy", "Stun", "Stunned", "Grabbed"}) do
+                    local flag = mob:FindFirstChild(flagName)
+                    if flag and flag:IsA("BoolValue") then flag.Value = false end
+                end
+            end
+        end
+
+        -- restore mob rời slot
+        for mob in pairs(BroughtMobData) do
+            if not kept[mob] then
+                RestoreMob(mob)
             end
         end
     end
