@@ -2362,8 +2362,8 @@ pcall(function()
     end
 end)
 
-        -- điểm tụ — trước mặt player 5 studs
-        local FarmPos = root.CFrame * CFrame.new(0, 0, -4)
+        -- ★ điểm tụ — ngay dưới chân player
+        local FarmPos = CFrame.new(root.Position - Vector3.new(0, 3, 0))
         local kept = {}
 
         for _, mob in ipairs(enemies:GetChildren()) do
@@ -2392,7 +2392,7 @@ end)
                 -- ★ CFrame trực tiếp — work vì SimulationRadius
                 pcall(function()
                     mRoot.CFrame = FarmPos
-                    mRoot.Size = Vector3.new(10, 10, 10)
+                    mRoot.Size = Vector3.new(4, 4, 4)
                     mRoot.Transparency = 1
                     mRoot.CanCollide = false
 
