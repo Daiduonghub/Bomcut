@@ -2232,21 +2232,26 @@ end
                 local horizDist = math.sqrt(dx * dx + dz * dz)
 
                 -- ===== DI CHUYỂN =====
-                if horizDist > STOP_RANGE then
-                    if not farmMoving then
-                        FlyTo(mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0))
-                    else
-                        local newTarget = mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0)
-                        if newTarget.Y < MIN_Y then
-                            newTarget = Vector3.new(newTarget.X, MIN_Y, newTarget.Z)
-                        end
-                        farmTargetPos = newTarget
-                    end
-                else
-                    farmMoving    = false
-                    farmTargetPos = nil
-                    if flyBV then flyBV.VectorVelocity = Vector3.zero end
-                end
+if BM_On then
+    -- ★ BringMob bật → player đứng yên 1 chỗ
+    farmMoving    = false
+    farmTargetPos = nil
+    if flyBV then flyBV.VectorVelocity = Vector3.zero end
+elseif horizDist > STOP_RANGE then
+    if not farmMoving then
+        FlyTo(mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0))
+    else
+        local newTarget = mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0)
+        if newTarget.Y < MIN_Y then
+            newTarget = Vector3.new(newTarget.X, MIN_Y, newTarget.Z)
+        end
+        farmTargetPos = newTarget
+    end
+else
+    farmMoving    = false
+    farmTargetPos = nil
+    if flyBV then flyBV.VectorVelocity = Vector3.zero end
+end
 
                 -- ===== ĐÁNH =====
                 if horizDist <= ATTACK_RANGE then
@@ -2341,13 +2346,24 @@ task.spawn(function()
         end)
 
         local root = GetPlayerParts()
-        if not root then continue end
+if not root then continue end
 
-        local enemies = workspace:FindFirstChild("Enemies")
-        if not enemies then continue end
+local enemies = workspace:FindFirstChild("Enemies")
+if not enemies then continue end
+
+-- ★ giữ player đứng yên khi BM_On
+pcall(function()
+    local char = LP.Character
+    if char then
+        local pHRP = char:FindFirstChild("HumanoidRootPart")
+        if pHRP then
+            pHRP.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        end
+    end
+end)
 
         -- điểm tụ — trước mặt player 5 studs
-        local FarmPos = root.CFrame * CFrame.new(0, 2, -5)
+        local FarmPos = root.CFrame * CFrame.new(0, 0, -4)
         local kept = {}
 
         for _, mob in ipairs(enemies:GetChildren()) do
@@ -2376,7 +2392,7 @@ task.spawn(function()
                 -- ★ CFrame trực tiếp — work vì SimulationRadius
                 pcall(function()
                     mRoot.CFrame = FarmPos
-                    mRoot.Size = Vector3.new(60, 60, 60)
+                    mRoot.Size = Vector3.new(10, 10, 10)
                     mRoot.Transparency = 1
                     mRoot.CanCollide = false
 
