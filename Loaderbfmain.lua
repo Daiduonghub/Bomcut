@@ -2484,7 +2484,7 @@ ForceRestoreAllMobs = function()
 end
 
 task.spawn(function()
-    while task.wait(0.08) do   -- ★ throttle 0.08s
+    while task.wait(0.03) do   -- ★ throttle 0.08s
         if not (AutoFarm and BM_On and AnchorReached) then
             task.wait(0.4)
             continue
