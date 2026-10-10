@@ -2763,11 +2763,21 @@ local function _FindBossInWorkspace(name, spawnPos)
     return nil
 end
 
+-- ============================================================
+-- BOSS FARM LOOP (OPTIMIZED — cache + throttle)
+-- ============================================================
+local _cachedBoss      = nil
+local _cachedBossHum   = nil
+local _lastBossSearch  = 0
+local BOSS_SEARCH_GAP  = 1.5   -- tìm boss mỗi 1.5s nếu chưa có
+
 task.spawn(function()
     while true do
-        task.wait(0.01)
+        task.wait(0.1)   -- ★ 10Hz thay vì 100Hz
 
         if not BossFarmOn or SelectedBoss == "None" or not BossDB[SelectedBoss] then
+            _cachedBoss    = nil
+            _cachedBossHum = nil
             task.wait(0.5)
         else
             local ok, err = pcall(function()
@@ -2775,10 +2785,26 @@ task.spawn(function()
                 if not root then return end
 
                 local bossData = BossDB[SelectedBoss]
-                local boss, bossHum = _FindBossInWorkspace(SelectedBoss, bossData.Spawn.Position)
+
+                -- ★ invalidate cache nếu boss chết / bị xóa
+                if _cachedBoss and (not _cachedBoss.Parent or not _cachedBossHum or _cachedBossHum.Health <= 0) then
+                    _cachedBoss    = nil
+                    _cachedBossHum = nil
+                end
+
+                -- ★ chỉ search khi cache rỗng + đủ gap
+                local now = tick()
+                if not _cachedBoss and (now - _lastBossSearch) >= BOSS_SEARCH_GAP then
+                    _lastBossSearch = now
+                    local boss, bossHum = _FindBossInWorkspace(SelectedBoss, bossData.Spawn.Position)
+                    if boss then
+                        _cachedBoss    = boss
+                        _cachedBossHum = bossHum
+                    end
+                end
 
                 -- boss chưa spawn → bay tới spawn đợi
-                if not boss then
+                if not _cachedBoss then
                     BossTarget = nil
                     local spawnPos = bossData.Spawn.Position + Vector3.new(0, PLAYER_FLY_Y, 0)
                     local d = (root.Position - spawnPos).Magnitude
@@ -2793,9 +2819,12 @@ task.spawn(function()
                 end
 
                 -- boss đang sống
-                BossTarget = boss
-                local bossRoot = boss:FindFirstChild("HumanoidRootPart")
-                if not bossRoot then return end
+                BossTarget = _cachedBoss
+                local bossRoot = _cachedBoss:FindFirstChild("HumanoidRootPart")
+                if not bossRoot then
+                    _cachedBoss = nil
+                    return
+                end
 
                 local dx = root.Position.X - bossRoot.Position.X
                 local dz = root.Position.Z - bossRoot.Position.Z
@@ -2811,14 +2840,14 @@ task.spawn(function()
                     if flyBV then flyBV.VectorVelocity = Vector3.zero end
                 end
 
-                -- ĐÁNH — dùng chung DoAttack với farm level
+                -- ĐÁNH
                 if horizDist <= ATTACK_RANGE then
-                    DoAttack({boss})
+                    DoAttack({_cachedBoss})
                 end
             end)
 
             if not ok then
-                warn("[KairoslHub] Boss farm error: " .. tostring(err))
+                warn("[KairosHub] Boss farm error: " .. tostring(err))
             end
         end
     end
