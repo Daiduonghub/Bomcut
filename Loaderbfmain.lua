@@ -2589,19 +2589,21 @@ task.spawn(function()
 end)
 
 -- Vòng lặp chính xử lý kéo và khóa quái
--- Vòng lặp chính xử lý kéo và khóa quái
 task.spawn(function()
     while task.wait(0.1) do
-        -- ★ BẮT BUỘC: phải có target đã lock + còn sống mới bring
-        if not (AutoFarm and BM_On) then
-            task.wait(0.3)
-            continue
-        end
-        if not currentTarget or not currentTarget.Parent then
+        -- ★ BẮT BUỘC: AUTO + BRING ON + ĐÃ ANCHOR mới kéo
+        if not (AutoFarm and BM_On and AnchorReached) then
             task.wait(0.2)
             continue
         end
-        local _th = currentTarget:FindFirstChild("Humanoid")
+
+        -- ★ phải có target lock còn sống
+        local target = currentTarget
+        if not target or not target.Parent then
+            task.wait(0.2)
+            continue
+        end
+        local _th = target:FindFirstChild("Humanoid")
         if not _th or _th.Health <= 0 then
             task.wait(0.2)
             continue
@@ -2639,7 +2641,7 @@ task.spawn(function()
 
                 if not (mHum and mRoot and mHum.Health > 0) then continue end
 
-                -- ★ SimulationRadius đã math.huge → chỉ skip mob quá xa (>5000)
+                -- ★ chỉ skip mob quá xa (>5000)
                 local dist = (mRoot.Position - root.Position).Magnitude
                 if dist > 5000 then continue end
 
