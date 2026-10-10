@@ -2335,8 +2335,8 @@ task.spawn(function()
             if not BossFarmOn then
                 StopActiveTween()
                 currentTarget = nil
-                ComboPhase  = "melee"
-                ComboTarget = nil
+                ComboPhase    = "melee"
+                ComboTarget   = nil
                 local root = GetPlayerParts()
                 if root and root.Anchored then root.Anchored = false end
             end
@@ -2361,9 +2361,39 @@ task.spawn(function()
 
                 local target = FindNearestMob(searchName, FarmMode == "Nearest" and 3000 or 2000)
 
-                -- ★ Lưu tên mob nearest để BringMob dùng
+                -- ★ Lưu tên mob nearest — CHỈ đổi khi mob cũ chết / xa
                 if target and FarmMode == "Nearest" then
-                    NearestMobName = target.Name
+                    local needSwitch = false
+                    if not NearestMobName then
+                        needSwitch = true
+                    else
+                        -- check mob cũ còn sống và còn gần không
+                        local enemies = workspace:FindFirstChild("Enemies")
+                        local oldMob
+                        if enemies then
+                            for _, m in ipairs(enemies:GetChildren()) do
+                                if m.Name == NearestMobName then
+                                    local mh = m:FindFirstChild("Humanoid")
+                                    local mr = m:FindFirstChild("HumanoidRootPart")
+                                    if mh and mr and mh.Health > 0 then
+                                        -- còn sống và còn trong tầm 200 studs → giữ
+                                        if (mr.Position - root.Position).Magnitude < 200 then
+                                            oldMob = m
+                                        end
+                                        break
+                                    end
+                                end
+                            end
+                        end
+
+                        if not oldMob then
+                            needSwitch = true  -- mob cũ chết hoặc quá xa → đổi
+                        end
+                    end
+
+                    if needSwitch then
+                        NearestMobName = target.Name
+                    end
                 end
 
                 -- Không có mob
@@ -2394,10 +2424,19 @@ task.spawn(function()
                 local mRoot = GetMobParts(target)
                 if not mRoot then return end
 
-                -- ★ reset anchor khi target đổi (mob cũ chết)
+                -- ★ chỉ reset anchor khi mob cũ CHẾT THẬT hoặc khác tên
                 if BM_On and currentTarget ~= target then
+                    local oldAlive = false
+                    if currentTarget and currentTarget.Parent then
+                        local oh = currentTarget:FindFirstChild("Humanoid")
+                        if oh and oh.Health > 0 then oldAlive = true end
+                    end
+
+                    -- cùng loại + mob cũ còn sống → không reset anchor
+                    if not (oldAlive and currentTarget and currentTarget.Name == target.Name) then
+                        AnchorReached = false
+                    end
                     currentTarget = target
-                    AnchorReached = false
                 end
 
                 -- Khoảng cách NGANG (bỏ Y)
@@ -2487,7 +2526,7 @@ task.spawn(function()
 end)
 
 -- ============================================================
--- BRING MOB V2 — SimulationRadius + CFrame direct
+-- BRING MOB V2 bún — SimulationRadius + CFrame direct
 -- ============================================================
 RestoreMob = function(mob)
     PART_CACHE[mob] = nil
@@ -2552,10 +2591,12 @@ end)
 -- Vòng lặp chính xử lý kéo và khóa quái
 task.spawn(function()
     while task.wait(0.1) do
-        if not (AutoFarm and BM_On and AnchorReached) then
-            task.wait(0.4)
+        if not (AutoFarm and BM_On) then
+            task.wait(0.3)
             continue
         end
+
+        -- ★ Chưa anchor → vẫn kéo (không đợi AnchorReached nữa)
 
         local root = GetPlayerParts()
         if not root then continue end
@@ -2589,10 +2630,16 @@ task.spawn(function()
 
                 if not (mHum and mRoot and mHum.Health > 0) then continue end
 
+                -- ★ SimulationRadius đã math.huge → chỉ skip mob quá xa (>5000)
                 local dist = (mRoot.Position - root.Position).Magnitude
-                if dist > 500 then continue end
+                if dist > 5000 then continue end
 
                 kept[mob] = true
+
+                -- ★ giới hạn số mob kéo cùng lúc
+                local keptCount = 0
+                for _ in pairs(kept) do keptCount = keptCount + 1 end
+                if keptCount > BM_Max then continue end
 
                 if not BroughtMobData[mob] then
                     BroughtMobData[mob] = {
