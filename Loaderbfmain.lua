@@ -1542,11 +1542,13 @@ Library:CreateDropdown(TabFarm, "Select Boss", _bossOpts, "None", function(v)
         -- cắt " [Lv.xxx]" ra lấy tên gốc
         SelectedBoss = v:match("^(.-)%s*%[Lv") or v
     end
-    BossTarget = nil
+    BossTarget      = nil
+    _lastWaitNotify = 0    -- ★ reset khi đổi boss
 end)
 
 Library:CreateToggle(TabFarm, "Auto Farm Boss", false, function(v)
     BossFarmOn = v
+    _lastWaitNotify = 0    -- ★ reset mỗi lần toggle
 
     if FirstBossToggleInit then
         FirstBossToggleInit = false
@@ -2769,15 +2771,20 @@ end
 local _cachedBoss      = nil
 local _cachedBossHum   = nil
 local _lastBossSearch  = 0
-local BOSS_SEARCH_GAP  = 1.5   -- tìm boss mỗi 1.5s nếu chưa có
+local BOSS_SEARCH_GAP  = 1.5
+
+-- ★ thêm 2 biến này
+local _lastWaitNotify  = 0
+local WAIT_NOTIFY_GAP  = 10   -- notify mỗi 10s
 
 task.spawn(function()
     while true do
         task.wait(0.1)   -- ★ 10Hz thay vì 100Hz
 
         if not BossFarmOn or SelectedBoss == "None" or not BossDB[SelectedBoss] then
-            _cachedBoss    = nil
-            _cachedBossHum = nil
+            _cachedBoss     = nil
+            _cachedBossHum  = nil
+            _lastWaitNotify = 0    -- ★ reset khi tắt
             task.wait(0.5)
         else
             local ok, err = pcall(function()
@@ -2788,8 +2795,9 @@ task.spawn(function()
 
                 -- ★ invalidate cache nếu boss chết / bị xóa
                 if _cachedBoss and (not _cachedBoss.Parent or not _cachedBossHum or _cachedBossHum.Health <= 0) then
-                    _cachedBoss    = nil
-                    _cachedBossHum = nil
+                    _cachedBoss     = nil
+                    _cachedBossHum  = nil
+                    _lastWaitNotify = 0    -- ★ reset → notify liền khi boss mới chết
                 end
 
                 -- ★ chỉ search khi cache rỗng + đủ gap
@@ -2814,6 +2822,16 @@ task.spawn(function()
                         farmMoving    = false
                         farmTargetPos = nil
                         if flyBV then flyBV.VectorVelocity = Vector3.zero end
+                    end
+
+                    -- ★ NOTIFY mỗi 10s khi đang đợi boss spawn
+                    local nowN = tick()
+                    if nowN - _lastWaitNotify >= WAIT_NOTIFY_GAP then
+                        _lastWaitNotify = nowN
+                        local lv = bossData.Level or "?"
+                        Library:Notify("KairosHub",
+                            string.format("Waiting for boss spawn... [%s | Lv.%s]", SelectedBoss, tostring(lv)),
+                            4)
                     end
                     return
                 end
