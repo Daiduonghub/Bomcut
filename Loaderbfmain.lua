@@ -2311,10 +2311,9 @@ end
                 local dz = root.Position.Z - mRoot.Position.Z
                 local horizDist = math.sqrt(dx * dx + dz * dz)
 
-                                -- ===== DI CHUYỂN =====
+               -- ===== DI CHUYỂN =====
 if BM_On then
     if not AnchorReached then
-        -- ★ Chỉ bring khi ở gần anchor (< 25 studs) VÀ đủ Y cao
         if horizDist > 25 then
             if not farmMoving then
                 FlyTo(mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0))
@@ -2322,29 +2321,40 @@ if BM_On then
                 farmTargetPos = mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0)
             end
         else
-            -- Tới gần → lock + bay lên cao
             AnchorReached = true
             farmMoving    = false
             farmTargetPos = nil
             if flyBV then flyBV.VectorVelocity = Vector3.zero end
 
-            -- ★ Bay lên cao 25 studs so với mob
             local liftPos = Vector3.new(root.Position.X, mRoot.Position.Y + 25, root.Position.Z)
             root.CFrame = CFrame.lookAt(liftPos, liftPos + Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z).Unit)
         end
     else
-        -- ★ Lock: đứng yên + giữ Y cao hơn mob
         farmMoving    = false
         farmTargetPos = nil
         if flyBV then flyBV.VectorVelocity = Vector3.zero end
 
-        -- Force Y cao hơn mob 25 studs
         if root.Position.Y < mRoot.Position.Y + 20 then
             local p = root.Position
             root.CFrame = CFrame.new(p.X, mRoot.Position.Y + 25, p.Z)
         end
     end
 elseif horizDist > STOP_RANGE then
+    if not farmMoving then
+        FlyTo(mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0))
+    else
+        local newTarget = mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0)
+        if newTarget.Y < MIN_Y then
+            newTarget = Vector3.new(newTarget.X, MIN_Y, newTarget.Z)
+        end
+        farmTargetPos = newTarget
+    end
+else
+    farmMoving    = false
+    farmTargetPos = nil
+    if flyBV then flyBV.VectorVelocity = Vector3.zero end
+end
+
                 -- ===== ĐÁNH =====
                 if horizDist <= ATTACK_RANGE then
                     -- Gom tất cả mob cùng loại trong tầm
