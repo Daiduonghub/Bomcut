@@ -8,6 +8,13 @@ local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local LP = Players.LocalPlayer
+-- ============================================================
+-- BRONZE PALETTE — reference (không dùng trực tiếp)
+-- ============================================================
+local BRONZE      = Color3.fromRGB(200, 150, 100)
+local BRONZE_LIGHT = Color3.fromRGB(230, 190, 140)
+local BRONZE_DARK  = Color3.fromRGB(140, 100, 65)
+local CREAM        = Color3.fromRGB(245, 230, 210)
 
 if CoreGui:FindFirstChild("AbyssalHub") then
     CoreGui.AbyssalHub:Destroy()
@@ -23,7 +30,7 @@ local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 520, 0, 360)
 MainFrame.Position = UDim2.new(0.5, -260, 0.5, -180)
-MainFrame.BackgroundColor3 = Color3.fromRGB(10, 8, 18)
+MainFrame.BackgroundColor3 = Color3.fromRGB(18, 14, 12)
 MainFrame.BackgroundTransparency = 0.05
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -36,25 +43,41 @@ MainCorner.Parent = MainFrame
 
 local MainGradient = Instance.new("UIGradient")
 MainGradient.Color = ColorSequence.new{
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(15, 10, 30)),
-    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(8, 5, 20)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 10, 40))
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(28, 22, 18)),
+ColorSequenceKeypoint.new(0.5, Color3.fromRGB(14, 11, 9)),
+ColorSequenceKeypoint.new(1, Color3.fromRGB(38, 30, 24))
+
 }
 MainGradient.Rotation = 135
 MainGradient.Parent = MainFrame
 
 local MainStroke = Instance.new("UIStroke")
-MainStroke.Color = Color3.fromRGB(140, 60, 255)
+MainStroke.Color = Color3.fromRGB(200, 150, 100)
 MainStroke.Thickness = 1.5
 MainStroke.Transparency = 0.15
 MainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 MainStroke.Parent = MainFrame
 
+-- ★ Stroke xoay gradient — shimmer effect
 task.spawn(function()
+    local hue = 0
     while MainFrame.Parent do
-        TweenService:Create(MainStroke, TweenInfo.new(2.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Transparency = 0.65, Color = Color3.fromRGB(80, 180, 255)}):Play()
+        hue = (hue + 0.008) % 1
+        local c1 = Color3.fromHSV(hue, 0.35, 0.85)  -- vàng đồng
+        local c2 = Color3.fromRGB(200, 150, 100)
+        local c3 = Color3.fromRGB(230, 190, 140)
+
+        MainStroke.Color = c1
+
+        TweenService:Create(MainStroke, TweenInfo.new(2.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+            Transparency = 0.6,
+            Color = c3
+        }):Play()
         task.wait(2.5)
-        TweenService:Create(MainStroke, TweenInfo.new(2.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Transparency = 0.15, Color = Color3.fromRGB(140, 60, 255)}):Play()
+        TweenService:Create(MainStroke, TweenInfo.new(2.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+            Transparency = 0.15,
+            Color = c2
+        }):Play()
         task.wait(2.5)
     end
 end)
@@ -68,7 +91,7 @@ Header.Parent = MainFrame
 local HeaderLine = Instance.new("Frame")
 HeaderLine.Size = UDim2.new(1, -24, 0, 1)
 HeaderLine.Position = UDim2.new(0, 12, 1, -1)
-HeaderLine.BackgroundColor3 = Color3.fromRGB(140, 60, 255)
+HeaderLine.BackgroundColor3 = Color3.fromRGB(200, 150, 100)
 HeaderLine.BackgroundTransparency = 0.5
 HeaderLine.BorderSizePixel = 0
 HeaderLine.Parent = Header
@@ -76,7 +99,7 @@ HeaderLine.Parent = Header
 local LogoDot = Instance.new("Frame")
 LogoDot.Size = UDim2.new(0, 10, 0, 10)
 LogoDot.Position = UDim2.new(0, 20, 0.5, -5)
-LogoDot.BackgroundColor3 = Color3.fromRGB(140, 60, 255)
+LogoDot.BackgroundColor3 = Color3.fromRGB(200, 150, 100)
 LogoDot.BorderSizePixel = 0
 LogoDot.Parent = Header
 
@@ -86,9 +109,9 @@ LogoCorner.Parent = LogoDot
 
 task.spawn(function()
     while LogoDot.Parent do
-        TweenService:Create(LogoDot, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundColor3 = Color3.fromRGB(80, 180, 255)}):Play()
+        TweenService:Create(LogoDot, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundColor3 = Color3.fromRGB(230, 190, 140)}):Play()
         task.wait(1.5)
-        TweenService:Create(LogoDot, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundColor3 = Color3.fromRGB(140, 60, 255)}):Play()
+        TweenService:Create(LogoDot, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundColor3 = Color3.fromRGB(200, 150, 100)}):Play()
         task.wait(1.5)
     end
 end)
@@ -98,7 +121,7 @@ Title.Size = UDim2.new(1, -60, 1, 0)
 Title.Position = UDim2.new(0, 38, 0, 0)
 Title.BackgroundTransparency = 1
 Title.Text = "Kairos Hub"
-Title.TextColor3 = Color3.fromRGB(235, 225, 255)
+Title.TextColor3 = Color3.fromRGB(245, 230, 210)
 Title.TextSize = 21
 Title.Font = Enum.Font.GothamBold
 Title.TextXAlignment = Enum.TextXAlignment.Left
@@ -109,7 +132,7 @@ SubTitle.Size = UDim2.new(0, 80, 1, 0)
 SubTitle.Position = UDim2.new(0, 178, 0, 0)
 SubTitle.BackgroundTransparency = 1
 SubTitle.Text = "v1.0 - Blox fruits [Premium]"
-SubTitle.TextColor3 = Color3.fromRGB(140, 60, 255)
+SubTitle.TextColor3 = Color3.fromRGB(200, 150, 100)
 SubTitle.TextSize = 12
 SubTitle.Font = Enum.Font.Gotham
 SubTitle.TextXAlignment = Enum.TextXAlignment.Left
@@ -132,7 +155,7 @@ CloseCorner.CornerRadius = UDim.new(0, 8)
 CloseCorner.Parent = CloseBtn
 
 CloseBtn.MouseEnter:Connect(function()
-    TweenService:Create(CloseBtn, TweenInfo.new(0.15), {BackgroundTransparency = 0.5, TextColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+    TweenService:Create(CloseBtn, TweenInfo.new(0.15), {BackgroundTransparency = 0.5, TextColor3 = Color3.fromRGB(255, 250, 240)}):Play()
 end)
 CloseBtn.MouseLeave:Connect(function()
     TweenService:Create(CloseBtn, TweenInfo.new(0.15), {BackgroundTransparency = 0.85, TextColor3 = Color3.fromRGB(255, 200, 210)}):Play()
@@ -144,7 +167,7 @@ end)
 local MaximizeBtn = Instance.new("TextButton")
 MaximizeBtn.Size = UDim2.new(0, 32, 0, 32)
 MaximizeBtn.Position = UDim2.new(1, -80, 0, 10)
-MaximizeBtn.BackgroundColor3 = Color3.fromRGB(80, 180, 255)
+MaximizeBtn.BackgroundColor3 = Color3.fromRGB(230, 190, 140)
 MaximizeBtn.BackgroundTransparency = 0.85
 MaximizeBtn.Text = ""
 MaximizeBtn.BorderSizePixel = 0
@@ -177,8 +200,8 @@ MinimizeIcon.Parent = MaximizeBtn
 
 MaximizeBtn.MouseEnter:Connect(function()
     TweenService:Create(MaximizeBtn, TweenInfo.new(0.15), {BackgroundTransparency = 0.5}):Play()
-    TweenService:Create(MaximizeIcon, TweenInfo.new(0.15), {ImageColor3 = Color3.fromRGB(255, 255, 255)}):Play()
-    TweenService:Create(MinimizeIcon, TweenInfo.new(0.15), {ImageColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+    TweenService:Create(MaximizeIcon, TweenInfo.new(0.15), {ImageColor3 = Color3.fromRGB(255, 250, 240)}):Play()
+    TweenService:Create(MinimizeIcon, TweenInfo.new(0.15), {ImageColor3 = Color3.fromRGB(255, 250, 240)}):Play()
 end)
 MaximizeBtn.MouseLeave:Connect(function()
     TweenService:Create(MaximizeBtn, TweenInfo.new(0.15), {BackgroundTransparency = 0.85}):Play()
@@ -190,7 +213,7 @@ local SideBar = Instance.new("Frame")
 SideBar.Name = "SideBar"
 SideBar.Size = UDim2.new(0, 120, 1, -66)
 SideBar.Position = UDim2.new(0, 8, 0, 58)
-SideBar.BackgroundColor3 = Color3.fromRGB(6, 4, 14)
+SideBar.BackgroundColor3 = Color3.fromRGB(12, 9, 7)
 SideBar.BackgroundTransparency = 0.35
 SideBar.BorderSizePixel = 0
 SideBar.Parent = MainFrame
@@ -239,8 +262,8 @@ RemoveHighlight = function() end
 FA_On = false
 FA_Delay = 0.03
 BM_On = false
-BM_Max = 5  -- thay vì BM_Range / BM_Offset
--- Bring Mob — khai báo trước để toggle thấy được
+BM_Max = 5
+AnchorReached = false   -- ★ đã tới anchor mob chưa
 BroughtMobData  = {}
 RestoreMob      = function() end
 ForceRestoreAllMobs = function() end   -- ★ stub, gán thực sau
@@ -358,8 +381,8 @@ AddHighlight = function()
     -- Tạo Highlight (màu fill)
     PlayerHighlight = Instance.new("Highlight")
     PlayerHighlight.Name = "AbyssalHighlight"
-    PlayerHighlight.FillColor = Color3.fromRGB(140, 60, 255)
-    PlayerHighlight.OutlineColor = Color3.fromRGB(200, 180, 255)
+    PlayerHighlight.FillColor = Color3.fromRGB(200, 150, 100)
+    PlayerHighlight.OutlineColor = Color3.fromRGB(225, 205, 180)
     PlayerHighlight.FillTransparency = 0.5
     PlayerHighlight.OutlineTransparency = 0
     PlayerHighlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
@@ -421,7 +444,7 @@ function Library:Notify(title, text, duration)
 
     local NotifFrame = Instance.new("Frame")
     NotifFrame.Size = UDim2.new(0, 320, 0, notifHeight)   -- ★ chiều cao động
-    NotifFrame.BackgroundColor3 = Color3.fromRGB(14, 10, 26)
+    NotifFrame.BackgroundColor3 = Color3.fromRGB(20, 16, 14)
     NotifFrame.BackgroundTransparency = 0.05
     NotifFrame.BorderSizePixel = 0
     NotifFrame.Parent = ScreenGui
@@ -431,7 +454,7 @@ function Library:Notify(title, text, duration)
     NotifCorner.Parent = NotifFrame
 
     local NotifStroke = Instance.new("UIStroke")
-    NotifStroke.Color = Color3.fromRGB(140, 60, 255)
+    NotifStroke.Color = Color3.fromRGB(200, 150, 100)
     NotifStroke.Thickness = 1
     NotifStroke.Transparency = 0.3
     NotifStroke.Parent = NotifFrame
@@ -439,7 +462,7 @@ function Library:Notify(title, text, duration)
     local Accent = Instance.new("Frame")
     Accent.Size = UDim2.new(0, 4, 1, -16)
     Accent.Position = UDim2.new(0, 0, 0, 8)
-    Accent.BackgroundColor3 = Color3.fromRGB(140, 60, 255)
+    Accent.BackgroundColor3 = Color3.fromRGB(200, 150, 100)
     Accent.BorderSizePixel = 0
     Accent.Parent = NotifFrame
 
@@ -452,7 +475,7 @@ function Library:Notify(title, text, duration)
     NotifTitle.Position = UDim2.new(0, 18, 0, topPad)
     NotifTitle.BackgroundTransparency = 1
     NotifTitle.Text = title
-    NotifTitle.TextColor3 = Color3.fromRGB(235, 225, 255)
+    NotifTitle.TextColor3 = Color3.fromRGB(245, 230, 210)
     NotifTitle.TextSize = 15
     NotifTitle.Font = Enum.Font.GothamBold
     NotifTitle.TextXAlignment = Enum.TextXAlignment.Left
@@ -464,7 +487,7 @@ function Library:Notify(title, text, duration)
     NotifText.Position = UDim2.new(0, 18, 0, topPad + titleHeight + midGap)
     NotifText.BackgroundTransparency = 1
     NotifText.Text = text
-    NotifText.TextColor3 = Color3.fromRGB(180, 180, 200)
+    NotifText.TextColor3 = Color3.fromRGB(190, 175, 155)
     NotifText.TextSize = TEXT_SIZE
     NotifText.Font = Enum.Font.Gotham
     NotifText.TextXAlignment = Enum.TextXAlignment.Left
@@ -479,12 +502,17 @@ function Library:Notify(title, text, duration)
     })
 
     -- Vị trí ban đầu: offscreen bên phải
-    NotifFrame.Position = UDim2.new(1, 20, 1, -notifHeight - 20)
+    -- ★ Pop-in effect
+NotifFrame.Position = UDim2.new(1, 20, 1, -notifHeight - 20)
+NotifFrame.Size = UDim2.new(0, 0, 0, notifHeight)
 
-    task.spawn(function()
-        task.wait()
-        UpdateNotifPositions()
-    end)
+task.spawn(function()
+    task.wait()
+    TweenService:Create(NotifFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Size = UDim2.new(0, 320, 0, notifHeight)
+    }):Play()
+    UpdateNotifPositions()
+end)
 
     -- Auto remove
     task.delay(duration, function()
@@ -511,10 +539,10 @@ end
 function Library:CreateTab(name)
     local TabBtn = Instance.new("TextButton")
     TabBtn.Size = UDim2.new(1, 0, 0, 34)
-    TabBtn.BackgroundColor3 = Color3.fromRGB(28, 22, 45)
+    TabBtn.BackgroundColor3 = Color3.fromRGB(32, 26, 22)
     TabBtn.BackgroundTransparency = 0.5
     TabBtn.Text = name
-    TabBtn.TextColor3 = Color3.fromRGB(180, 180, 200)
+    TabBtn.TextColor3 = Color3.fromRGB(190, 175, 155)
     TabBtn.TextSize = 13
     TabBtn.Font = Enum.Font.GothamMedium
     TabBtn.BorderSizePixel = 0
@@ -529,7 +557,7 @@ function Library:CreateTab(name)
     TabFrame.BackgroundTransparency = 1
     TabFrame.BorderSizePixel = 0
     TabFrame.ScrollBarThickness = 4
-    TabFrame.ScrollBarImageColor3 = Color3.fromRGB(140, 60, 255)
+    TabFrame.ScrollBarImageColor3 = Color3.fromRGB(200, 150, 100)
     TabFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y -- THAY BẰNG DÒNG NÀY
     TabFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
     TabFrame.Visible = false
@@ -550,31 +578,46 @@ function Library:CreateTab(name)
     local tabObj = {Button = TabBtn, Frame = TabFrame, Name = name}
     table.insert(Library.Tabs, tabObj)
     
-    TabBtn.MouseEnter:Connect(function()
-        if Library.CurrentTab ~= tabObj then
-            TweenService:Create(TabBtn, TweenInfo.new(0.15), {BackgroundTransparency = 0.3}):Play()
-        end
-    end)
-    TabBtn.MouseLeave:Connect(function()
-        if Library.CurrentTab ~= tabObj then
-            TweenService:Create(TabBtn, TweenInfo.new(0.15), {BackgroundTransparency = 0.5}):Play()
-        end
-    end)
     TabBtn.MouseButton1Click:Connect(function()
     for _, t in ipairs(Library.Tabs) do
         t.Frame.Visible = false
         TweenService:Create(t.Button, TweenInfo.new(0.2), {
-            BackgroundColor3 = Color3.fromRGB(28, 22, 45),
+            BackgroundColor3 = Color3.fromRGB(32, 26, 22),
             BackgroundTransparency = 0.5,
-            TextColor3 = Color3.fromRGB(180, 180, 200)
+            TextColor3 = Color3.fromRGB(190, 175, 155)
         }):Play()
     end
     TabFrame.Visible = true
     TweenService:Create(TabBtn, TweenInfo.new(0.2), {
-        BackgroundColor3 = Color3.fromRGB(140, 60, 255),
+        BackgroundColor3 = BRONZE,
         BackgroundTransparency = 0.2,
-        TextColor3 = Color3.fromRGB(255, 255, 255)
+        TextColor3 = Color3.fromRGB(255, 250, 240)
     }):Play()
+
+    -- ★ Flash effect khi chuyển tab
+    local flash = Instance.new("Frame")
+    flash.Size = UDim2.new(1, 0, 1, 0)
+    flash.BackgroundColor3 = BRONZE_LIGHT
+    flash.BackgroundTransparency = 0.4
+    flash.BorderSizePixel = 0
+    flash.ZIndex = 10
+    flash.Parent = TabFrame
+
+    local fCorner = Instance.new("UICorner")
+    fCorner.CornerRadius = UDim.new(0, 8)
+    fCorner.Parent = flash
+
+    TweenService:Create(flash, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        BackgroundTransparency = 1
+    }):Play()
+    task.delay(0.4, function() flash:Destroy() end)
+
+    -- ★ Pulse nhẹ lên text
+    TweenService:Create(TabBtn, TweenInfo.new(0.1), {TextSize = 14}):Play()
+    task.delay(0.1, function()
+        TweenService:Create(TabBtn, TweenInfo.new(0.2), {TextSize = 13}):Play()
+    end)
+
     Library.CurrentTab = tabObj
 end)
     
@@ -584,7 +627,7 @@ end
 function Library:CreateToggle(tab, name, default, callback)
     local ToggleFrame = Instance.new("Frame")
     ToggleFrame.Size = UDim2.new(1, -12, 0, 40)
-    ToggleFrame.BackgroundColor3 = Color3.fromRGB(22, 16, 38)
+    ToggleFrame.BackgroundColor3 = Color3.fromRGB(30, 24, 20)
     ToggleFrame.BackgroundTransparency = 0.4
     ToggleFrame.BorderSizePixel = 0
     ToggleFrame.Parent = tab.Frame
@@ -598,7 +641,7 @@ function Library:CreateToggle(tab, name, default, callback)
     TLabel.Position = UDim2.new(0, 14, 0, 0)
     TLabel.BackgroundTransparency = 1
     TLabel.Text = name
-    TLabel.TextColor3 = Color3.fromRGB(220, 220, 240)
+    TLabel.TextColor3 = Color3.fromRGB(225, 210, 190)
     TLabel.TextSize = 13
     TLabel.Font = Enum.Font.GothamMedium
     TLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -607,7 +650,7 @@ function Library:CreateToggle(tab, name, default, callback)
     local ToggleBg = Instance.new("Frame")
     ToggleBg.Size = UDim2.new(0, 42, 0, 22)
     ToggleBg.Position = UDim2.new(1, -54, 0.5, -11)
-    ToggleBg.BackgroundColor3 = Color3.fromRGB(45, 38, 65)
+    ToggleBg.BackgroundColor3 = Color3.fromRGB(55, 45, 38)
     ToggleBg.BorderSizePixel = 0
     ToggleBg.Parent = ToggleFrame
     
@@ -618,7 +661,7 @@ function Library:CreateToggle(tab, name, default, callback)
     local Knob = Instance.new("Frame")
     Knob.Size = UDim2.new(0, 16, 0, 16)
     Knob.Position = UDim2.new(0, 3, 0.5, -8)
-    Knob.BackgroundColor3 = Color3.fromRGB(200, 200, 220)
+    Knob.BackgroundColor3 = Color3.fromRGB(210, 195, 175)
     Knob.BorderSizePixel = 0
     Knob.Parent = ToggleBg
     
@@ -635,16 +678,22 @@ function Library:CreateToggle(tab, name, default, callback)
     local state = default or false
     
     local function update(v)
-        state = v
-        if state then
-            TweenService:Create(ToggleBg, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundColor3 = Color3.fromRGB(140, 60, 255)}):Play()
-            TweenService:Create(Knob, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Position = UDim2.new(0, 23, 0.5, -8), BackgroundColor3 = Color3.fromRGB(255, 255, 255)}):Play()
-        else
-            TweenService:Create(ToggleBg, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundColor3 = Color3.fromRGB(45, 38, 65)}):Play()
-            TweenService:Create(Knob, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Position = UDim2.new(0, 3, 0.5, -8), BackgroundColor3 = Color3.fromRGB(200, 200, 220)}):Play()
-        end
-        if callback then callback(state) end
+    state = v
+    if state then
+        TweenService:Create(ToggleBg, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundColor3 = BRONZE}):Play()
+        TweenService:Create(Knob, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Position = UDim2.new(0, 23, 0.5, -8), BackgroundColor3 = Color3.fromRGB(255, 250, 240)}):Play()
+
+        -- ★ Pulse effect khi bật
+        TweenService:Create(ToggleBg, TweenInfo.new(0.15), {BackgroundTransparency = 0.2}):Play()
+        task.delay(0.15, function()
+            TweenService:Create(ToggleBg, TweenInfo.new(0.3), {BackgroundTransparency = 0.4}):Play()
+        end)
+    else
+        TweenService:Create(ToggleBg, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundColor3 = Color3.fromRGB(55, 45, 38)}):Play()
+        TweenService:Create(Knob, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Position = UDim2.new(0, 3, 0.5, -8), BackgroundColor3 = Color3.fromRGB(200, 190, 175)}):Play()
     end
+    if callback then callback(state) end
+end
     
     TButton.MouseButton1Click:Connect(function()
         update(not state)
@@ -657,10 +706,10 @@ end
 function Library:CreateButton(tab, name, callback)
     local Btn = Instance.new("TextButton")
     Btn.Size = UDim2.new(1, -12, 0, 40)
-    Btn.BackgroundColor3 = Color3.fromRGB(140, 60, 255)
+    Btn.BackgroundColor3 = Color3.fromRGB(200, 150, 100)
     Btn.BackgroundTransparency = 0.15
     Btn.Text = name
-    Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Btn.TextColor3 = Color3.fromRGB(255, 250, 240)
     Btn.TextSize = 14
     Btn.Font = Enum.Font.GothamBold
     Btn.BorderSizePixel = 0
@@ -671,7 +720,7 @@ function Library:CreateButton(tab, name, callback)
     BCorner.Parent = Btn
     
     local BStroke = Instance.new("UIStroke")
-    BStroke.Color = Color3.fromRGB(180, 120, 255)
+    BStroke.Color = Color3.fromRGB(180, 140, 100)
     BStroke.Thickness = 1
     BStroke.Transparency = 0.4
     BStroke.Parent = Btn
@@ -686,10 +735,32 @@ function Library:CreateButton(tab, name, callback)
     end)
     
     Btn.MouseButton1Down:Connect(function()
-        TweenService:Create(Btn, TweenInfo.new(0.08, Enum.EasingStyle.Quad), {
-            Size = UDim2.new(origSize.X.Scale, origSize.X.Offset - 6, origSize.Y.Scale, origSize.Y.Offset - 4)
-        }):Play()
-    end)
+    TweenService:Create(Btn, TweenInfo.new(0.08, Enum.EasingStyle.Quad), {
+        Size = UDim2.new(origSize.X.Scale, origSize.X.Offset - 6, origSize.Y.Scale, origSize.Y.Offset - 4)
+    }):Play()
+
+    -- ★ Ripple effect
+    local ripple = Instance.new("Frame")
+    ripple.Size = UDim2.new(0, 0, 0, 0)
+    ripple.Position = UDim2.new(0.5, 0, 0.5, 0)
+    ripple.AnchorPoint = Vector2.new(0.5, 0.5)
+    ripple.BackgroundColor3 = BRONZE_LIGHT
+    ripple.BackgroundTransparency = 0.4
+    ripple.BorderSizePixel = 0
+    ripple.ZIndex = 5
+    ripple.Parent = Btn
+
+    local rCorner = Instance.new("UICorner")
+    rCorner.CornerRadius = UDim.new(1, 0)
+    rCorner.Parent = ripple
+
+    local maxSize = math.max(Btn.AbsoluteSize.X, Btn.AbsoluteSize.Y) * 2
+    TweenService:Create(ripple, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Size = UDim2.new(0, maxSize, 0, maxSize),
+        BackgroundTransparency = 1
+    }):Play()
+    task.delay(0.5, function() ripple:Destroy() end)
+end)
     Btn.MouseButton1Up:Connect(function()
         TweenService:Create(Btn, TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
             Size = origSize
@@ -705,7 +776,7 @@ function Library:CreateLabel(tab, text)
     Lbl.Size = UDim2.new(1, -12, 0, 30)
     Lbl.BackgroundTransparency = 1
     Lbl.Text = text
-    Lbl.TextColor3 = Color3.fromRGB(200, 200, 220)
+    Lbl.TextColor3 = Color3.fromRGB(210, 195, 175)
     Lbl.TextSize = 13
     Lbl.Font = Enum.Font.Gotham
     Lbl.TextXAlignment = Enum.TextXAlignment.Left
@@ -721,7 +792,7 @@ end
 function Library:CreateSlider(tab, name, min, max, default, callback)
     local SlideFrame = Instance.new("Frame")
     SlideFrame.Size = UDim2.new(1, -12, 0, 54)
-    SlideFrame.BackgroundColor3 = Color3.fromRGB(22, 16, 38)
+    SlideFrame.BackgroundColor3 = Color3.fromRGB(30, 24, 20)
     SlideFrame.BackgroundTransparency = 0.4
     SlideFrame.BorderSizePixel = 0
     SlideFrame.Parent = tab.Frame
@@ -735,7 +806,7 @@ function Library:CreateSlider(tab, name, min, max, default, callback)
     SLabel.Position = UDim2.new(0, 14, 0, 4)
     SLabel.BackgroundTransparency = 1
     SLabel.Text = name
-    SLabel.TextColor3 = Color3.fromRGB(220, 220, 240)
+    SLabel.TextColor3 = Color3.fromRGB(225, 210, 190)
     SLabel.TextSize = 13
     SLabel.Font = Enum.Font.GothamMedium
     SLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -746,7 +817,7 @@ function Library:CreateSlider(tab, name, min, max, default, callback)
     ValueLbl.Position = UDim2.new(1, -74, 0, 4)
     ValueLbl.BackgroundTransparency = 1
     ValueLbl.Text = tostring(default)
-    ValueLbl.TextColor3 = Color3.fromRGB(140, 60, 255)
+    ValueLbl.TextColor3 = Color3.fromRGB(200, 150, 100)
     ValueLbl.TextSize = 13
     ValueLbl.Font = Enum.Font.GothamBold
     ValueLbl.TextXAlignment = Enum.TextXAlignment.Right
@@ -755,7 +826,7 @@ function Library:CreateSlider(tab, name, min, max, default, callback)
     local Bar = Instance.new("Frame")
     Bar.Size = UDim2.new(1, -28, 0, 6)
     Bar.Position = UDim2.new(0, 14, 1, -16)
-    Bar.BackgroundColor3 = Color3.fromRGB(45, 38, 65)
+    Bar.BackgroundColor3 = Color3.fromRGB(55, 45, 38)
     Bar.BorderSizePixel = 0
     Bar.Parent = SlideFrame
     
@@ -765,7 +836,7 @@ function Library:CreateSlider(tab, name, min, max, default, callback)
     
     local Fill = Instance.new("Frame")
     Fill.Size = UDim2.new(0, 0, 1, 0)
-    Fill.BackgroundColor3 = Color3.fromRGB(140, 60, 255)
+    Fill.BackgroundColor3 = Color3.fromRGB(200, 150, 100)
     Fill.BorderSizePixel = 0
     Fill.Parent = Bar
     
@@ -776,7 +847,7 @@ function Library:CreateSlider(tab, name, min, max, default, callback)
     -- Градиент на заполненной части
     local FillGradient = Instance.new("UIGradient")
     FillGradient.Color = ColorSequence.new{
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(80, 180, 255)),
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(230, 190, 140)),
         ColorSequenceKeypoint.new(1, Color3.fromRGB(180, 80, 255))
     }
     FillGradient.Parent = Fill
@@ -785,7 +856,7 @@ function Library:CreateSlider(tab, name, min, max, default, callback)
     local Dot = Instance.new("Frame")
     Dot.Size = UDim2.new(0, 18, 0, 18)
     Dot.Position = UDim2.new(0, -9, 0.5, -9)
-    Dot.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    Dot.BackgroundColor3 = Color3.fromRGB(255, 250, 240)
     Dot.BorderSizePixel = 0
     Dot.ZIndex = 3
     Dot.Parent = Bar -- ВАЖНО: Bar, а не Fill
@@ -796,14 +867,14 @@ function Library:CreateSlider(tab, name, min, max, default, callback)
     
     local DotGradient = Instance.new("UIGradient")
     DotGradient.Color = ColorSequence.new{
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 180, 255))
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 250, 240)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(225, 205, 180))
     }
     DotGradient.Rotation = 90
     DotGradient.Parent = Dot
     
     local DotStroke = Instance.new("UIStroke")
-    DotStroke.Color = Color3.fromRGB(140, 60, 255)
+    DotStroke.Color = Color3.fromRGB(200, 150, 100)
     DotStroke.Thickness = 2
     DotStroke.Transparency = 0.1
     DotStroke.Parent = Dot
@@ -814,7 +885,7 @@ function Library:CreateSlider(tab, name, min, max, default, callback)
     DotGlow.Position = UDim2.new(0.5, -17, 0.5, -17)
     DotGlow.BackgroundTransparency = 1
     DotGlow.Image = "rbxassetid://5028857084"
-    DotGlow.ImageColor3 = Color3.fromRGB(140, 60, 255)
+    DotGlow.ImageColor3 = Color3.fromRGB(200, 150, 100)
     DotGlow.ImageTransparency = 0.3
     DotGlow.ZIndex = 2
     DotGlow.Parent = Dot
@@ -898,7 +969,7 @@ function Library:CreateDropdown(tab, name, options, default, callback)
     -- Khung chua
     local DropFrame = Instance.new("Frame")
     DropFrame.Size = UDim2.new(1, -12, 0, 40)
-    DropFrame.BackgroundColor3 = Color3.fromRGB(22, 16, 38)
+    DropFrame.BackgroundColor3 = Color3.fromRGB(30, 24, 20)
     DropFrame.BackgroundTransparency = 0.4
     DropFrame.BorderSizePixel = 0
     DropFrame.ClipsDescendants = false
@@ -915,7 +986,7 @@ function Library:CreateDropdown(tab, name, options, default, callback)
     DLabel.Position = UDim2.new(0, 14, 0, 0)
     DLabel.BackgroundTransparency = 1
     DLabel.Text = name
-    DLabel.TextColor3 = Color3.fromRGB(220, 220, 240)
+    DLabel.TextColor3 = Color3.fromRGB(225, 210, 190)
     DLabel.TextSize = 13
     DLabel.Font = Enum.Font.GothamMedium
     DLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -928,7 +999,7 @@ function Library:CreateDropdown(tab, name, options, default, callback)
     SelectedLbl.Position = UDim2.new(0.5, 0, 0, 0)
     SelectedLbl.BackgroundTransparency = 1
     SelectedLbl.Text = tostring(default)
-    SelectedLbl.TextColor3 = Color3.fromRGB(140, 60, 255)
+    SelectedLbl.TextColor3 = Color3.fromRGB(200, 150, 100)
     SelectedLbl.TextSize = 13
     SelectedLbl.Font = Enum.Font.GothamBold
     SelectedLbl.TextXAlignment = Enum.TextXAlignment.Right
@@ -941,7 +1012,7 @@ function Library:CreateDropdown(tab, name, options, default, callback)
     Arrow.Position = UDim2.new(1, -24, 0, 0)
     Arrow.BackgroundTransparency = 1
     Arrow.Text = "▼"
-    Arrow.TextColor3 = Color3.fromRGB(140, 60, 255)
+    Arrow.TextColor3 = Color3.fromRGB(200, 150, 100)
     Arrow.TextSize = 10
     Arrow.Font = Enum.Font.GothamBold
     Arrow.ZIndex = 6
@@ -959,11 +1030,11 @@ function Library:CreateDropdown(tab, name, options, default, callback)
     local ListFrame = Instance.new("ScrollingFrame")
     ListFrame.Size = UDim2.new(1, 0, 0, 0)
     ListFrame.Position = UDim2.new(0, 0, 1, 4)
-    ListFrame.BackgroundColor3 = Color3.fromRGB(18, 12, 30)
+    ListFrame.BackgroundColor3 = Color3.fromRGB(24, 20, 16)
     ListFrame.BackgroundTransparency = 0.05
     ListFrame.BorderSizePixel = 0
     ListFrame.ScrollBarThickness = 3
-    ListFrame.ScrollBarImageColor3 = Color3.fromRGB(140, 60, 255)
+    ListFrame.ScrollBarImageColor3 = Color3.fromRGB(200, 150, 100)
     ListFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
     ListFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
     ListFrame.Visible = false
@@ -975,7 +1046,7 @@ function Library:CreateDropdown(tab, name, options, default, callback)
     LCorner.Parent = ListFrame
     
     local LStroke = Instance.new("UIStroke")
-    LStroke.Color = Color3.fromRGB(140, 60, 255)
+    LStroke.Color = Color3.fromRGB(200, 150, 100)
     LStroke.Thickness = 1
     LStroke.Transparency = 0.4
     LStroke.Parent = ListFrame
@@ -1007,10 +1078,10 @@ function Library:CreateDropdown(tab, name, options, default, callback)
     for _, opt in ipairs(options) do
         local OptBtn = Instance.new("TextButton")
         OptBtn.Size = UDim2.new(1, 0, 0, 28)
-        OptBtn.BackgroundColor3 = Color3.fromRGB(28, 22, 45)
+        OptBtn.BackgroundColor3 = Color3.fromRGB(32, 26, 22)
         OptBtn.BackgroundTransparency = 0.5
         OptBtn.Text = tostring(opt)
-        OptBtn.TextColor3 = Color3.fromRGB(220, 220, 240)
+        OptBtn.TextColor3 = Color3.fromRGB(225, 210, 190)
         OptBtn.TextSize = 12
         OptBtn.Font = Enum.Font.GothamMedium
         OptBtn.BorderSizePixel = 0
@@ -1043,16 +1114,16 @@ function Library:CreateDropdown(tab, name, options, default, callback)
             -- Reset tat ca ve mau cu
             for _, ob in ipairs(optionButtons) do
                 TweenService:Create(ob.Btn, TweenInfo.new(0.15), {
-                    BackgroundColor3 = Color3.fromRGB(28, 22, 45),
+                    BackgroundColor3 = Color3.fromRGB(32, 26, 22),
                     BackgroundTransparency = 0.5,
-                    TextColor3 = Color3.fromRGB(220, 220, 240)
+                    TextColor3 = Color3.fromRGB(225, 210, 190)
                 }):Play()
             end
             -- Highlight option duoc chon
             TweenService:Create(OptBtn, TweenInfo.new(0.15), {
-                BackgroundColor3 = Color3.fromRGB(140, 60, 255),
+                BackgroundColor3 = Color3.fromRGB(200, 150, 100),
                 BackgroundTransparency = 0.2,
-                TextColor3 = Color3.fromRGB(255, 255, 255)
+                TextColor3 = Color3.fromRGB(255, 250, 240)
             }):Play()
             
             setValue(opt)
@@ -1072,9 +1143,9 @@ function Library:CreateDropdown(tab, name, options, default, callback)
     -- Highlight option mac dinh
     for _, ob in ipairs(optionButtons) do
         if ob.Value == currentValue then
-            ob.Btn.BackgroundColor3 = Color3.fromRGB(140, 60, 255)
+            ob.Btn.BackgroundColor3 = Color3.fromRGB(200, 150, 100)
             ob.Btn.BackgroundTransparency = 0.2
-            ob.Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            ob.Btn.TextColor3 = Color3.fromRGB(255, 250, 240)
         end
     end
     
@@ -1126,10 +1197,10 @@ function Library:CreateDropdown(tab, name, options, default, callback)
             for _, opt in ipairs(newOptions) do
                 local OptBtn = Instance.new("TextButton")
                 OptBtn.Size = UDim2.new(1, 0, 0, 28)
-                OptBtn.BackgroundColor3 = Color3.fromRGB(28, 22, 45)
+                OptBtn.BackgroundColor3 = Color3.fromRGB(32, 26, 22)
                 OptBtn.BackgroundTransparency = 0.5
                 OptBtn.Text = tostring(opt)
-                OptBtn.TextColor3 = Color3.fromRGB(220, 220, 240)
+                OptBtn.TextColor3 = Color3.fromRGB(225, 210, 190)
                 OptBtn.TextSize = 12
                 OptBtn.Font = Enum.Font.GothamMedium
                 OptBtn.BorderSizePixel = 0
@@ -1150,15 +1221,15 @@ function Library:CreateDropdown(tab, name, options, default, callback)
                 OptBtn.MouseButton1Click:Connect(function()
                     for _, ob in ipairs(optionButtons) do
                         TweenService:Create(ob.Btn, TweenInfo.new(0.15), {
-                            BackgroundColor3 = Color3.fromRGB(28, 22, 45),
+                            BackgroundColor3 = Color3.fromRGB(32, 26, 22),
                             BackgroundTransparency = 0.5,
-                            TextColor3 = Color3.fromRGB(220, 220, 240)
+                            TextColor3 = Color3.fromRGB(225, 210, 190)
                         }):Play()
                     end
                     TweenService:Create(OptBtn, TweenInfo.new(0.15), {
-                        BackgroundColor3 = Color3.fromRGB(140, 60, 255),
+                        BackgroundColor3 = Color3.fromRGB(200, 150, 100),
                         BackgroundTransparency = 0.2,
-                        TextColor3 = Color3.fromRGB(255, 255, 255)
+                        TextColor3 = Color3.fromRGB(255, 250, 240)
                     }):Play()
                     
                     setValue(opt)
@@ -1183,7 +1254,7 @@ end
 function Library:CreateTextBox(tab, name, default, callback)
     local BoxFrame = Instance.new("Frame")
     BoxFrame.Size = UDim2.new(1, -12, 0, 40)
-    BoxFrame.BackgroundColor3 = Color3.fromRGB(22, 16, 38)
+    BoxFrame.BackgroundColor3 = Color3.fromRGB(30, 24, 20)
     BoxFrame.BackgroundTransparency = 0.4
     BoxFrame.BorderSizePixel = 0
     BoxFrame.Parent = tab.Frame
@@ -1197,7 +1268,7 @@ function Library:CreateTextBox(tab, name, default, callback)
     BLabel.Position = UDim2.new(0, 14, 0, 0)
     BLabel.BackgroundTransparency = 1
     BLabel.Text = name
-    BLabel.TextColor3 = Color3.fromRGB(220, 220, 240)
+    BLabel.TextColor3 = Color3.fromRGB(225, 210, 190)
     BLabel.TextSize = 13
     BLabel.Font = Enum.Font.GothamMedium
     BLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -1206,11 +1277,11 @@ function Library:CreateTextBox(tab, name, default, callback)
     local Input = Instance.new("TextBox")
     Input.Size = UDim2.new(0.45, -10, 0, 26)
     Input.Position = UDim2.new(0.5, 0, 0.5, -13)
-    Input.BackgroundColor3 = Color3.fromRGB(14, 10, 24)
+    Input.BackgroundColor3 = Color3.fromRGB(20, 16, 14)
     Input.BackgroundTransparency = 0.2
     Input.BorderSizePixel = 0
     Input.Text = tostring(default)
-    Input.TextColor3 = Color3.fromRGB(140, 60, 255)
+    Input.TextColor3 = Color3.fromRGB(200, 150, 100)
     Input.TextSize = 13
     Input.Font = Enum.Font.GothamBold
     Input.PlaceholderText = "Nhap so..."
@@ -1223,7 +1294,7 @@ function Library:CreateTextBox(tab, name, default, callback)
     ICorner.Parent = Input
     
     local IStroke = Instance.new("UIStroke")
-    IStroke.Color = Color3.fromRGB(140, 60, 255)
+    IStroke.Color = Color3.fromRGB(200, 150, 100)
     IStroke.Thickness = 1
     IStroke.Transparency = 0.4
     IStroke.Parent = Input
@@ -1250,7 +1321,7 @@ end
 function Library:CreateImage(tab, imageId, height)
     local Img = Instance.new("ImageLabel")
     Img.Size = UDim2.new(1, -12, 0, height or 120)
-    Img.BackgroundColor3 = Color3.fromRGB(22, 16, 38)
+    Img.BackgroundColor3 = Color3.fromRGB(30, 24, 20)
     Img.BackgroundTransparency = 0.4
     Img.BorderSizePixel = 0
     Img.Image = imageId
@@ -1273,10 +1344,10 @@ local ToggleKey = Enum.KeyCode.RightControl
 local OpenButton = Instance.new("TextButton")
 OpenButton.Size = UDim2.new(0, 90, 0, 34)
 OpenButton.Position = UDim2.new(0, 20, 0, 20)
-OpenButton.BackgroundColor3 = Color3.fromRGB(140, 60, 255)
+OpenButton.BackgroundColor3 = Color3.fromRGB(200, 150, 100)
 OpenButton.BackgroundTransparency = 0.15
 OpenButton.Text = "Kairos_Toggle"
-OpenButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+OpenButton.TextColor3 = Color3.fromRGB(255, 250, 240)
 OpenButton.TextSize = 12
 OpenButton.Font = Enum.Font.GothamBold
 OpenButton.BorderSizePixel = 0
@@ -1465,6 +1536,7 @@ local FirstBringToggleInit = true
 
 Library:CreateToggle(TabSettings, "BringMob", false, function(v)
     BM_On = v
+    AnchorReached = false   -- ★ reset mỗi lần toggle
 
     if FirstBringToggleInit then
         FirstBringToggleInit = false
@@ -1472,7 +1544,7 @@ Library:CreateToggle(TabSettings, "BringMob", false, function(v)
     end
 
     if v then
-        Library:Notify("KairosHub", "BringMob ON — SimulationRadius bypass", 2)
+        Library:Notify("KairosHub", "BringMob ON — bay tới anchor rồi gom", 2)
     else
         ForceRestoreAllMobs()
         Library:Notify("KairosHub", "BringMob OFF", 2)
@@ -1490,19 +1562,19 @@ local JoinTime = tick()
 Library:CreateLabel(TabStats, "── SERVER INFO ──")
 
 local TimeLabel = Library:CreateLabel(TabStats, "Thoi gian trong server: 00:00:00")
-TimeLabel:SetColor(Color3.fromRGB(140, 60, 255))
+TimeLabel:SetColor(Color3.fromRGB(200, 150, 100))
 
 local ServerIdLabel = Library:CreateLabel(TabStats, "Server ID: ...")
-ServerIdLabel:SetColor(Color3.fromRGB(80, 180, 255))
+ServerIdLabel:SetColor(Color3.fromRGB(230, 190, 140))
 
 local PlayerCountLabel = Library:CreateLabel(TabStats, "Nguoi choi: 0/0")
-PlayerCountLabel:SetColor(Color3.fromRGB(180, 180, 200))
+PlayerCountLabel:SetColor(Color3.fromRGB(190, 175, 155))
 
 local PlayerNameLabel = Library:CreateLabel(TabStats, "Ten: " .. Player.Name)
-PlayerNameLabel:SetColor(Color3.fromRGB(180, 180, 200))
+PlayerNameLabel:SetColor(Color3.fromRGB(190, 175, 155))
 
 local UserIdLabel = Library:CreateLabel(TabStats, "User ID: " .. Player.UserId)
-UserIdLabel:SetColor(Color3.fromRGB(180, 180, 200))
+UserIdLabel:SetColor(Color3.fromRGB(190, 175, 155))
 
 Library:CreateLabel(TabStats, "── PERFORMANCE ──")
 
@@ -2226,6 +2298,12 @@ end
                 local mRoot = GetMobParts(target)
                 if not mRoot then return end
 
+               -- ★ reset anchor khi target đổi (mob cũ chết)
+               if BM_On and currentTarget ~= target then
+                   currentTarget = target
+                   AnchorReached = false
+               end
+
                 -- Khoảng cách NGANG (bỏ Y)
                 local dx = root.Position.X - mRoot.Position.X
                 local dz = root.Position.Z - mRoot.Position.Z
@@ -2233,10 +2311,25 @@ end
 
                 -- ===== DI CHUYỂN =====
 if BM_On then
-    -- ★ BringMob bật → player đứng yên 1 chỗ
-    farmMoving    = false
-    farmTargetPos = nil
-    if flyBV then flyBV.VectorVelocity = Vector3.zero end
+    -- ★ BringMob: chưa tới anchor → bay tới; đã tới → đứng yên
+    if not AnchorReached then
+        if horizDist > 25 then
+            if not farmMoving then
+                FlyTo(mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0))
+            else
+                farmTargetPos = mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0)
+            end
+        else
+            AnchorReached = true
+            farmMoving    = false
+            farmTargetPos = nil
+            if flyBV then flyBV.VectorVelocity = Vector3.zero end
+        end
+    else
+        farmMoving    = false
+        farmTargetPos = nil
+        if flyBV then flyBV.VectorVelocity = Vector3.zero end
+    end
 elseif horizDist > STOP_RANGE then
     if not farmMoving then
         FlyTo(mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0))
@@ -2334,7 +2427,7 @@ end
 
 task.spawn(function()
     while task.wait() do
-        if not (AutoFarm and BM_On) then
+        if not (AutoFarm and BM_On and AnchorReached) then
             task.wait(0.5)
             continue
         end
@@ -2572,9 +2665,9 @@ pcall(function()
         Library.CurrentTab = Library.Tabs[1]
         
         TweenService:Create(Library.Tabs[1].Button, TweenInfo.new(0.2), {
-            BackgroundColor3 = Color3.fromRGB(140, 60, 255),
+            BackgroundColor3 = Color3.fromRGB(200, 150, 100),
             BackgroundTransparency = 0.2,
-            TextColor3 = Color3.fromRGB(255, 255, 255)
+            TextColor3 = Color3.fromRGB(255, 250, 240)
         }):Play()
     end
 end)
