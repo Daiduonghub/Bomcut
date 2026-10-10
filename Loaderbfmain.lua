@@ -2483,17 +2483,24 @@ ForceRestoreAllMobs = function()
     end
 end
 
+-- Luồng riêng chuyên để duy trì SimulationRadius (chạy thưa ra để không nghẽn mạng)
 task.spawn(function()
+    while true do
+        pcall(function()
+            sethiddenproperty(LP, "SimulationRadius", math.huge)
+            sethiddenproperty(LP, "MaxSimulationRadius", math.huge)
+        end)
+        task.wait(1.5) -- Cứ 1.5 giây mới cập nhật lại một lần, tránh ngợp frame
+    end
+end)
+
+-- Vòng lặp chính xử lý kéo và khóa quái
+task.spawn(function(0.1)
     while task.wait() do
         if not (AutoFarm and BM_On and AnchorReached) then
             task.wait(0.4)
             continue
         end
-
-        pcall(function()
-            sethiddenproperty(LP, "SimulationRadius", math.huge)
-            sethiddenproperty(LP, "MaxSimulationRadius", math.huge)
-        end)
 
         local root = GetPlayerParts()
         if not root then continue end
@@ -2501,7 +2508,7 @@ task.spawn(function()
         local enemies = workspace:FindFirstChild("Enemies")
         if not enemies then continue end
 
-        -- ★ giữ player đứng yên
+        -- Giữ player đứng yên
         pcall(function()
             local char = LP.Character
             if char then
@@ -2512,7 +2519,6 @@ task.spawn(function()
             end
         end)
 
-        -- ★ Y đích = Y player - 25 (đúng bằng Y ground của anchor mob)
         local destY = root.Position.Y - 25
         local FarmPos = CFrame.new(root.Position.X, destY, root.Position.Z)
         local kept = {}
