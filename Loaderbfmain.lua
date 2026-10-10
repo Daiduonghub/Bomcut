@@ -2495,8 +2495,8 @@ task.spawn(function()
 end)
 
 -- Vòng lặp chính xử lý kéo và khóa quái
-task.spawn(function(0.1)
-    while task.wait() do
+task.spawn(function()
+    while task.wait(0.1) do
         if not (AutoFarm and BM_On and AnchorReached) then
             task.wait(0.4)
             continue
