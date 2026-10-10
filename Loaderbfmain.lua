@@ -1442,20 +1442,21 @@ Library:CreateToggle(TabFarm, "Auto Farm Level", false, function(v)
     end
 
     if v then
-        CurrentQuestName = nil
-        QuestCooldown = 0
-        AddHighlight()
-        Library:Notify("KairosHub", "Auto Farm: ON", 2)
-    else
-        currentTarget = nil
-        if StopActiveTween then StopActiveTween() end
-        ForceRestoreAllMobs()  -- ★ force cleanup mob đang bring
-        CleanupFly()
-        RemoveHighlight()
-        Library:Notify("KairosHub", "Auto Farm: OFF", 2)
+    CurrentQuestName = nil
+    QuestCooldown = 0
+    AnchorReached = false   -- ★ reset khi bật
+    AddHighlight()
+    Library:Notify("KairosHub", "Auto Farm: ON", 2)
+else
+    currentTarget = nil
+    AnchorReached = false   -- ★ reset khi tắt
+    if StopActiveTween then StopActiveTween() end
+    ForceRestoreAllMobs()
+    CleanupFly()
+    RemoveHighlight()
+            Library:Notify("KairosHub", "Auto Farm: OFF", 2)
     end
 end)
-
 -- Re-add highlight khi player respawn
 LP.CharacterAdded:Connect(function(char)
     if AutoFarm then
@@ -1544,14 +1545,15 @@ Library:CreateToggle(TabSettings, "BringMob", false, function(v)
     end
 
     if v then
-        Library:Notify("KairosHub", "BringMob ON — bay tới anchor rồi gom", 2)
-    else
-        ForceRestoreAllMobs()
-        Library:Notify("KairosHub", "BringMob OFF", 2)
+    Library:Notify("KairosHub", "BringMob ON", 2)
+else
+    AnchorReached = false   -- ★ reset
+    ForceRestoreAllMobs()
+    Library:Notify("KairosHub", "BringMob OFF", 2)
     end
 end)
 
-Library:CreateTextBox(TabSettings, "Mob count (1-5)", 5, function(v)
+Library:CreateTextBox(TabSettings, "Mob count (1-5)", 2, function(v)
     BM_Max = math.clamp(math.floor(v), 1, 5)
 end)
 
@@ -2309,10 +2311,10 @@ end
                 local dz = root.Position.Z - mRoot.Position.Z
                 local horizDist = math.sqrt(dx * dx + dz * dz)
 
-                -- ===== DI CHUYỂN =====
+                                -- ===== DI CHUYỂN =====
 if BM_On then
-    -- ★ BringMob: chưa tới anchor → bay tới; đã tới → đứng yên
     if not AnchorReached then
+        -- ★ Chỉ bring khi ở gần anchor (< 25 studs) VÀ đủ Y cao
         if horizDist > 25 then
             if not farmMoving then
                 FlyTo(mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0))
@@ -2320,32 +2322,29 @@ if BM_On then
                 farmTargetPos = mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0)
             end
         else
+            -- Tới gần → lock + bay lên cao
             AnchorReached = true
             farmMoving    = false
             farmTargetPos = nil
             if flyBV then flyBV.VectorVelocity = Vector3.zero end
+
+            -- ★ Bay lên cao 25 studs so với mob
+            local liftPos = Vector3.new(root.Position.X, mRoot.Position.Y + 25, root.Position.Z)
+            root.CFrame = CFrame.lookAt(liftPos, liftPos + Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z).Unit)
         end
     else
+        -- ★ Lock: đứng yên + giữ Y cao hơn mob
         farmMoving    = false
         farmTargetPos = nil
         if flyBV then flyBV.VectorVelocity = Vector3.zero end
+
+        -- Force Y cao hơn mob 25 studs
+        if root.Position.Y < mRoot.Position.Y + 20 then
+            local p = root.Position
+            root.CFrame = CFrame.new(p.X, mRoot.Position.Y + 25, p.Z)
+        end
     end
 elseif horizDist > STOP_RANGE then
-    if not farmMoving then
-        FlyTo(mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0))
-    else
-        local newTarget = mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0)
-        if newTarget.Y < MIN_Y then
-            newTarget = Vector3.new(newTarget.X, MIN_Y, newTarget.Z)
-        end
-        farmTargetPos = newTarget
-    end
-else
-    farmMoving    = false
-    farmTargetPos = nil
-    if flyBV then flyBV.VectorVelocity = Vector3.zero end
-end
-
                 -- ===== ĐÁNH =====
                 if horizDist <= ATTACK_RANGE then
                     -- Gom tất cả mob cùng loại trong tầm
@@ -2456,7 +2455,8 @@ pcall(function()
 end)
 
         -- ★ điểm tụ — ngay dưới chân player
-        local FarmPos = CFrame.new(root.Position - Vector3.new(0, 3, 0))
+        -- ★ điểm tụ — dưới chân player 8 studs
+local FarmPos = CFrame.new(root.Position - Vector3.new(0, 8, 0))
         local kept = {}
 
         for _, mob in ipairs(enemies:GetChildren()) do
