@@ -271,6 +271,9 @@ ForceRestoreAllMobs = function() end   -- ★ stub, gán thực sau
 ComboPhase  = "melee"
 ComboTarget = nil
 ComboStart  = 0
+-- ★ Farm Nearest mode
+FarmMode       = "Quest"   -- "Quest" | "Nearest"
+NearestMobName = nil       -- tên con mob nearest hiện tại (dùng cho BringMob)
 FarmWeapon = nil  -- category: "Melee" / "Sword" / "Gun" / nil
 
 local WeaponDB = {
@@ -1429,6 +1432,29 @@ local TabStats = Library:CreateTab("Stats & Server")
 local TabSettings = Library:CreateTab("Setting Farm")
 local TabFarm = Library:CreateTab("Farming")
 
+local FirstFarmModeInit = true
+
+Library:CreateDropdown(TabFarm, "Farm Mode", {"Quest", "Nearest"}, "Quest", function(v)
+    FarmMode = v
+
+    if FirstFarmModeInit then
+        FirstFarmModeInit = false
+        return
+    end
+
+    -- ★ reset state khi đổi mode
+    NearestMobName = nil
+    currentTarget  = nil
+    AnchorReached  = false
+    ForceRestoreAllMobs()
+
+    if v == "Nearest" then
+        Library:Notify("KairosHub", "Farm Mode: NEAREST (bỏ qua quest)", 3)
+    else
+        Library:Notify("KairosHub", "Farm Mode: QUEST (theo level)", 3)
+    end
+end)
+
 --  ---------UI CONTROL---------
 -- Thêm biến này TRƯỚC CreateToggle
 local FirstToggleInit = true
@@ -1443,14 +1469,16 @@ Library:CreateToggle(TabFarm, "Auto Farm Level", false, function(v)
 
     if v then
         CurrentQuestName = nil
-        QuestCooldown = 0
-        currentTarget = nil
-        AnchorReached = false
+        QuestCooldown    = 0
+        currentTarget    = nil
+        AnchorReached    = false
+        NearestMobName   = nil   -- ★
         AddHighlight()
         Library:Notify("KairosHub", "Auto Farm: ON", 2)
     else
-        currentTarget = nil
-        AnchorReached = false
+        currentTarget  = nil
+        AnchorReached  = false
+        NearestMobName = nil   -- ★
         if StopActiveTween then StopActiveTween() end
         ForceRestoreAllMobs()
         CleanupFly()
@@ -1815,13 +1843,14 @@ local function FindNearestMob(name, maxDist)
 
     local best, bestDist = nil, maxDist
     for _, mob in ipairs(enemies:GetChildren()) do
-        if mob.Name == name then
+        -- ★ name = nil → chấp nhận mọi mob trong Enemies
+        if not name or mob.Name == name then
             local mRoot = GetMobParts(mob)
             if mRoot then
                 local d = (myRoot.Position - mRoot.Position).Magnitude
                 if d < bestDist then
                     bestDist = d
-                    best = mob
+                    best     = mob
                 end
             end
         end
@@ -2294,13 +2323,13 @@ task.spawn(function()
     while true do
         task.wait(0.01)
 
-        -- cleanup cache mob chết mỗi 100 loop
-if not _cleanupTick or tick() - _cleanupTick > 5 then
-    _cleanupTick = tick()
-    for m, _ in pairs(PART_CACHE) do
-        if not m.Parent then PART_CACHE[m] = nil end
-    end
-end
+        -- cleanup cache mob chết mỗi 5s
+        if not _cleanupTick or tick() - _cleanupTick > 5 then
+            _cleanupTick = tick()
+            for m, _ in pairs(PART_CACHE) do
+                if not m.Parent then PART_CACHE[m] = nil end
+            end
+        end
 
         if not AutoFarm then
             if not BossFarmOn then
@@ -2319,12 +2348,35 @@ end
                     return
                 end
 
-                pcall(AutoAcceptQuest)
+                -- ══════════════════════════════════════════════
+                -- CHỌN TÊN MỤC TIÊU THEO MODE
+                -- ══════════════════════════════════════════════
+                local searchName
+                if FarmMode == "Nearest" then
+                    searchName = nil   -- ★ tìm bất kỳ mob nào
+                else
+                    pcall(AutoAcceptQuest)
+                    searchName = CurrentMobName
+                end
 
-                local target = FindNearestMob(CurrentMobName, 2000)
+                local target = FindNearestMob(searchName, FarmMode == "Nearest" and 3000 or 2000)
 
-                -- Không có mob → bay tới spawn quest
+                -- ★ Lưu tên mob nearest để BringMob dùng
+                if target and FarmMode == "Nearest" then
+                    NearestMobName = target.Name
+                end
+
+                -- Không có mob
                 if not target then
+                    if FarmMode == "Nearest" then
+                        -- ★ Nearest mode không có mob → đứng yên
+                        farmMoving    = false
+                        farmTargetPos = nil
+                        if flyBV then flyBV.VectorVelocity = Vector3.zero end
+                        return
+                    end
+
+                    -- Quest mode: bay tới spawn quest
                     if QuestCFrame then
                         local spawnPos = QuestCFrame.Position + Vector3.new(0, PLAYER_FLY_Y, 0)
                         local d = (root.Position - spawnPos).Magnitude
@@ -2342,67 +2394,68 @@ end
                 local mRoot = GetMobParts(target)
                 if not mRoot then return end
 
-               -- ★ reset anchor khi target đổi (mob cũ chết)
-               if BM_On and currentTarget ~= target then
-                   currentTarget = target
-                   AnchorReached = false
-               end
+                -- ★ reset anchor khi target đổi (mob cũ chết)
+                if BM_On and currentTarget ~= target then
+                    currentTarget = target
+                    AnchorReached = false
+                end
 
                 -- Khoảng cách NGANG (bỏ Y)
                 local dx = root.Position.X - mRoot.Position.X
                 local dz = root.Position.Z - mRoot.Position.Z
                 local horizDist = math.sqrt(dx * dx + dz * dz)
 
--- ===== DI CHUYỂN =====
-if BM_On then
-    if not AnchorReached then
-        -- ★ Dùng 3D dist, không phải horizDist
-        local dist3D = (root.Position - mRoot.Position).Magnitude
+                -- ===== DI CHUYỂN =====
+                if BM_On then
+                    if not AnchorReached then
+                        -- ★ Dùng 3D dist
+                        local dist3D = (root.Position - mRoot.Position).Magnitude
 
-        if dist3D > 30 then
-            if not farmMoving then
-                FlyTo(mRoot.Position + Vector3.new(0, PLAYER_FLY_Y + 10, 0))
-            else
-                farmTargetPos = mRoot.Position + Vector3.new(0, PLAYER_FLY_Y + 10, 0)
-            end
-        else
-            -- ★ Tới gần anchor → lock Y cao hơn mob 25
-            AnchorReached = true
-            farmMoving    = false
-            farmTargetPos = nil
-            if flyBV then flyBV.VectorVelocity = Vector3.zero end
+                        if dist3D > 30 then
+                            local goal = mRoot.Position + Vector3.new(0, PLAYER_FLY_Y + 10, 0)
+                            if not farmMoving then
+                                FlyTo(goal)
+                            else
+                                farmTargetPos = goal
+                            end
+                        else
+                            -- ★ Tới gần anchor → lock Y cao hơn mob 25
+                            AnchorReached = true
+                            farmMoving    = false
+                            farmTargetPos = nil
+                            if flyBV then flyBV.VectorVelocity = Vector3.zero end
 
-            local px, pz = root.Position.X, root.Position.Z
-            local wantY  = mRoot.Position.Y + 25
-            root.CFrame = CFrame.new(px, wantY, pz)
-        end
-    else
-        -- ★ Đã lock: giữ Y cao hơn anchor 25
-        farmMoving    = false
-        farmTargetPos = nil
-        if flyBV then flyBV.VectorVelocity = Vector3.zero end
+                            local px, pz = root.Position.X, root.Position.Z
+                            local wantY  = mRoot.Position.Y + 25
+                            root.CFrame  = CFrame.new(px, wantY, pz)
+                        end
+                    else
+                        -- ★ Đã lock: giữ Y cao hơn anchor 25
+                        farmMoving    = false
+                        farmTargetPos = nil
+                        if flyBV then flyBV.VectorVelocity = Vector3.zero end
 
-        local py = root.Position.Y
-        local wantY = mRoot.Position.Y + 25
-        if math.abs(py - wantY) > 3 then
-            root.CFrame = CFrame.new(root.Position.X, wantY, root.Position.Z)
-        end
-    end
-elseif horizDist > STOP_RANGE then
-    if not farmMoving then
-        FlyTo(mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0))
-    else
-        local newTarget = mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0)
-        if newTarget.Y < MIN_Y then
-            newTarget = Vector3.new(newTarget.X, MIN_Y, newTarget.Z)
-        end
-        farmTargetPos = newTarget
-    end
-else
-    farmMoving    = false
-    farmTargetPos = nil
-    if flyBV then flyBV.VectorVelocity = Vector3.zero end
-end
+                        local py    = root.Position.Y
+                        local wantY = mRoot.Position.Y + 25
+                        if math.abs(py - wantY) > 3 then
+                            root.CFrame = CFrame.new(root.Position.X, wantY, root.Position.Z)
+                        end
+                    end
+                elseif horizDist > STOP_RANGE then
+                    local goal = mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0)
+                    if goal.Y < MIN_Y then
+                        goal = Vector3.new(goal.X, MIN_Y, goal.Z)
+                    end
+                    if not farmMoving then
+                        FlyTo(goal)
+                    else
+                        farmTargetPos = goal
+                    end
+                else
+                    farmMoving    = false
+                    farmTargetPos = nil
+                    if flyBV then flyBV.VectorVelocity = Vector3.zero end
+                end
 
                 -- ===== ĐÁNH =====
                 if horizDist <= ATTACK_RANGE then
@@ -2410,8 +2463,10 @@ end
                     local targets = {target}
                     local enemies = workspace:FindFirstChild("Enemies")
                     if enemies then
+                        -- ★ dùng đúng tên theo mode
+                        local atkName = (FarmMode == "Nearest") and NearestMobName or CurrentMobName
                         for _, m in ipairs(enemies:GetChildren()) do
-                            if m.Name == CurrentMobName and m ~= target then
+                            if m.Name == atkName and m ~= target then
                                 local mr = GetMobParts(m)
                                 if mr and (root.Position - mr.Position).Magnitude <= ATTACK_RANGE then
                                     table.insert(targets, m)
@@ -2519,12 +2574,15 @@ task.spawn(function()
             end
         end)
 
-        local destY = root.Position.Y - 25
+        local destY   = root.Position.Y - 25
         local FarmPos = CFrame.new(root.Position.X, destY, root.Position.Z)
-        local kept = {}
+        local kept    = {}
+
+        -- ★ tên mob cần kéo theo mode
+        local bringName = (FarmMode == "Nearest") and NearestMobName or CurrentMobName
 
         for _, mob in ipairs(enemies:GetChildren()) do
-            if mob.Name == CurrentMobName then
+            if bringName and mob.Name == bringName then
                 local mHum  = mob:FindFirstChild("Humanoid")
                 local mRoot = mob:FindFirstChild("HumanoidRootPart")
                 local mHead = mob:FindFirstChild("Head")
@@ -2546,13 +2604,13 @@ task.spawn(function()
                 end
 
                 pcall(function()
-                    mRoot.CFrame = FarmPos
-                    mRoot.Size = Vector3.new(4, 4, 4)
+                    mRoot.CFrame       = FarmPos
+                    mRoot.Size         = Vector3.new(4, 4, 4)
                     mRoot.Transparency = 1
-                    mRoot.CanCollide = false
+                    mRoot.CanCollide   = false
 
-                    mHum.JumpPower = 0
-                    mHum.WalkSpeed = 0
+                    mHum.JumpPower     = 0
+                    mHum.WalkSpeed     = 0
                     mHum.PlatformStand = true
                     mHum:ChangeState(Enum.HumanoidStateType.Physics)
                     mHum:ChangeState(Enum.HumanoidStateType.FallingDown)
