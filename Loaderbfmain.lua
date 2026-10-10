@@ -2589,14 +2589,23 @@ task.spawn(function()
 end)
 
 -- Vòng lặp chính xử lý kéo và khóa quái
+-- Vòng lặp chính xử lý kéo và khóa quái
 task.spawn(function()
     while task.wait(0.1) do
+        -- ★ BẮT BUỘC: phải có target đã lock + còn sống mới bring
         if not (AutoFarm and BM_On) then
             task.wait(0.3)
             continue
         end
-
-        -- ★ Chưa anchor → vẫn kéo (không đợi AnchorReached nữa)
+        if not currentTarget or not currentTarget.Parent then
+            task.wait(0.2)
+            continue
+        end
+        local _th = currentTarget:FindFirstChild("Humanoid")
+        if not _th or _th.Health <= 0 then
+            task.wait(0.2)
+            continue
+        end
 
         local root = GetPlayerParts()
         if not root then continue end
