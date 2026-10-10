@@ -1442,21 +1442,43 @@ Library:CreateToggle(TabFarm, "Auto Farm Level", false, function(v)
     end
 
     if v then
-    CurrentQuestName = nil
-    QuestCooldown = 0
-    AnchorReached = false   -- ★ reset khi bật
-    AddHighlight()
-    Library:Notify("KairosHub", "Auto Farm: ON", 2)
-else
-    currentTarget = nil
-    AnchorReached = false   -- ★ reset khi tắt
-    if StopActiveTween then StopActiveTween() end
-    ForceRestoreAllMobs()
-    CleanupFly()
-    RemoveHighlight()
-            Library:Notify("KairosHub", "Auto Farm: OFF", 2)
+        CurrentQuestName = nil
+        QuestCooldown = 0
+        currentTarget = nil
+        AnchorReached = false
+        AddHighlight()
+        Library:Notify("KairosHub", "Auto Farm: ON", 2)
+    else
+        currentTarget = nil
+        AnchorReached = false
+        if StopActiveTween then StopActiveTween() end
+        ForceRestoreAllMobs()
+        CleanupFly()
+
+        -- ★ Reset vị trí player về ground (nếu đang ở Y+25)
+        pcall(function()
+            local char = LP.Character
+            if char then
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                local hum = char:FindFirstChild("Humanoid")
+                if hrp then
+                    hrp.AssemblyLinearVelocity  = Vector3.zero
+                    hrp.AssemblyAngularVelocity = Vector3.zero
+                    if hum then
+                        hum.PlatformStand = false
+                        hum.WalkSpeed     = 16
+                        hum.JumpPower     = 50
+                        hum.AutoRotate    = true
+                    end
+                end
+            end
+        end)
+
+        RemoveHighlight()
+        Library:Notify("KairosHub", "Auto Farm: OFF", 2)
     end
 end)
+
 -- Re-add highlight khi player respawn
 LP.CharacterAdded:Connect(function(char)
     if AutoFarm then
@@ -1537,7 +1559,7 @@ local FirstBringToggleInit = true
 
 Library:CreateToggle(TabSettings, "BringMob", false, function(v)
     BM_On = v
-    AnchorReached = false   -- ★ reset mỗi lần toggle
+    AnchorReached = false
 
     if FirstBringToggleInit then
         FirstBringToggleInit = false
@@ -1545,11 +1567,31 @@ Library:CreateToggle(TabSettings, "BringMob", false, function(v)
     end
 
     if v then
-    Library:Notify("KairosHub", "BringMob ON", 2)
-else
-    AnchorReached = false   -- ★ reset
-    ForceRestoreAllMobs()
-    Library:Notify("KairosHub", "BringMob OFF", 2)
+        Library:Notify("KairosHub", "BringMob ON", 2)
+    else
+        AnchorReached = false
+        ForceRestoreAllMobs()
+
+        -- ★ Reset player position khi tắt bring
+        pcall(function()
+            local char = LP.Character
+            if char then
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                local hum = char:FindFirstChild("Humanoid")
+                if hrp then
+                    hrp.AssemblyLinearVelocity  = Vector3.zero
+                    hrp.AssemblyAngularVelocity = Vector3.zero
+                    if hum then
+                        hum.PlatformStand = false
+                        hum.WalkSpeed     = 16
+                        hum.JumpPower     = 50
+                        hum.AutoRotate    = true
+                    end
+                end
+            end
+        end)
+
+        Library:Notify("KairosHub", "BringMob OFF", 2)
     end
 end)
 
@@ -2311,32 +2353,39 @@ end
                 local dz = root.Position.Z - mRoot.Position.Z
                 local horizDist = math.sqrt(dx * dx + dz * dz)
 
-               -- ===== DI CHUYỂN =====
+-- ===== DI CHUYỂN =====
 if BM_On then
     if not AnchorReached then
-        if horizDist > 25 then
+        -- ★ Dùng 3D dist, không phải horizDist
+        local dist3D = (root.Position - mRoot.Position).Magnitude
+
+        if dist3D > 30 then
             if not farmMoving then
-                FlyTo(mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0))
+                FlyTo(mRoot.Position + Vector3.new(0, PLAYER_FLY_Y + 10, 0))
             else
-                farmTargetPos = mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0)
+                farmTargetPos = mRoot.Position + Vector3.new(0, PLAYER_FLY_Y + 10, 0)
             end
         else
+            -- ★ Tới gần anchor → lock Y cao hơn mob 25
             AnchorReached = true
             farmMoving    = false
             farmTargetPos = nil
             if flyBV then flyBV.VectorVelocity = Vector3.zero end
 
-            local liftPos = Vector3.new(root.Position.X, mRoot.Position.Y + 25, root.Position.Z)
-            root.CFrame = CFrame.lookAt(liftPos, liftPos + Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z).Unit)
+            local px, pz = root.Position.X, root.Position.Z
+            local wantY  = mRoot.Position.Y + 25
+            root.CFrame = CFrame.new(px, wantY, pz)
         end
     else
+        -- ★ Đã lock: giữ Y cao hơn anchor 25
         farmMoving    = false
         farmTargetPos = nil
         if flyBV then flyBV.VectorVelocity = Vector3.zero end
 
-        if root.Position.Y < mRoot.Position.Y + 20 then
-            local p = root.Position
-            root.CFrame = CFrame.new(p.X, mRoot.Position.Y + 25, p.Z)
+        local py = root.Position.Y
+        local wantY = mRoot.Position.Y + 25
+        if math.abs(py - wantY) > 3 then
+            root.CFrame = CFrame.new(root.Position.X, wantY, root.Position.Z)
         end
     end
 elseif horizDist > STOP_RANGE then
@@ -2435,38 +2484,37 @@ ForceRestoreAllMobs = function()
 end
 
 task.spawn(function()
-    while task.wait() do
+    while task.wait(0.08) do   -- ★ throttle 0.08s
         if not (AutoFarm and BM_On and AnchorReached) then
-            task.wait(0.5)
+            task.wait(0.4)
             continue
         end
 
         pcall(function()
-            -- ★ SimulationRadius = inf MỖI FRAME
             sethiddenproperty(LP, "SimulationRadius", math.huge)
             sethiddenproperty(LP, "MaxSimulationRadius", math.huge)
         end)
 
         local root = GetPlayerParts()
-if not root then continue end
+        if not root then continue end
 
-local enemies = workspace:FindFirstChild("Enemies")
-if not enemies then continue end
+        local enemies = workspace:FindFirstChild("Enemies")
+        if not enemies then continue end
 
--- ★ giữ player đứng yên khi BM_On
-pcall(function()
-    local char = LP.Character
-    if char then
-        local pHRP = char:FindFirstChild("HumanoidRootPart")
-        if pHRP then
-            pHRP.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-        end
-    end
-end)
+        -- ★ giữ player đứng yên
+        pcall(function()
+            local char = LP.Character
+            if char then
+                local pHRP = char:FindFirstChild("HumanoidRootPart")
+                if pHRP then
+                    pHRP.AssemblyLinearVelocity = Vector3.zero
+                end
+            end
+        end)
 
-        -- ★ điểm tụ — ngay dưới chân player
-        -- ★ điểm tụ — dưới chân player 8 studs
-local FarmPos = CFrame.new(root.Position - Vector3.new(0, 8, 0))
+        -- ★ Y đích = Y player - 25 (đúng bằng Y ground của anchor mob)
+        local destY = root.Position.Y - 25
+        local FarmPos = CFrame.new(root.Position.X, destY, root.Position.Z)
         local kept = {}
 
         for _, mob in ipairs(enemies:GetChildren()) do
@@ -2482,7 +2530,6 @@ local FarmPos = CFrame.new(root.Position - Vector3.new(0, 8, 0))
 
                 kept[mob] = true
 
-                -- lưu data gốc lần đầu
                 if not BroughtMobData[mob] then
                     BroughtMobData[mob] = {
                         WalkSpeed  = mHum.WalkSpeed,
@@ -2492,7 +2539,6 @@ local FarmPos = CFrame.new(root.Position - Vector3.new(0, 8, 0))
                     }
                 end
 
-                -- ★ CFrame trực tiếp — work vì SimulationRadius
                 pcall(function()
                     mRoot.CFrame = FarmPos
                     mRoot.Size = Vector3.new(4, 4, 4)
@@ -2505,7 +2551,6 @@ local FarmPos = CFrame.new(root.Position - Vector3.new(0, 8, 0))
                     mHum:ChangeState(Enum.HumanoidStateType.Physics)
                     mHum:ChangeState(Enum.HumanoidStateType.FallingDown)
 
-                    -- destroy Animator — chặn animation lock
                     local animator = mHum:FindFirstChildOfClass("Animator")
                     if animator then animator:Destroy() end
 
@@ -2514,7 +2559,6 @@ local FarmPos = CFrame.new(root.Position - Vector3.new(0, 8, 0))
                     end
                 end)
 
-                -- clear flag
                 for _, flagName in ipairs({"Busy", "Stun", "Stunned", "Grabbed"}) do
                     local flag = mob:FindFirstChild(flagName)
                     if flag and flag:IsA("BoolValue") then flag.Value = false end
@@ -2522,7 +2566,6 @@ local FarmPos = CFrame.new(root.Position - Vector3.new(0, 8, 0))
             end
         end
 
-        -- restore mob rời slot
         for mob in pairs(BroughtMobData) do
             if not kept[mob] then
                 RestoreMob(mob)
