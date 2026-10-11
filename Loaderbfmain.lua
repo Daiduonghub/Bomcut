@@ -262,7 +262,7 @@ RemoveHighlight = function() end
 FA_On = false
 FA_Delay = 0.03
 BM_On = false
-BM_Max = 5
+BM_Max = 2
 AnchorReached = false   -- ★ đã tới anchor mob chưa
 BroughtMobData  = {}
 RestoreMob      = function() end
@@ -2638,61 +2638,88 @@ task.spawn(function()
         -- ★ tên mob cần kéo theo mode
         local bringName = (FarmMode == "Nearest") and NearestMobName or CurrentMobName
 
+        -- ═══════════════════════════════════════════════════════
+        -- ★ 1) GOM candidates: tất cả mob cùng tên trong bán kính
+        -- ═══════════════════════════════════════════════════════
+        local candidates = {}
         for _, mob in ipairs(enemies:GetChildren()) do
             if bringName and mob.Name == bringName then
                 local mHum  = mob:FindFirstChild("Humanoid")
                 local mRoot = mob:FindFirstChild("HumanoidRootPart")
-                local mHead = mob:FindFirstChild("Head")
 
-                if not (mHum and mRoot and mHum.Health > 0) then continue end
-
-                -- ★ chỉ skip mob quá xa (>5000)
-                local dist = (mRoot.Position - root.Position).Magnitude
-                if dist > 5000 then continue end
-
-                kept[mob] = true
-
-                -- ★ giới hạn số mob kéo cùng lúc
-                local keptCount = 0
-                for _ in pairs(kept) do keptCount = keptCount + 1 end
-                if keptCount > BM_Max then continue end
-
-                if not BroughtMobData[mob] then
-                    BroughtMobData[mob] = {
-                        WalkSpeed  = mHum.WalkSpeed,
-                        JumpPower  = mHum.JumpPower,
-                        OrigCFrame = mRoot.CFrame,
-                        OrigSize   = mRoot.Size,
-                    }
-                end
-
-                pcall(function()
-                    mRoot.CFrame       = FarmPos
-                    mRoot.Size         = Vector3.new(4, 4, 4)
-                    mRoot.Transparency = 1
-                    mRoot.CanCollide   = false
-
-                    mHum.JumpPower     = 0
-                    mHum.WalkSpeed     = 0
-                    mHum.PlatformStand = true
-                    mHum:ChangeState(Enum.HumanoidStateType.Physics)
-                    mHum:ChangeState(Enum.HumanoidStateType.FallingDown)
-
-                    local animator = mHum:FindFirstChildOfClass("Animator")
-                    if animator then animator:Destroy() end
-
-                    if mHead then
-                        mHead.CanCollide = false
+                if mHum and mRoot and mHum.Health > 0 then
+                    local dist = (mRoot.Position - root.Position).Magnitude
+                    if dist <= 5000 then
+                        table.insert(candidates, {Mob = mob, Dist = dist})
                     end
-                end)
-
-                for _, flagName in ipairs({"Busy", "Stun", "Stunned", "Grabbed"}) do
-                    local flag = mob:FindFirstChild(flagName)
-                    if flag and flag:IsA("BoolValue") then flag.Value = false end
                 end
             end
         end
 
+        -- ═══════════════════════════════════════════════════════
+        -- ★ 2) SORT: ưu tiên con lock, còn lại theo khoảng cách
+        -- ═══════════════════════════════════════════════════════
+        table.sort(candidates, function(a, b)
+            local aIsLock = (a.Mob == currentTarget)
+            local bIsLock = (b.Mob == currentTarget)
+            if aIsLock ~= bIsLock then return aIsLock end
+            return a.Dist < b.Dist
+        end)
+
+        -- ═══════════════════════════════════════════════════════
+        -- ★ 3) Lấy BM_Max con đầu — không gom thêm
+        -- ═══════════════════════════════════════════════════════
+        local totalTake = math.min(#candidates, BM_Max)
+
+        for i = 1, totalTake do
+            local mob   = candidates[i].Mob
+            local mHum  = mob:FindFirstChild("Humanoid")
+            local mRoot = mob:FindFirstChild("HumanoidRootPart")
+            local mHead = mob:FindFirstChild("Head")
+
+            if not (mHum and mRoot and mHum.Health > 0) then continue end
+
+            -- ★ CHỈ set kept sau khi đã chọn để kéo
+            kept[mob] = true
+
+            if not BroughtMobData[mob] then
+                BroughtMobData[mob] = {
+                    WalkSpeed  = mHum.WalkSpeed,
+                    JumpPower  = mHum.JumpPower,
+                    OrigCFrame = mRoot.CFrame,
+                    OrigSize   = mRoot.Size,
+                }
+            end
+
+            pcall(function()
+                mRoot.CFrame       = FarmPos
+                mRoot.Size         = Vector3.new(4, 4, 4)
+                mRoot.Transparency = 1
+                mRoot.CanCollide   = false
+
+                mHum.JumpPower     = 0
+                mHum.WalkSpeed     = 0
+                mHum.PlatformStand = true
+                mHum:ChangeState(Enum.HumanoidStateType.Physics)
+                mHum:ChangeState(Enum.HumanoidStateType.FallingDown)
+
+                local animator = mHum:FindFirstChildOfClass("Animator")
+                if animator then animator:Destroy() end
+
+                if mHead then
+                    mHead.CanCollide = false
+                end
+            end)
+
+            for _, flagName in ipairs({"Busy", "Stun", "Stunned", "Grabbed"}) do
+                local flag = mob:FindFirstChild(flagName)
+                if flag and flag:IsA("BoolValue") then flag.Value = false end
+            end
+        end
+
+        -- ═══════════════════════════════════════════════════════
+        -- ★ 4) Restore các mob KHÔNG nằm trong kept
+        -- ═══════════════════════════════════════════════════════
         for mob in pairs(BroughtMobData) do
             if not kept[mob] then
                 RestoreMob(mob)
