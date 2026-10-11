@@ -1542,14 +1542,16 @@ Library:CreateDropdown(TabFarm, "Select Boss", _bossOpts, "None", function(v)
         SelectedBoss = v:match("^(.-)%s*%[Lv") or v
     end
     BossTarget      = nil
-    _lastWaitNotify = 0    -- ★ reset notify
-    _bossWaitStart  = 0    -- ★ reset chờ
+    _lastWaitNotify = 0
+    _bossWaitStart  = 0
+    _lastBossSearch = 0    -- ★ force search lại ngay
 end)
 
 Library:CreateToggle(TabFarm, "Auto Farm Boss", false, function(v)
     BossFarmOn = v
-    _lastWaitNotify = 0    -- ★ reset notify
-    _bossWaitStart  = 0    -- ★ reset chờ
+    _lastWaitNotify = 0
+    _bossWaitStart  = 0
+    _lastBossSearch = 0    -- ★ force search lại ngay
 
     if FirstBossToggleInit then
         FirstBossToggleInit = false
