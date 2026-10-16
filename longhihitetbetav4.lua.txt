@@ -626,18 +626,21 @@ weaponSc = function(I)
 			end;
 		end;
 	end;
-hookfunction(require((game:GetService("ReplicatedStorage")).Effect.Container.Death), function()
- 
-end);
-hookfunction((require((game:GetService("ReplicatedStorage")):WaitForChild("GuideModule"))).ChangeDisplayedNPC, function()
- 
-end);
-hookfunction(error, function()
- 
-end);
-hookfunction(warn, function()
- 
-end);
+pcall(function()
+    hookfunction(require((game:GetService("ReplicatedStorage")).Effect.Container.Death), function() end)
+end)
+
+pcall(function()
+    hookfunction((require((game:GetService("ReplicatedStorage")):WaitForChild("GuideModule"))).ChangeDisplayedNPC, function() end)
+end)
+
+pcall(function()
+    hookfunction(error, function() end)
+end)
+
+pcall(function()
+    hookfunction(warn, function() end)
+end)
 local O = workspace:FindFirstChild("Rocks");
 if O then
 	O:Destroy();
@@ -12904,11 +12907,4 @@ v12:AddToggle({
                         if p.Name ~= game.Players.LocalPlayer.Name then
                             remote:InvokeServer("AcceptAlly", p.Name)
                         end
-                    end
-                end)
-                task.wait(1)
-            end
-        end)
-    end
-})
-
+                    
