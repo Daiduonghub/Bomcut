@@ -13,7 +13,7 @@ local LP = Players.LocalPlayer
 -- ══════════════════════════════════════════════════════════
 THEME_PRESETS = {
     -- Order quan trọng — cái đầu = default
-    ["Bronze (Gốc)"]      = Color3.fromRGB(200, 150, 100),
+    ["Bronze (Default)"]      = Color3.fromRGB(200, 150, 100),
     ["Ocean Blue"]        = Color3.fromRGB( 40, 120, 240),
     ["Cyan Neon"]         = Color3.fromRGB(  0, 220, 240),
     ["Sky"]               = Color3.fromRGB( 90, 180, 255),
@@ -36,20 +36,21 @@ THEME_PRESETS = {
     ["Midnight"]          = Color3.fromRGB(100, 100, 180),
 }
 
-CurrentThemeColor = THEME_PRESETS["Bronze (Gốc)"]
+CurrentThemeColor = THEME_PRESETS["Bronze (Default)"]
 
 -- Registry elements
 ThemeRegistry = {
-    Strokes       = {},   -- UIStroke
-    AccentFrames  = {},   -- Frame BackgroundColor3 = accent
-    AccentButtons = {},   -- TextButton BackgroundColor3 = accent
-    AccentImages  = {},   -- ImageLabel ImageColor3 = accent
-    AccentTexts   = {},   -- TextLabel TextColor3 = accent
-    Gradients     = {},   -- UIGradient accent
-    Toggles       = {},   -- {Bg=Frame, Get=func}
-    TabButtons    = {},   -- {Button=TextButton, GetActive=func}
-    Sliders       = {},   -- {Fill, Dot, DotStroke, Value, FillGradient}
-    Notifs        = {},   -- {Stroke, Accent}
+    Strokes       = {},
+    AccentFrames  = {},
+    AccentButtons = {},
+    AccentImages  = {},
+    AccentTexts   = {},
+    Gradients     = {},
+    Toggles       = {},
+    TabButtons    = {},
+    Sliders       = {},
+    Notifs        = {},
+    SoftTexts     = {},   -- ★ THÊM — text form label (light version)
 }
 
 local function ThemeLight()
@@ -169,23 +170,15 @@ table.insert(ThemeRegistry.Strokes, MainStroke)
 
 -- ★ Stroke xoay gradient — shimmer effect
 task.spawn(function()
-    local hue = 0
     while MainFrame.Parent do
-        hue = (hue + 0.008) % 1
-        local c1 = Color3.fromHSV(hue, 0.35, 0.85)  -- vàng đồng
-        local c2 = Color3.fromRGB(200, 150, 100)
-        local c3 = Color3.fromRGB(230, 190, 140)
-
-        MainStroke.Color = c1
-
+        local base  = CurrentThemeColor
+        local light = ThemeLight()
         TweenService:Create(MainStroke, TweenInfo.new(2.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
-            Transparency = 0.6,
-            Color = c3
+            Transparency = 0.6, Color = light
         }):Play()
         task.wait(2.5)
         TweenService:Create(MainStroke, TweenInfo.new(2.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
-            Transparency = 0.15,
-            Color = c2
+            Transparency = 0.15, Color = base
         }):Play()
         task.wait(2.5)
     end
@@ -220,9 +213,9 @@ LogoCorner.Parent = LogoDot
 
 task.spawn(function()
     while LogoDot.Parent do
-        TweenService:Create(LogoDot, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundColor3 = Color3.fromRGB(230, 190, 140)}):Play()
+        TweenService:Create(LogoDot, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundColor3 = ThemeLight()}):Play()
         task.wait(1.5)
-        TweenService:Create(LogoDot, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundColor3 = Color3.fromRGB(200, 150, 100)}):Play()
+        TweenService:Create(LogoDot, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundColor3 = CurrentThemeColor}):Play()
         task.wait(1.5)
     end
 end)
@@ -248,6 +241,7 @@ SubTitle.TextSize = 12
 SubTitle.Font = Enum.Font.Gotham
 SubTitle.TextXAlignment = Enum.TextXAlignment.Left
 SubTitle.Parent = Header
+table.insert(ThemeRegistry.AccentTexts, SubTitle)
 
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Size = UDim2.new(0, 32, 0, 32)
@@ -298,6 +292,7 @@ MaximizeIcon.BackgroundTransparency = 1
 MaximizeIcon.Image = "rbxassetid://10709798950"
 MaximizeIcon.ImageColor3 = Color3.fromRGB(200, 230, 255)
 MaximizeIcon.Parent = MaximizeBtn
+table.insert(ThemeRegistry.AccentImages, MaximizeIcon)
 
 -- Иконка свернуть (две стрелки внутрь)
 local MinimizeIcon = Instance.new("ImageLabel")
@@ -309,6 +304,7 @@ MinimizeIcon.Image = "rbxassetid://10709799483"
 MinimizeIcon.ImageColor3 = Color3.fromRGB(200, 230, 255)
 MinimizeIcon.Visible = false
 MinimizeIcon.Parent = MaximizeBtn
+table.insert(ThemeRegistry.AccentImages, MinimizeIcon)
 
 MaximizeBtn.MouseEnter:Connect(function()
     TweenService:Create(MaximizeBtn, TweenInfo.new(0.15), {BackgroundTransparency = 0.5}):Play()
@@ -609,6 +605,7 @@ function Library:Notify(title, text, duration)
     NotifText.TextYAlignment = Enum.TextYAlignment.Top
     NotifText.TextWrapped = true
     NotifText.Parent = NotifFrame
+    table.insert(ThemeRegistry.AccentTexts, NotifText)
     
     table.insert(ThemeRegistry.Notifs, {Stroke = NotifStroke, Accent = Accent})
 NotifStroke.Color = CurrentThemeColor
@@ -772,6 +769,7 @@ function Library:CreateToggle(tab, name, default, callback)
     TLabel.Font = Enum.Font.GothamMedium
     TLabel.TextXAlignment = Enum.TextXAlignment.Left
     TLabel.Parent = ToggleFrame
+    table.insert(ThemeRegistry.SoftTexts, TLabel)
     
     local ToggleBg = Instance.new("Frame")
     ToggleBg.Size = UDim2.new(0, 42, 0, 22)
@@ -857,6 +855,7 @@ function Library:CreateButton(tab, name, callback)
     BStroke.Thickness = 1
     BStroke.Transparency = 0.4
     BStroke.Parent = Btn
+    table.insert(ThemeRegistry.Strokes, BStroke)
     
     local origSize = Btn.Size
     
@@ -944,6 +943,7 @@ function Library:CreateSlider(tab, name, min, max, default, callback)
     SLabel.Font = Enum.Font.GothamMedium
     SLabel.TextXAlignment = Enum.TextXAlignment.Left
     SLabel.Parent = SlideFrame
+    table.insert(ThemeRegistry.SoftTexts, SLabel)
 
     local ValueLbl = Instance.new("TextLabel")
     ValueLbl.Size = UDim2.new(0, 60, 0, 22)
@@ -1019,7 +1019,8 @@ function Library:CreateSlider(tab, name, min, max, default, callback)
     DotGlow.ImageTransparency = 0.3
     DotGlow.ZIndex = 2
     DotGlow.Parent = Dot
-
+    table.insert(ThemeRegistry.AccentImages, DotGlow)
+    
     -- ★ ĐĂNG KÝ THEME — chèn ngay đây
     table.insert(ThemeRegistry.Sliders, {
         Fill         = Fill,
@@ -1128,6 +1129,7 @@ function Library:CreateDropdown(tab, name, options, default, callback)
     DLabel.TextXAlignment = Enum.TextXAlignment.Left
     DLabel.ZIndex = 6
     DLabel.Parent = DropFrame
+    table.insert(ThemeRegistry.SoftTexts, DLabel)
 
     local SelectedLbl = Instance.new("TextLabel")
     SelectedLbl.Size = UDim2.new(0.45, -30, 1, 0)
@@ -1360,6 +1362,7 @@ function Library:CreateTextBox(tab, name, default, callback)
     BLabel.Font = Enum.Font.GothamMedium
     BLabel.TextXAlignment = Enum.TextXAlignment.Left
     BLabel.Parent = BoxFrame
+    table.insert(ThemeRegistry.SoftTexts, BLabel)
     
     local Input = Instance.new("TextBox")
     Input.Size = UDim2.new(0.45, -10, 0, 26)
@@ -1375,6 +1378,7 @@ function Library:CreateTextBox(tab, name, default, callback)
     Input.PlaceholderColor3 = Color3.fromRGB(120, 120, 140)
     Input.ClearTextOnFocus = false
     Input.Parent = BoxFrame
+    table.insert(ThemeRegistry.AccentTexts, Input)   -- Input.TextColor3 = theme
     
     local ICorner = Instance.new("UICorner")
     ICorner.CornerRadius = UDim.new(0, 6)
@@ -1385,6 +1389,7 @@ function Library:CreateTextBox(tab, name, default, callback)
     IStroke.Thickness = 1
     IStroke.Transparency = 0.4
     IStroke.Parent = Input
+    table.insert(ThemeRegistry.Strokes, IStroke)
     
     Input.Focused:Connect(function()
         TweenService:Create(IStroke, TweenInfo.new(0.15), {Transparency = 0, Thickness = 1.5}):Play()
@@ -1440,6 +1445,7 @@ OpenButton.Font = Enum.Font.GothamBold
 OpenButton.BorderSizePixel = 0
 OpenButton.Visible = false
 OpenButton.Parent = ScreenGui
+table.insert(ThemeRegistry.AccentButtons, OpenButton)
 
 local OpenCorner = Instance.new("UICorner")
 OpenCorner.CornerRadius = UDim.new(0, 10)
@@ -3103,9 +3109,9 @@ end)
 -- ══════════════════════════════════════════════════════════
 -- TAB UI — Theme Changer
 -- ══════════════════════════════════════════════════════════
-Library:CreateLabel(TabUI, "── THEME MÀU UI ──")
+Library:CreateLabel(TabUI, "── THEME COLOR ──")
 
--- Build danh sách preset
+-- Build preset list
 local _themeNames = {}
 for name, _ in pairs(THEME_PRESETS) do
     table.insert(_themeNames, name)
@@ -3114,7 +3120,7 @@ table.sort(_themeNames)
 
 local FirstThemeInit = true
 
-Library:CreateDropdown(TabUI, "Chọn màu", _themeNames, "Bronze (Gốc)", function(v)
+Library:CreateDropdown(TabUI, "Select Color", _themeNames, "Bronze (Default)", function(v)
     local newColor = THEME_PRESETS[v]
     if not newColor then return end
     ApplyTheme(newColor)
@@ -3124,10 +3130,10 @@ Library:CreateDropdown(TabUI, "Chọn màu", _themeNames, "Bronze (Gốc)", func
         return
     end
 
-    Library:Notify("KairosHub", "Đã đổi theme: " .. v, 2)
+    Library:Notify("KairosHub", "Theme changed: " .. v, 2)
 end)
 
--- Preview swatch (hiển thị màu đang chọn)
+-- Preview swatch (shows current color)
 Library:CreateLabel(TabUI, "── PREVIEW ──")
 
 local _previewHolder = Instance.new("Frame")
@@ -3162,14 +3168,14 @@ local _previewLabel = Instance.new("TextLabel")
 _previewLabel.Size = UDim2.new(1, -70, 1, 0)
 _previewLabel.Position = UDim2.new(0, 60, 0, 0)
 _previewLabel.BackgroundTransparency = 1
-_previewLabel.Text = "Màu hiện tại"
+_previewLabel.Text = "Current color"
 _previewLabel.TextColor3 = Color3.fromRGB(225, 210, 190)
 _previewLabel.TextSize = 13
 _previewLabel.Font = Enum.Font.GothamMedium
 _previewLabel.TextXAlignment = Enum.TextXAlignment.Left
 _previewLabel.Parent = _previewHolder
 
--- Hook để update swatch khi đổi theme
+-- Hook to update swatch when theme changes
 local _origApplyTheme = ApplyTheme
 function ApplyTheme(c)
     _origApplyTheme(c)
@@ -3178,20 +3184,20 @@ function ApplyTheme(c)
     end
 end
 
--- Nút reset về mặc định
-Library:CreateButton(TabUI, "↺ Reset về Bronze", function()
-    ApplyTheme(THEME_PRESETS["Bronze (Gốc)"])
-    Library:Notify("KairosHub", "Đã reset theme về Bronze", 2)
+-- Reset button
+Library:CreateButton(TabUI, "🔄 Reset to Bronze", function()
+    ApplyTheme(THEME_PRESETS["Bronze (Default)"])
+    Library:Notify("KairosHub", "Theme reset to Bronze", 2)
 end)
 
 -- Info
 Library:CreateLabel(TabUI, "── NOTE ──")
-Library:CreateLabel(TabUI, "• Chọn màu trong dropdown để đổi ngay")
-Library:CreateLabel(TabUI, "• Tất cả UI tự động đổi theo")
-Library:CreateLabel(TabUI, "• Bấm Reset nếu muốn về màu gốc")
+Library:CreateLabel(TabUI, "• Pick a color in the dropdown to apply instantly")
+Library:CreateLabel(TabUI, "• All UI updates automatically")
+Library:CreateLabel(TabUI, "• Press Reset to restore the default color")
 
--- ★ Apply theme mặc định 1 lần
-ApplyTheme(THEME_PRESETS["Bronze (Gốc)"])
+-- ★ Apply default theme once
+ApplyTheme(THEME_PRESETS["Bronze (Default)"])
 -- ============================================================
 -- АВТОВЫБОР ПЕРВОЙ ВКЛАДКИ
 -- ============================================================
