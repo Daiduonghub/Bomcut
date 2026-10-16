@@ -37,6 +37,8 @@ THEME_PRESETS = {
 }
 
 CurrentThemeColor = THEME_PRESETS["Bronze (Default)"]
+MainStrokeTween    = nil   -- ★ ref để cancel
+LogoDotTween       = nil   -- ★ ref để cancel
 
 -- Registry elements
 ThemeRegistry = {
@@ -66,7 +68,13 @@ function ApplyTheme(newColor)
     CurrentThemeColor = newColor
     local light = ThemeLight()
     local dark  = ThemeDark()
-
+    
+    -- ★ Force cancel tween pulse để áp màu mới ngay
+    if MainStrokeTween then MainStrokeTween:Cancel() end
+    if LogoDotTween    then LogoDotTween:Cancel()    end
+    if MainStroke and MainStroke.Parent then MainStroke.Color = newColor end
+    if LogoDot    and LogoDot.Parent    then LogoDot.BackgroundColor3 = newColor end
+    
     for _, s in ipairs(ThemeRegistry.Strokes) do
         if s.Parent then s.Color = newColor end
     end
@@ -125,12 +133,12 @@ local BRONZE_LIGHT = Color3.fromRGB(230, 190, 140)
 local BRONZE_DARK  = Color3.fromRGB(140, 100, 65)
 local CREAM        = Color3.fromRGB(245, 230, 210)
 
-if CoreGui:FindFirstChild("AbyssalHub") then
-    CoreGui.AbyssalHub:Destroy()
+if CoreGui:FindFirstChild("KairosHub") then
+    CoreGui.KairosHub:Destroy()
 end
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "AbyssalHub"
+ScreenGui.Name = "KairosHub"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = CoreGui
@@ -173,13 +181,17 @@ task.spawn(function()
     while MainFrame.Parent do
         local base  = CurrentThemeColor
         local light = ThemeLight()
-        TweenService:Create(MainStroke, TweenInfo.new(2.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+        if MainStrokeTween then MainStrokeTween:Cancel() end
+        MainStrokeTween = TweenService:Create(MainStroke, TweenInfo.new(2.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
             Transparency = 0.6, Color = light
-        }):Play()
+        })
+        MainStrokeTween:Play()
         task.wait(2.5)
-        TweenService:Create(MainStroke, TweenInfo.new(2.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+        if MainStrokeTween then MainStrokeTween:Cancel() end
+        MainStrokeTween = TweenService:Create(MainStroke, TweenInfo.new(2.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
             Transparency = 0.15, Color = base
-        }):Play()
+        })
+        MainStrokeTween:Play()
         task.wait(2.5)
     end
 end)
@@ -213,9 +225,13 @@ LogoCorner.Parent = LogoDot
 
 task.spawn(function()
     while LogoDot.Parent do
-        TweenService:Create(LogoDot, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundColor3 = ThemeLight()}):Play()
+        if LogoDotTween then LogoDotTween:Cancel() end
+        LogoDotTween = TweenService:Create(LogoDot, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundColor3 = ThemeLight()})
+        LogoDotTween:Play()
         task.wait(1.5)
-        TweenService:Create(LogoDot, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundColor3 = CurrentThemeColor}):Play()
+        if LogoDotTween then LogoDotTween:Cancel() end
+        LogoDotTween = TweenService:Create(LogoDot, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundColor3 = CurrentThemeColor})
+        LogoDotTween:Play()
         task.wait(1.5)
     end
 end)
@@ -492,7 +508,7 @@ AddHighlight = function()
     
     -- Tạo Highlight (màu fill)
     PlayerHighlight = Instance.new("Highlight")
-    PlayerHighlight.Name = "AbyssalHighlight"
+    PlayerHighlight.Name = "KairosHighlight"
     PlayerHighlight.FillColor = Color3.fromRGB(200, 150, 100)
     PlayerHighlight.OutlineColor = Color3.fromRGB(225, 205, 180)
     PlayerHighlight.FillTransparency = 0.5
@@ -511,7 +527,7 @@ RemoveHighlight = function()
     local char = LP.Character
     if char then
         for _, child in ipairs(char:GetChildren()) do
-            if child.Name == "AbyssalHighlight" then
+            if child.Name == "KairosHighlight" then
                 pcall(function() child:Destroy() end)
             end
         end
@@ -2074,17 +2090,17 @@ local function EnsureFlyObjects()
 
     -- Attachment cho LinearVelocity
     flyAttach = Instance.new("Attachment")
-    flyAttach.Name = "AbyssalFlyAttach"
+    flyAttach.Name = "KairosFlyAttach"
     flyAttach.Parent = root
 
     -- Attachment riêng cho AlignOrientation
     flyAlignAtt = Instance.new("Attachment")
-    flyAlignAtt.Name = "AbyssalAlignAttach"
+    flyAlignAtt.Name = "KairosAlignAttach"
     flyAlignAtt.Parent = root
 
     -- LinearVelocity
     flyBV = Instance.new("LinearVelocity")
-    flyBV.Name = "AbyssalFlyBV"
+    flyBV.Name = "KairosFlyBV"
     flyBV.Attachment0 = flyAttach
     flyBV.MaxForce = 1e6
     flyBV.RelativeTo = Enum.ActuatorRelativeTo.World
@@ -2093,7 +2109,7 @@ local function EnsureFlyObjects()
 
     -- AlignOrientation — dùng attachment riêng, khóa cứng
     flyAlign = Instance.new("AlignOrientation")
-    flyAlign.Name = "AbyssalFlyAlign"
+    flyAlign.Name = "KairosFlyAlign"
     flyAlign.Attachment0 = flyAlignAtt
     flyAlign.Mode = Enum.OrientationAlignmentMode.OneAttachment
     flyAlign.MaxTorque = 1e9
@@ -2674,7 +2690,7 @@ RestoreMob = function(mob)
     if mRoot and data then
         pcall(function()
             -- ★ xóa BodyVelocity
-            local bv = mRoot:FindFirstChild("AbyssalBV")
+            local bv = mRoot:FindFirstChild("KairosBV")
             if bv then bv:Destroy() end
 
             -- ★ bỏ anchored (dự phòng)
@@ -2830,10 +2846,10 @@ local kept    = {}
                     mRoot.CanCollide   = false
 
                     -- BodyVelocity Velocity=0 → giữ đứng yên, không chặn damage
-                    local bv = mRoot:FindFirstChild("AbyssalBV")
+                    local bv = mRoot:FindFirstChild("KairosBV")
                     if not bv then
                         bv = Instance.new("BodyVelocity")
-                        bv.Name      = "AbyssalBV"
+                        bv.Name      = "KairosBV"
                         bv.MaxForce  = Vector3.new(math.huge, math.huge, math.huge)
                         bv.Velocity  = Vector3.zero
                         bv.Parent    = mRoot
@@ -2860,10 +2876,10 @@ local kept    = {}
                 end
             else
                 -- ★ Đã setup rồi — chỉ đảm bảo BV còn hiệu lực
-                local bv = mRoot:FindFirstChild("AbyssalBV")
+                local bv = mRoot:FindFirstChild("KairosBV")
                 if not bv then
                     bv = Instance.new("BodyVelocity")
-                    bv.Name      = "AbyssalBV"
+                    bv.Name      = "KairosBV"
                     bv.MaxForce  = Vector3.new(math.huge, math.huge, math.huge)
                     bv.Velocity  = Vector3.zero
                     bv.Parent    = mRoot
