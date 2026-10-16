@@ -392,6 +392,19 @@ Lighting.FogEnd = 1e10
 -- ========================================
 -- GLOBAL VARIABLES (Cached & Organized)
 -- ========================================
+-- Đợi game load xong hoàn toàn trước khi lấy biến
+repeat
+    local loading = plr.PlayerGui:FindFirstChild("Main")
+    loading = loading and loading:FindFirstChild("Loading")
+    task.wait()
+until game:IsLoaded() and not (loading and loading.Visible)
+
+-- Đợi nhân vật load xong (tránh lỗi nil)
+if not plr.Character or not plr.Character:FindFirstChild("HumanoidRootPart") then
+    plr.CharacterAdded:Wait()
+    plr.Character:WaitForChild("HumanoidRootPart")
+end
+
 do
     ply = Services.Players
     plr = ply.LocalPlayer
@@ -407,7 +420,13 @@ do
     TeamSelf = plr.Team
     RunSer = Services.RunService
     Stats = Services.Stats
-    Energy = plr.Character.Energy.Value
+    
+    -- Sửa lỗi Energy nếu chưa có
+    if plr.Character:FindFirstChild("Energy") then
+        Energy = plr.Character.Energy.Value
+    else
+        Energy = 100
+    end
     
     -- Tables
     Boss = {}
@@ -12893,18 +12912,4 @@ v12:AddToggle({
 -- Toggle tự động chấp nhận đồng minh
 v12:AddToggle({
     Name = "Accept Allies",
-    Default = GetSetting("AcceptAlly_Save", false),
-    Callback = function(value)
-        _G.AcceptAlly = value
-        _G.SaveData["AcceptAlly_Save"] = value
-        SaveSettings()
-        
-        task.spawn(function()
-            while _G.AcceptAlly do
-                pcall(function()
-                    local remote = game:GetService("ReplicatedStorage").Remotes.CommF_
-                    for _, p in ipairs(game:GetService("Players"):GetPlayers()) do
-                        if p.Name ~= game.Players.LocalPlayer.Name then
-                            remote:InvokeServer("AcceptAlly", p.Name)
-                        end
-                    
+    Default = GetSetting("A
