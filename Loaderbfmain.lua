@@ -8,6 +8,114 @@ local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local LP = Players.LocalPlayer
+-- ══════════════════════════════════════════════════════════
+-- THEME SYSTEM
+-- ══════════════════════════════════════════════════════════
+THEME_PRESETS = {
+    -- Order quan trọng — cái đầu = default
+    ["Bronze (Gốc)"]      = Color3.fromRGB(200, 150, 100),
+    ["Ocean Blue"]        = Color3.fromRGB( 40, 120, 240),
+    ["Cyan Neon"]         = Color3.fromRGB(  0, 220, 240),
+    ["Sky"]               = Color3.fromRGB( 90, 180, 255),
+    ["Ice Blue"]          = Color3.fromRGB(140, 220, 255),
+    ["Emerald"]           = Color3.fromRGB( 40, 200, 120),
+    ["Mint Fresh"]        = Color3.fromRGB(100, 240, 180),
+    ["Neon Green"]        = Color3.fromRGB(120, 255, 120),
+    ["Royal Purple"]      = Color3.fromRGB(160,  80, 220),
+    ["Lavender"]          = Color3.fromRGB(180, 140, 240),
+    ["Pink Bubble"]       = Color3.fromRGB(255, 130, 200),
+    ["Rose Gold"]         = Color3.fromRGB(240, 150, 170),
+    ["Cherry Blossom"]    = Color3.fromRGB(250, 160, 200),
+    ["Crimson"]           = Color3.fromRGB(220,  40,  60),
+    ["Blood Red"]         = Color3.fromRGB(180,  20,  40),
+    ["Sunset Orange"]     = Color3.fromRGB(240, 140,  60),
+    ["Amber"]             = Color3.fromRGB(255, 180,  60),
+    ["Gold"]              = Color3.fromRGB(240, 200,  60),
+    ["Coral Reef"]        = Color3.fromRGB(250, 120, 100),
+    ["Steel Gray"]        = Color3.fromRGB(180, 180, 190),
+    ["Midnight"]          = Color3.fromRGB(100, 100, 180),
+}
+
+CurrentThemeColor = THEME_PRESETS["Bronze (Gốc)"]
+
+-- Registry elements
+ThemeRegistry = {
+    Strokes       = {},   -- UIStroke
+    AccentFrames  = {},   -- Frame BackgroundColor3 = accent
+    AccentButtons = {},   -- TextButton BackgroundColor3 = accent
+    AccentImages  = {},   -- ImageLabel ImageColor3 = accent
+    AccentTexts   = {},   -- TextLabel TextColor3 = accent
+    Gradients     = {},   -- UIGradient accent
+    Toggles       = {},   -- {Bg=Frame, Get=func}
+    TabButtons    = {},   -- {Button=TextButton, GetActive=func}
+    Sliders       = {},   -- {Fill, Dot, DotStroke, Value, FillGradient}
+    Notifs        = {},   -- {Stroke, Accent}
+}
+
+local function ThemeLight()
+    local c = CurrentThemeColor
+    return Color3.new(c.R + (1-c.R)*0.45, c.G + (1-c.G)*0.45, c.B + (1-c.B)*0.45)
+end
+local function ThemeDark()
+    local c = CurrentThemeColor
+    return Color3.new(c.R*0.55, c.G*0.55, c.B*0.55)
+end
+
+function ApplyTheme(newColor)
+    CurrentThemeColor = newColor
+    local light = ThemeLight()
+    local dark  = ThemeDark()
+
+    for _, s in ipairs(ThemeRegistry.Strokes) do
+        if s.Parent then s.Color = newColor end
+    end
+    for _, f in ipairs(ThemeRegistry.AccentFrames) do
+        if f.Parent then f.BackgroundColor3 = newColor end
+    end
+    for _, b in ipairs(ThemeRegistry.AccentButtons) do
+        if b.Parent then b.BackgroundColor3 = newColor end
+    end
+    for _, i in ipairs(ThemeRegistry.AccentImages) do
+        if i.Parent then i.ImageColor3 = newColor end
+    end
+    for _, t in ipairs(ThemeRegistry.AccentTexts) do
+        if t.Parent then t.TextColor3 = newColor end
+    end
+    for _, g in ipairs(ThemeRegistry.Gradients) do
+        if g.Parent then
+            g.Color = ColorSequence.new{
+                ColorSequenceKeypoint.new(0, light),
+                ColorSequenceKeypoint.new(1, newColor)
+            }
+        end
+    end
+    for _, t in ipairs(ThemeRegistry.Toggles) do
+        if t.Bg and t.Bg.Parent and t.Get and t.Get() then
+            t.Bg.BackgroundColor3 = newColor
+        end
+    end
+    for _, tb in ipairs(ThemeRegistry.TabButtons) do
+        if tb.GetActive and tb.GetActive() then
+            tb.Button.BackgroundColor3 = newColor
+        end
+    end
+    for _, s in ipairs(ThemeRegistry.Sliders) do
+        if s.Fill and s.Fill.Parent then s.Fill.BackgroundColor3 = newColor end
+        if s.DotStroke and s.DotStroke.Parent then s.DotStroke.Color = newColor end
+        if s.Value and s.Value.Parent then s.Value.TextColor3 = newColor end
+        if s.FillGradient and s.FillGradient.Parent then
+            s.FillGradient.Color = ColorSequence.new{
+                ColorSequenceKeypoint.new(0, light),
+                ColorSequenceKeypoint.new(1, dark)
+            }
+        end
+    end
+    for _, n in ipairs(ThemeRegistry.Notifs) do
+        if n.Stroke and n.Stroke.Parent then n.Stroke.Color = newColor end
+        if n.Accent and n.Accent.Parent then n.Accent.BackgroundColor3 = newColor end
+    end
+end
+
 -- ============================================================
 -- BRONZE PALETTE — reference (không dùng trực tiếp)
 -- ============================================================
@@ -369,114 +477,6 @@ BossDB = {
 BossFarmOn   = false
 SelectedBoss = "None"
 BossTarget   = nil
-
--- ══════════════════════════════════════════════════════════
--- THEME SYSTEM
--- ══════════════════════════════════════════════════════════
-THEME_PRESETS = {
-    -- Order quan trọng — cái đầu = default
-    ["Bronze (Gốc)"]      = Color3.fromRGB(200, 150, 100),
-    ["Ocean Blue"]        = Color3.fromRGB( 40, 120, 240),
-    ["Cyan Neon"]         = Color3.fromRGB(  0, 220, 240),
-    ["Sky"]               = Color3.fromRGB( 90, 180, 255),
-    ["Ice Blue"]          = Color3.fromRGB(140, 220, 255),
-    ["Emerald"]           = Color3.fromRGB( 40, 200, 120),
-    ["Mint Fresh"]        = Color3.fromRGB(100, 240, 180),
-    ["Neon Green"]        = Color3.fromRGB(120, 255, 120),
-    ["Royal Purple"]      = Color3.fromRGB(160,  80, 220),
-    ["Lavender"]          = Color3.fromRGB(180, 140, 240),
-    ["Pink Bubble"]       = Color3.fromRGB(255, 130, 200),
-    ["Rose Gold"]         = Color3.fromRGB(240, 150, 170),
-    ["Cherry Blossom"]    = Color3.fromRGB(250, 160, 200),
-    ["Crimson"]           = Color3.fromRGB(220,  40,  60),
-    ["Blood Red"]         = Color3.fromRGB(180,  20,  40),
-    ["Sunset Orange"]     = Color3.fromRGB(240, 140,  60),
-    ["Amber"]             = Color3.fromRGB(255, 180,  60),
-    ["Gold"]              = Color3.fromRGB(240, 200,  60),
-    ["Coral Reef"]        = Color3.fromRGB(250, 120, 100),
-    ["Steel Gray"]        = Color3.fromRGB(180, 180, 190),
-    ["Midnight"]          = Color3.fromRGB(100, 100, 180),
-}
-
-CurrentThemeColor = THEME_PRESETS["Bronze (Gốc)"]
-
--- Registry elements
-ThemeRegistry = {
-    Strokes       = {},   -- UIStroke
-    AccentFrames  = {},   -- Frame BackgroundColor3 = accent
-    AccentButtons = {},   -- TextButton BackgroundColor3 = accent
-    AccentImages  = {},   -- ImageLabel ImageColor3 = accent
-    AccentTexts   = {},   -- TextLabel TextColor3 = accent
-    Gradients     = {},   -- UIGradient accent
-    Toggles       = {},   -- {Bg=Frame, Get=func}
-    TabButtons    = {},   -- {Button=TextButton, GetActive=func}
-    Sliders       = {},   -- {Fill, Dot, DotStroke, Value, FillGradient}
-    Notifs        = {},   -- {Stroke, Accent}
-}
-
-local function ThemeLight()
-    local c = CurrentThemeColor
-    return Color3.new(c.R + (1-c.R)*0.45, c.G + (1-c.G)*0.45, c.B + (1-c.B)*0.45)
-end
-local function ThemeDark()
-    local c = CurrentThemeColor
-    return Color3.new(c.R*0.55, c.G*0.55, c.B*0.55)
-end
-
-function ApplyTheme(newColor)
-    CurrentThemeColor = newColor
-    local light = ThemeLight()
-    local dark  = ThemeDark()
-
-    for _, s in ipairs(ThemeRegistry.Strokes) do
-        if s.Parent then s.Color = newColor end
-    end
-    for _, f in ipairs(ThemeRegistry.AccentFrames) do
-        if f.Parent then f.BackgroundColor3 = newColor end
-    end
-    for _, b in ipairs(ThemeRegistry.AccentButtons) do
-        if b.Parent then b.BackgroundColor3 = newColor end
-    end
-    for _, i in ipairs(ThemeRegistry.AccentImages) do
-        if i.Parent then i.ImageColor3 = newColor end
-    end
-    for _, t in ipairs(ThemeRegistry.AccentTexts) do
-        if t.Parent then t.TextColor3 = newColor end
-    end
-    for _, g in ipairs(ThemeRegistry.Gradients) do
-        if g.Parent then
-            g.Color = ColorSequence.new{
-                ColorSequenceKeypoint.new(0, light),
-                ColorSequenceKeypoint.new(1, newColor)
-            }
-        end
-    end
-    for _, t in ipairs(ThemeRegistry.Toggles) do
-        if t.Bg and t.Bg.Parent and t.Get and t.Get() then
-            t.Bg.BackgroundColor3 = newColor
-        end
-    end
-    for _, tb in ipairs(ThemeRegistry.TabButtons) do
-        if tb.GetActive and tb.GetActive() then
-            tb.Button.BackgroundColor3 = newColor
-        end
-    end
-    for _, s in ipairs(ThemeRegistry.Sliders) do
-        if s.Fill and s.Fill.Parent then s.Fill.BackgroundColor3 = newColor end
-        if s.DotStroke and s.DotStroke.Parent then s.DotStroke.Color = newColor end
-        if s.Value and s.Value.Parent then s.Value.TextColor3 = newColor end
-        if s.FillGradient and s.FillGradient.Parent then
-            s.FillGradient.Color = ColorSequence.new{
-                ColorSequenceKeypoint.new(0, light),
-                ColorSequenceKeypoint.new(1, dark)
-            }
-        end
-    end
-    for _, n in ipairs(ThemeRegistry.Notifs) do
-        if n.Stroke and n.Stroke.Parent then n.Stroke.Color = newColor end
-        if n.Accent and n.Accent.Parent then n.Accent.BackgroundColor3 = newColor end
-    end
-end
 
 -- ============================================================
 -- HIGHLIGHT PLAYER KHI BẬT AUTO FARM
