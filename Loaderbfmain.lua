@@ -57,6 +57,7 @@ MainStroke.Thickness = 1.5
 MainStroke.Transparency = 0.15
 MainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 MainStroke.Parent = MainFrame
+table.insert(ThemeRegistry.Strokes, MainStroke)
 
 -- ★ Stroke xoay gradient — shimmer effect
 task.spawn(function()
@@ -95,6 +96,7 @@ HeaderLine.BackgroundColor3 = Color3.fromRGB(200, 150, 100)
 HeaderLine.BackgroundTransparency = 0.5
 HeaderLine.BorderSizePixel = 0
 HeaderLine.Parent = Header
+table.insert(ThemeRegistry.AccentFrames, HeaderLine)
 
 local LogoDot = Instance.new("Frame")
 LogoDot.Size = UDim2.new(0, 10, 0, 10)
@@ -102,6 +104,7 @@ LogoDot.Position = UDim2.new(0, 20, 0.5, -5)
 LogoDot.BackgroundColor3 = Color3.fromRGB(200, 150, 100)
 LogoDot.BorderSizePixel = 0
 LogoDot.Parent = Header
+table.insert(ThemeRegistry.AccentFrames, LogoDot)
 
 local LogoCorner = Instance.new("UICorner")
 LogoCorner.CornerRadius = UDim.new(1, 0)
@@ -172,6 +175,7 @@ MaximizeBtn.BackgroundTransparency = 0.85
 MaximizeBtn.Text = ""
 MaximizeBtn.BorderSizePixel = 0
 MaximizeBtn.Parent = Header
+table.insert(ThemeRegistry.AccentButtons, MaximizeBtn)
 
 local MaxCorner = Instance.new("UICorner")
 MaxCorner.CornerRadius = UDim.new(0, 8)
@@ -366,6 +370,114 @@ BossFarmOn   = false
 SelectedBoss = "None"
 BossTarget   = nil
 
+-- ══════════════════════════════════════════════════════════
+-- THEME SYSTEM
+-- ══════════════════════════════════════════════════════════
+THEME_PRESETS = {
+    -- Order quan trọng — cái đầu = default
+    ["Bronze (Gốc)"]      = Color3.fromRGB(200, 150, 100),
+    ["Ocean Blue"]        = Color3.fromRGB( 40, 120, 240),
+    ["Cyan Neon"]         = Color3.fromRGB(  0, 220, 240),
+    ["Sky"]               = Color3.fromRGB( 90, 180, 255),
+    ["Ice Blue"]          = Color3.fromRGB(140, 220, 255),
+    ["Emerald"]           = Color3.fromRGB( 40, 200, 120),
+    ["Mint Fresh"]        = Color3.fromRGB(100, 240, 180),
+    ["Neon Green"]        = Color3.fromRGB(120, 255, 120),
+    ["Royal Purple"]      = Color3.fromRGB(160,  80, 220),
+    ["Lavender"]          = Color3.fromRGB(180, 140, 240),
+    ["Pink Bubble"]       = Color3.fromRGB(255, 130, 200),
+    ["Rose Gold"]         = Color3.fromRGB(240, 150, 170),
+    ["Cherry Blossom"]    = Color3.fromRGB(250, 160, 200),
+    ["Crimson"]           = Color3.fromRGB(220,  40,  60),
+    ["Blood Red"]         = Color3.fromRGB(180,  20,  40),
+    ["Sunset Orange"]     = Color3.fromRGB(240, 140,  60),
+    ["Amber"]             = Color3.fromRGB(255, 180,  60),
+    ["Gold"]              = Color3.fromRGB(240, 200,  60),
+    ["Coral Reef"]        = Color3.fromRGB(250, 120, 100),
+    ["Steel Gray"]        = Color3.fromRGB(180, 180, 190),
+    ["Midnight"]          = Color3.fromRGB(100, 100, 180),
+}
+
+CurrentThemeColor = THEME_PRESETS["Bronze (Gốc)"]
+
+-- Registry elements
+ThemeRegistry = {
+    Strokes       = {},   -- UIStroke
+    AccentFrames  = {},   -- Frame BackgroundColor3 = accent
+    AccentButtons = {},   -- TextButton BackgroundColor3 = accent
+    AccentImages  = {},   -- ImageLabel ImageColor3 = accent
+    AccentTexts   = {},   -- TextLabel TextColor3 = accent
+    Gradients     = {},   -- UIGradient accent
+    Toggles       = {},   -- {Bg=Frame, Get=func}
+    TabButtons    = {},   -- {Button=TextButton, GetActive=func}
+    Sliders       = {},   -- {Fill, Dot, DotStroke, Value, FillGradient}
+    Notifs        = {},   -- {Stroke, Accent}
+}
+
+local function ThemeLight()
+    local c = CurrentThemeColor
+    return Color3.new(c.R + (1-c.R)*0.45, c.G + (1-c.G)*0.45, c.B + (1-c.B)*0.45)
+end
+local function ThemeDark()
+    local c = CurrentThemeColor
+    return Color3.new(c.R*0.55, c.G*0.55, c.B*0.55)
+end
+
+function ApplyTheme(newColor)
+    CurrentThemeColor = newColor
+    local light = ThemeLight()
+    local dark  = ThemeDark()
+
+    for _, s in ipairs(ThemeRegistry.Strokes) do
+        if s.Parent then s.Color = newColor end
+    end
+    for _, f in ipairs(ThemeRegistry.AccentFrames) do
+        if f.Parent then f.BackgroundColor3 = newColor end
+    end
+    for _, b in ipairs(ThemeRegistry.AccentButtons) do
+        if b.Parent then b.BackgroundColor3 = newColor end
+    end
+    for _, i in ipairs(ThemeRegistry.AccentImages) do
+        if i.Parent then i.ImageColor3 = newColor end
+    end
+    for _, t in ipairs(ThemeRegistry.AccentTexts) do
+        if t.Parent then t.TextColor3 = newColor end
+    end
+    for _, g in ipairs(ThemeRegistry.Gradients) do
+        if g.Parent then
+            g.Color = ColorSequence.new{
+                ColorSequenceKeypoint.new(0, light),
+                ColorSequenceKeypoint.new(1, newColor)
+            }
+        end
+    end
+    for _, t in ipairs(ThemeRegistry.Toggles) do
+        if t.Bg and t.Bg.Parent and t.Get and t.Get() then
+            t.Bg.BackgroundColor3 = newColor
+        end
+    end
+    for _, tb in ipairs(ThemeRegistry.TabButtons) do
+        if tb.GetActive and tb.GetActive() then
+            tb.Button.BackgroundColor3 = newColor
+        end
+    end
+    for _, s in ipairs(ThemeRegistry.Sliders) do
+        if s.Fill and s.Fill.Parent then s.Fill.BackgroundColor3 = newColor end
+        if s.DotStroke and s.DotStroke.Parent then s.DotStroke.Color = newColor end
+        if s.Value and s.Value.Parent then s.Value.TextColor3 = newColor end
+        if s.FillGradient and s.FillGradient.Parent then
+            s.FillGradient.Color = ColorSequence.new{
+                ColorSequenceKeypoint.new(0, light),
+                ColorSequenceKeypoint.new(1, dark)
+            }
+        end
+    end
+    for _, n in ipairs(ThemeRegistry.Notifs) do
+        if n.Stroke and n.Stroke.Parent then n.Stroke.Color = newColor end
+        if n.Accent and n.Accent.Parent then n.Accent.BackgroundColor3 = newColor end
+    end
+end
+
 -- ============================================================
 -- HIGHLIGHT PLAYER KHI BẬT AUTO FARM
 -- ============================================================
@@ -497,7 +609,11 @@ function Library:Notify(title, text, duration)
     NotifText.TextYAlignment = Enum.TextYAlignment.Top
     NotifText.TextWrapped = true
     NotifText.Parent = NotifFrame
-
+    
+    table.insert(ThemeRegistry.Notifs, {Stroke = NotifStroke, Accent = Accent})
+NotifStroke.Color = CurrentThemeColor
+Accent.BackgroundColor3 = CurrentThemeColor
+    
     -- Đẩy vào list — notif mới nhất ở index 1
     table.insert(ActiveNotifications, 1, {
         Frame  = NotifFrame,
@@ -577,6 +693,13 @@ function Library:CreateTab(name)
     TabPad.PaddingRight = UDim.new(0, 6)
     TabPad.PaddingBottom = UDim.new(0, 6)
     TabPad.Parent = TabFrame
+    
+    table.insert(ThemeRegistry.TabButtons, {
+    Button = TabBtn,
+    GetActive = function()
+        return Library.CurrentTab and Library.CurrentTab.Button == TabBtn
+    end
+})
     
     local tabObj = {Button = TabBtn, Frame = TabFrame, Name = name}
     table.insert(Library.Tabs, tabObj)
@@ -683,7 +806,7 @@ function Library:CreateToggle(tab, name, default, callback)
     local function update(v)
     state = v
     if state then
-        TweenService:Create(ToggleBg, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundColor3 = BRONZE}):Play()
+       TweenService:Create(ToggleBg, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundColor3 = CurrentThemeColor}):Play()
         TweenService:Create(Knob, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Position = UDim2.new(0, 23, 0.5, -8), BackgroundColor3 = Color3.fromRGB(255, 250, 240)}):Play()
 
         -- ★ Pulse effect khi bật
@@ -703,6 +826,12 @@ end
     end)
     
     update(state)
+
+    table.insert(ThemeRegistry.Toggles, {
+    Bg  = ToggleBg,
+    Get = function() return state end
+})
+
     return {Set = update, Get = function() return state end, Frame = ToggleFrame}
 end
 
@@ -717,6 +846,7 @@ function Library:CreateButton(tab, name, callback)
     Btn.Font = Enum.Font.GothamBold
     Btn.BorderSizePixel = 0
     Btn.Parent = tab.Frame
+    table.insert(ThemeRegistry.AccentButtons, Btn)
     
     local BCorner = Instance.new("UICorner")
     BCorner.CornerRadius = UDim.new(0, 10)
@@ -799,11 +929,11 @@ function Library:CreateSlider(tab, name, min, max, default, callback)
     SlideFrame.BackgroundTransparency = 0.4
     SlideFrame.BorderSizePixel = 0
     SlideFrame.Parent = tab.Frame
-    
+
     local SCorner = Instance.new("UICorner")
     SCorner.CornerRadius = UDim.new(0, 10)
     SCorner.Parent = SlideFrame
-    
+
     local SLabel = Instance.new("TextLabel")
     SLabel.Size = UDim2.new(1, -20, 0, 22)
     SLabel.Position = UDim2.new(0, 14, 0, 4)
@@ -814,60 +944,58 @@ function Library:CreateSlider(tab, name, min, max, default, callback)
     SLabel.Font = Enum.Font.GothamMedium
     SLabel.TextXAlignment = Enum.TextXAlignment.Left
     SLabel.Parent = SlideFrame
-    
+
     local ValueLbl = Instance.new("TextLabel")
     ValueLbl.Size = UDim2.new(0, 60, 0, 22)
     ValueLbl.Position = UDim2.new(1, -74, 0, 4)
     ValueLbl.BackgroundTransparency = 1
     ValueLbl.Text = tostring(default)
-    ValueLbl.TextColor3 = Color3.fromRGB(200, 150, 100)
+    ValueLbl.TextColor3 = CurrentThemeColor
     ValueLbl.TextSize = 13
     ValueLbl.Font = Enum.Font.GothamBold
     ValueLbl.TextXAlignment = Enum.TextXAlignment.Right
     ValueLbl.Parent = SlideFrame
-    
+
     local Bar = Instance.new("Frame")
     Bar.Size = UDim2.new(1, -28, 0, 6)
     Bar.Position = UDim2.new(0, 14, 1, -16)
     Bar.BackgroundColor3 = Color3.fromRGB(55, 45, 38)
     Bar.BorderSizePixel = 0
     Bar.Parent = SlideFrame
-    
+
     local BarCorner = Instance.new("UICorner")
     BarCorner.CornerRadius = UDim.new(1, 0)
     BarCorner.Parent = Bar
-    
+
     local Fill = Instance.new("Frame")
     Fill.Size = UDim2.new(0, 0, 1, 0)
-    Fill.BackgroundColor3 = Color3.fromRGB(200, 150, 100)
+    Fill.BackgroundColor3 = CurrentThemeColor
     Fill.BorderSizePixel = 0
     Fill.Parent = Bar
-    
+
     local FillCorner = Instance.new("UICorner")
     FillCorner.CornerRadius = UDim.new(1, 0)
     FillCorner.Parent = Fill
-    
-    -- Градиент на заполненной части
+
     local FillGradient = Instance.new("UIGradient")
     FillGradient.Color = ColorSequence.new{
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(230, 190, 140)),
+        ColorSequenceKeypoint.new(0, CurrentThemeColor),
         ColorSequenceKeypoint.new(1, Color3.fromRGB(180, 80, 255))
     }
     FillGradient.Parent = Fill
-    
-    -- Круглый ползунок (родитель - Bar, НЕ Fill!)
+
     local Dot = Instance.new("Frame")
     Dot.Size = UDim2.new(0, 18, 0, 18)
     Dot.Position = UDim2.new(0, -9, 0.5, -9)
     Dot.BackgroundColor3 = Color3.fromRGB(255, 250, 240)
     Dot.BorderSizePixel = 0
     Dot.ZIndex = 3
-    Dot.Parent = Bar -- ВАЖНО: Bar, а не Fill
-    
+    Dot.Parent = Bar
+
     local DotCorner = Instance.new("UICorner")
     DotCorner.CornerRadius = UDim.new(1, 0)
     DotCorner.Parent = Dot
-    
+
     local DotGradient = Instance.new("UIGradient")
     DotGradient.Color = ColorSequence.new{
         ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 250, 240)),
@@ -875,51 +1003,58 @@ function Library:CreateSlider(tab, name, min, max, default, callback)
     }
     DotGradient.Rotation = 90
     DotGradient.Parent = Dot
-    
+
     local DotStroke = Instance.new("UIStroke")
-    DotStroke.Color = Color3.fromRGB(200, 150, 100)
+    DotStroke.Color = CurrentThemeColor
     DotStroke.Thickness = 2
     DotStroke.Transparency = 0.1
     DotStroke.Parent = Dot
-    
-    -- Свечение вокруг ползунка
+
     local DotGlow = Instance.new("ImageLabel")
     DotGlow.Size = UDim2.new(0, 34, 0, 34)
     DotGlow.Position = UDim2.new(0.5, -17, 0.5, -17)
     DotGlow.BackgroundTransparency = 1
     DotGlow.Image = "rbxassetid://5028857084"
-    DotGlow.ImageColor3 = Color3.fromRGB(200, 150, 100)
+    DotGlow.ImageColor3 = CurrentThemeColor
     DotGlow.ImageTransparency = 0.3
     DotGlow.ZIndex = 2
     DotGlow.Parent = Dot
-    
+
+    -- ★ ĐĂNG KÝ THEME — chèn ngay đây
+    table.insert(ThemeRegistry.Sliders, {
+        Fill         = Fill,
+        Dot          = Dot,
+        DotStroke    = DotStroke,
+        Value        = ValueLbl,
+        FillGradient = FillGradient,
+    })
+
     local value = default
     local dragging = false
-    
+
     local function setValue(v)
         value = math.clamp(v, min, max)
         local alpha = (value - min) / (max - min)
         Fill.Size = UDim2.new(alpha, 0, 1, 0)
-        -- Обновление позиции Dot по alpha
         Dot.Position = UDim2.new(alpha, -9, 0.5, -9)
         ValueLbl.Text = tostring(math.floor(value * 100) / 100)
         if callback then callback(value) end
     end
-    
+
     local BarBtn = Instance.new("TextButton")
     BarBtn.Size = UDim2.new(1, 0, 1, 0)
     BarBtn.BackgroundTransparency = 1
     BarBtn.Text = ""
     BarBtn.ZIndex = 4
     BarBtn.Parent = Bar
-    
+
     local function updateFromX(x)
-        local barPos = Bar.AbsolutePosition.X
+        local barPos  = Bar.AbsolutePosition.X
         local barSize = Bar.AbsoluteSize.X
-        local alpha = math.clamp((x - barPos) / barSize, 0, 1)
+        local alpha   = math.clamp((x - barPos) / barSize, 0, 1)
         setValue(min + (max - min) * alpha)
     end
-    
+
     BarBtn.MouseButton1Down:Connect(function()
         dragging = true
     end)
@@ -929,14 +1064,14 @@ function Library:CreateSlider(tab, name, min, max, default, callback)
             updateFromX(input.Position.X)
         end
     end)
-    
+
     UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 
+        if input.UserInputType == Enum.UserInputType.MouseButton1
         or input.UserInputType == Enum.UserInputType.Touch then
             dragging = false
         end
     end)
-    
+
     UserInputService.InputChanged:Connect(function(input)
         if not dragging then return end
         if input.UserInputType == Enum.UserInputType.MouseMovement then
@@ -945,19 +1080,19 @@ function Library:CreateSlider(tab, name, min, max, default, callback)
             updateFromX(input.Position.X)
         end
     end)
-    
-    -- Анимация пульсации ползунка
+
+    -- Animation pulse
     task.spawn(function()
         while Dot.Parent do
             TweenService:Create(DotStroke, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Transparency = 0.6}):Play()
-            TweenService:Create(DotGlow, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {ImageTransparency = 0.6}):Play()
+            TweenService:Create(DotGlow,   TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {ImageTransparency = 0.6}):Play()
             task.wait(1.2)
             TweenService:Create(DotStroke, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Transparency = 0.1}):Play()
-            TweenService:Create(DotGlow, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {ImageTransparency = 0.3}):Play()
+            TweenService:Create(DotGlow,   TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {ImageTransparency = 0.3}):Play()
             task.wait(1.2)
         end
     end)
-    
+
     setValue(default)
     return {Set = setValue, Get = function() return value end, Frame = SlideFrame}
 end
@@ -968,8 +1103,7 @@ end
 function Library:CreateDropdown(tab, name, options, default, callback)
     options = options or {}
     default = default or (options[1] or "")
-    
-    -- Khung chua
+
     local DropFrame = Instance.new("Frame")
     DropFrame.Size = UDim2.new(1, -12, 0, 40)
     DropFrame.BackgroundColor3 = Color3.fromRGB(30, 24, 20)
@@ -978,12 +1112,11 @@ function Library:CreateDropdown(tab, name, options, default, callback)
     DropFrame.ClipsDescendants = false
     DropFrame.ZIndex = 5
     DropFrame.Parent = tab.Frame
-    
+
     local DCorner = Instance.new("UICorner")
     DCorner.CornerRadius = UDim.new(0, 10)
     DCorner.Parent = DropFrame
-    
-    -- Label ten
+
     local DLabel = Instance.new("TextLabel")
     DLabel.Size = UDim2.new(0.5, 0, 1, 0)
     DLabel.Position = UDim2.new(0, 14, 0, 0)
@@ -995,41 +1128,37 @@ function Library:CreateDropdown(tab, name, options, default, callback)
     DLabel.TextXAlignment = Enum.TextXAlignment.Left
     DLabel.ZIndex = 6
     DLabel.Parent = DropFrame
-    
-    -- Hien thi lua chon hien tai
+
     local SelectedLbl = Instance.new("TextLabel")
     SelectedLbl.Size = UDim2.new(0.45, -30, 1, 0)
     SelectedLbl.Position = UDim2.new(0.5, 0, 0, 0)
     SelectedLbl.BackgroundTransparency = 1
     SelectedLbl.Text = tostring(default)
-    SelectedLbl.TextColor3 = Color3.fromRGB(200, 150, 100)
+    SelectedLbl.TextColor3 = CurrentThemeColor
     SelectedLbl.TextSize = 13
     SelectedLbl.Font = Enum.Font.GothamBold
     SelectedLbl.TextXAlignment = Enum.TextXAlignment.Right
     SelectedLbl.ZIndex = 6
     SelectedLbl.Parent = DropFrame
-    
-    -- Mui ten chi xuong
+
     local Arrow = Instance.new("TextLabel")
     Arrow.Size = UDim2.new(0, 20, 1, 0)
     Arrow.Position = UDim2.new(1, -24, 0, 0)
     Arrow.BackgroundTransparency = 1
     Arrow.Text = "▼"
-    Arrow.TextColor3 = Color3.fromRGB(200, 150, 100)
+    Arrow.TextColor3 = CurrentThemeColor
     Arrow.TextSize = 10
     Arrow.Font = Enum.Font.GothamBold
     Arrow.ZIndex = 6
     Arrow.Parent = DropFrame
-    
-    -- Nut click
+
     local DButton = Instance.new("TextButton")
     DButton.Size = UDim2.new(1, 0, 1, 0)
     DButton.BackgroundTransparency = 1
     DButton.Text = ""
     DButton.ZIndex = 7
     DButton.Parent = DropFrame
-    
-    -- Bang danh sach (list options)
+
     local ListFrame = Instance.new("ScrollingFrame")
     ListFrame.Size = UDim2.new(1, 0, 0, 0)
     ListFrame.Position = UDim2.new(0, 0, 1, 4)
@@ -1037,48 +1166,54 @@ function Library:CreateDropdown(tab, name, options, default, callback)
     ListFrame.BackgroundTransparency = 0.05
     ListFrame.BorderSizePixel = 0
     ListFrame.ScrollBarThickness = 3
-    ListFrame.ScrollBarImageColor3 = Color3.fromRGB(200, 150, 100)
+    ListFrame.ScrollBarImageColor3 = CurrentThemeColor
     ListFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
     ListFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
     ListFrame.Visible = false
     ListFrame.ZIndex = 20
     ListFrame.Parent = DropFrame
-    
+
     local LCorner = Instance.new("UICorner")
     LCorner.CornerRadius = UDim.new(0, 8)
     LCorner.Parent = ListFrame
-    
+
     local LStroke = Instance.new("UIStroke")
-    LStroke.Color = Color3.fromRGB(200, 150, 100)
+    LStroke.Color = CurrentThemeColor
     LStroke.Thickness = 1
     LStroke.Transparency = 0.4
     LStroke.Parent = ListFrame
-    
+
     local LLayout = Instance.new("UIListLayout")
     LLayout.Padding = UDim.new(0, 2)
     LLayout.SortOrder = Enum.SortOrder.LayoutOrder
     LLayout.Parent = ListFrame
-    
+
     local LPad = Instance.new("UIPadding")
     LPad.PaddingTop = UDim.new(0, 4)
     LPad.PaddingLeft = UDim.new(0, 4)
     LPad.PaddingRight = UDim.new(0, 4)
     LPad.PaddingBottom = UDim.new(0, 4)
     LPad.Parent = ListFrame
-    
+
+    -- ★ ĐĂNG KÝ THEME — chèn ngay đây
+    table.insert(ThemeRegistry.AccentTexts, SelectedLbl)
+    table.insert(ThemeRegistry.AccentTexts, Arrow)
+    table.insert(ThemeRegistry.Strokes, LStroke)
+
     local isOpen = false
     local currentValue = default
     local optionButtons = {}
-    
-    -- Ham cap nhat gia tri hien thi
+
     local function setValue(v)
         currentValue = v
         SelectedLbl.Text = tostring(v)
         if callback then callback(v) end
     end
-    
-    -- Tao tung option trong list
-    for _, opt in ipairs(options) do
+
+    -- ══════════════════════════════════════════════
+    -- Option buttons (dùng chung cho cả lần tạo gốc + SetOptions)
+    -- ══════════════════════════════════════════════
+    local function makeOptionButton(opt)
         local OptBtn = Instance.new("TextButton")
         OptBtn.Size = UDim2.new(1, 0, 0, 28)
         OptBtn.BackgroundColor3 = Color3.fromRGB(32, 26, 22)
@@ -1091,17 +1226,17 @@ function Library:CreateDropdown(tab, name, options, default, callback)
         OptBtn.TextXAlignment = Enum.TextXAlignment.Left
         OptBtn.ZIndex = 21
         OptBtn.Parent = ListFrame
-        
+
         local OCorner = Instance.new("UICorner")
         OCorner.CornerRadius = UDim.new(0, 6)
         OCorner.Parent = OptBtn
-        
+
         local OPad = Instance.new("UIPadding")
         OPad.PaddingLeft = UDim.new(0, 10)
         OPad.Parent = OptBtn
-        
+
         table.insert(optionButtons, {Btn = OptBtn, Value = opt})
-        
+
         OptBtn.MouseEnter:Connect(function()
             if currentValue ~= opt then
                 TweenService:Create(OptBtn, TweenInfo.new(0.1), {BackgroundTransparency = 0.2}):Play()
@@ -1112,26 +1247,23 @@ function Library:CreateDropdown(tab, name, options, default, callback)
                 TweenService:Create(OptBtn, TweenInfo.new(0.1), {BackgroundTransparency = 0.5}):Play()
             end
         end)
-        
+
         OptBtn.MouseButton1Click:Connect(function()
-            -- Reset tat ca ve mau cu
             for _, ob in ipairs(optionButtons) do
                 TweenService:Create(ob.Btn, TweenInfo.new(0.15), {
-                    BackgroundColor3 = Color3.fromRGB(32, 26, 22),
+                    BackgroundColor3     = Color3.fromRGB(32, 26, 22),
                     BackgroundTransparency = 0.5,
-                    TextColor3 = Color3.fromRGB(225, 210, 190)
+                    TextColor3           = Color3.fromRGB(225, 210, 190)
                 }):Play()
             end
-            -- Highlight option duoc chon
             TweenService:Create(OptBtn, TweenInfo.new(0.15), {
-                BackgroundColor3 = Color3.fromRGB(200, 150, 100),
+                BackgroundColor3     = CurrentThemeColor,
                 BackgroundTransparency = 0.2,
-                TextColor3 = Color3.fromRGB(255, 250, 240)
+                TextColor3           = Color3.fromRGB(255, 250, 240)
             }):Play()
-            
+
             setValue(opt)
-            
-            -- Dong list
+
             isOpen = false
             TweenService:Create(ListFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
                 Size = UDim2.new(1, 0, 0, 0)
@@ -1142,30 +1274,32 @@ function Library:CreateDropdown(tab, name, options, default, callback)
             TweenService:Create(Arrow, TweenInfo.new(0.2), {Rotation = 0}):Play()
         end)
     end
-    
-    -- Highlight option mac dinh
+
+    for _, opt in ipairs(options) do
+        makeOptionButton(opt)
+    end
+
+    -- Highlight default option
     for _, ob in ipairs(optionButtons) do
         if ob.Value == currentValue then
-            ob.Btn.BackgroundColor3 = Color3.fromRGB(200, 150, 100)
+            ob.Btn.BackgroundColor3 = CurrentThemeColor
             ob.Btn.BackgroundTransparency = 0.2
             ob.Btn.TextColor3 = Color3.fromRGB(255, 250, 240)
         end
     end
-    
-    -- Toggle dong/mo list
+
+    -- Toggle open/close
     DButton.MouseButton1Click:Connect(function()
         isOpen = not isOpen
-        
+
         if isOpen then
-            -- Mo
             ListFrame.Visible = true
-            local listHeight = math.min(#options * 30 + 12, 150)
+            local listHeight = math.min(#optionButtons * 30 + 12, 150)
             TweenService:Create(ListFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                 Size = UDim2.new(1, 0, 0, listHeight)
             }):Play()
             TweenService:Create(Arrow, TweenInfo.new(0.2), {Rotation = 180}):Play()
         else
-            -- Dong
             TweenService:Create(ListFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
                 Size = UDim2.new(1, 0, 0, 0)
             }):Play()
@@ -1175,77 +1309,27 @@ function Library:CreateDropdown(tab, name, options, default, callback)
             end)
         end
     end)
-    
-    -- Hover hieu ung nut
+
+    -- Hover
     DButton.MouseEnter:Connect(function()
         TweenService:Create(DropFrame, TweenInfo.new(0.15), {BackgroundTransparency = 0.2}):Play()
     end)
     DButton.MouseLeave:Connect(function()
         TweenService:Create(DropFrame, TweenInfo.new(0.15), {BackgroundTransparency = 0.4}):Play()
     end)
-    
-    -- Tra ve object de dieu khien tu ben ngoai
+
     return {
         Frame = DropFrame,
-        Set = setValue,
-        Get = function() return currentValue end,
+        Set   = setValue,
+        Get   = function() return currentValue end,
         SetOptions = function(newOptions)
-            -- Xoa list cu
             for _, ob in ipairs(optionButtons) do
                 ob.Btn:Destroy()
             end
             optionButtons = {}
-            
-            -- Tao lai
+
             for _, opt in ipairs(newOptions) do
-                local OptBtn = Instance.new("TextButton")
-                OptBtn.Size = UDim2.new(1, 0, 0, 28)
-                OptBtn.BackgroundColor3 = Color3.fromRGB(32, 26, 22)
-                OptBtn.BackgroundTransparency = 0.5
-                OptBtn.Text = tostring(opt)
-                OptBtn.TextColor3 = Color3.fromRGB(225, 210, 190)
-                OptBtn.TextSize = 12
-                OptBtn.Font = Enum.Font.GothamMedium
-                OptBtn.BorderSizePixel = 0
-                OptBtn.TextXAlignment = Enum.TextXAlignment.Left
-                OptBtn.ZIndex = 21
-                OptBtn.Parent = ListFrame
-                
-                local OCorner = Instance.new("UICorner")
-                OCorner.CornerRadius = UDim.new(0, 6)
-                OCorner.Parent = OptBtn
-                
-                local OPad = Instance.new("UIPadding")
-                OPad.PaddingLeft = UDim.new(0, 10)
-                OPad.Parent = OptBtn
-                
-                table.insert(optionButtons, {Btn = OptBtn, Value = opt})
-                
-                OptBtn.MouseButton1Click:Connect(function()
-                    for _, ob in ipairs(optionButtons) do
-                        TweenService:Create(ob.Btn, TweenInfo.new(0.15), {
-                            BackgroundColor3 = Color3.fromRGB(32, 26, 22),
-                            BackgroundTransparency = 0.5,
-                            TextColor3 = Color3.fromRGB(225, 210, 190)
-                        }):Play()
-                    end
-                    TweenService:Create(OptBtn, TweenInfo.new(0.15), {
-                        BackgroundColor3 = Color3.fromRGB(200, 150, 100),
-                        BackgroundTransparency = 0.2,
-                        TextColor3 = Color3.fromRGB(255, 250, 240)
-                    }):Play()
-                    
-                    setValue(opt)
-                    
-                    isOpen = false
-                    TweenService:Create(ListFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-                        Size = UDim2.new(1, 0, 0, 0)
-                    }):Play()
-                    task.delay(0.2, function()
-                        ListFrame.Visible = false
-                    end)
-                    TweenService:Create(Arrow, TweenInfo.new(0.2), {Rotation = 0}):Play()
-                end)
+                makeOptionButton(opt)
             end
         end
     }
@@ -1431,6 +1515,7 @@ end)
 local TabStats = Library:CreateTab("Stats & Server")
 local TabSettings = Library:CreateTab("Setting Farm")
 local TabFarm = Library:CreateTab("Farming")
+local TabUI = Library:CreateTab("UI / Theme")
 
 local FirstFarmModeInit = true
 
@@ -3015,6 +3100,98 @@ task.spawn(function()
     end
 end)
 
+-- ══════════════════════════════════════════════════════════
+-- TAB UI — Theme Changer
+-- ══════════════════════════════════════════════════════════
+Library:CreateLabel(TabUI, "── THEME MÀU UI ──")
+
+-- Build danh sách preset
+local _themeNames = {}
+for name, _ in pairs(THEME_PRESETS) do
+    table.insert(_themeNames, name)
+end
+table.sort(_themeNames)
+
+local FirstThemeInit = true
+
+Library:CreateDropdown(TabUI, "Chọn màu", _themeNames, "Bronze (Gốc)", function(v)
+    local newColor = THEME_PRESETS[v]
+    if not newColor then return end
+    ApplyTheme(newColor)
+
+    if FirstThemeInit then
+        FirstThemeInit = false
+        return
+    end
+
+    Library:Notify("KairosHub", "Đã đổi theme: " .. v, 2)
+end)
+
+-- Preview swatch (hiển thị màu đang chọn)
+Library:CreateLabel(TabUI, "── PREVIEW ──")
+
+local _previewHolder = Instance.new("Frame")
+_previewHolder.Size = UDim2.new(1, -12, 0, 60)
+_previewHolder.BackgroundColor3 = Color3.fromRGB(30, 24, 20)
+_previewHolder.BackgroundTransparency = 0.4
+_previewHolder.BorderSizePixel = 0
+_previewHolder.Parent = TabUI.Frame
+
+local _prevCorner = Instance.new("UICorner")
+_prevCorner.CornerRadius = UDim.new(0, 10)
+_prevCorner.Parent = _previewHolder
+
+local _previewSwatch = Instance.new("Frame")
+_previewSwatch.Size = UDim2.new(0, 40, 0, 40)
+_previewSwatch.Position = UDim2.new(0, 10, 0.5, -20)
+_previewSwatch.BackgroundColor3 = CurrentThemeColor
+_previewSwatch.BorderSizePixel = 0
+_previewSwatch.Parent = _previewHolder
+
+local _swatchCorner = Instance.new("UICorner")
+_swatchCorner.CornerRadius = UDim.new(0, 8)
+_swatchCorner.Parent = _previewSwatch
+
+local _swatchStroke = Instance.new("UIStroke")
+_swatchStroke.Color = Color3.fromRGB(255, 255, 255)
+_swatchStroke.Thickness = 1
+_swatchStroke.Transparency = 0.7
+_swatchStroke.Parent = _previewSwatch
+
+local _previewLabel = Instance.new("TextLabel")
+_previewLabel.Size = UDim2.new(1, -70, 1, 0)
+_previewLabel.Position = UDim2.new(0, 60, 0, 0)
+_previewLabel.BackgroundTransparency = 1
+_previewLabel.Text = "Màu hiện tại"
+_previewLabel.TextColor3 = Color3.fromRGB(225, 210, 190)
+_previewLabel.TextSize = 13
+_previewLabel.Font = Enum.Font.GothamMedium
+_previewLabel.TextXAlignment = Enum.TextXAlignment.Left
+_previewLabel.Parent = _previewHolder
+
+-- Hook để update swatch khi đổi theme
+local _origApplyTheme = ApplyTheme
+function ApplyTheme(c)
+    _origApplyTheme(c)
+    if _previewSwatch and _previewSwatch.Parent then
+        _previewSwatch.BackgroundColor3 = c
+    end
+end
+
+-- Nút reset về mặc định
+Library:CreateButton(TabUI, "↺ Reset về Bronze", function()
+    ApplyTheme(THEME_PRESETS["Bronze (Gốc)"])
+    Library:Notify("KairosHub", "Đã reset theme về Bronze", 2)
+end)
+
+-- Info
+Library:CreateLabel(TabUI, "── NOTE ──")
+Library:CreateLabel(TabUI, "• Chọn màu trong dropdown để đổi ngay")
+Library:CreateLabel(TabUI, "• Tất cả UI tự động đổi theo")
+Library:CreateLabel(TabUI, "• Bấm Reset nếu muốn về màu gốc")
+
+-- ★ Apply theme mặc định 1 lần
+ApplyTheme(THEME_PRESETS["Bronze (Gốc)"])
 -- ============================================================
 -- АВТОВЫБОР ПЕРВОЙ ВКЛАДКИ
 -- ============================================================
