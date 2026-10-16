@@ -371,7 +371,8 @@ FA_On = false
 FA_Delay = 0.03
 BM_On = false
 BM_Max = 2
-AnchorReached = false   -- ★ đã tới anchor mob chưa
+AnchorReached = false  -- ★ đã tới anchor mob chưa
+BM_LockPos    = nil    -- ★ vị trí khóa (Vector3) — set 1 lần, không đổi
 BroughtMobData  = {}
 RestoreMob      = function() end
 ForceRestoreAllMobs = function() end   -- ★ stub, gán thực sau
@@ -712,15 +713,15 @@ function Library:CreateTab(name)
     end
     TabFrame.Visible = true
     TweenService:Create(TabBtn, TweenInfo.new(0.2), {
-        BackgroundColor3 = BRONZE,
-        BackgroundTransparency = 0.2,
-        TextColor3 = Color3.fromRGB(255, 250, 240)
-    }):Play()
+         BackgroundColor3 = CurrentThemeColor,   -- ★ đổi
+         BackgroundTransparency = 0.2,
+         TextColor3 = Color3.fromRGB(255, 250, 240)
+}):Play()
 
     -- ★ Flash effect khi chuyển tab
     local flash = Instance.new("Frame")
     flash.Size = UDim2.new(1, 0, 1, 0)
-    flash.BackgroundColor3 = BRONZE_LIGHT
+    flash.BackgroundColor3 = ThemeLight()        -- ★ đổi
     flash.BackgroundTransparency = 0.4
     flash.BorderSizePixel = 0
     flash.ZIndex = 10
@@ -913,7 +914,9 @@ function Library:CreateLabel(tab, text)
     Lbl.Font = Enum.Font.Gotham
     Lbl.TextXAlignment = Enum.TextXAlignment.Left
     Lbl.Parent = tab.Frame
-    
+    Lbl.Parent = tab.Frame
+    table.insert(ThemeRegistry.SoftTexts, Lbl)   -- ★ THÊM DÒNG NÀY
+
     return {
         Frame = Lbl,
         Set = function(self, newText) Lbl.Text = newText end,
@@ -1569,6 +1572,7 @@ Library:CreateToggle(TabFarm, "Auto Farm Level", false, function(v)
     else
         currentTarget  = nil
         AnchorReached  = false
+        BM_LockPos     = nil
         NearestMobName = nil   -- ★
         if StopActiveTween then StopActiveTween() end
         ForceRestoreAllMobs()
@@ -1694,6 +1698,7 @@ Library:CreateToggle(TabSettings, "BringMob", false, function(v)
         Library:Notify("KairosHub", "BringMob ON", 2)
     else
         AnchorReached = false
+        BM_LockPos    = nil
         ForceRestoreAllMobs()
 
         -- ★ Reset player position khi tắt bring
@@ -1729,20 +1734,15 @@ local JoinTime = tick()
 
 Library:CreateLabel(TabStats, "── SERVER INFO ──")
 
-local TimeLabel = Library:CreateLabel(TabStats, "Thoi gian trong server: 00:00:00")
-TimeLabel:SetColor(Color3.fromRGB(200, 150, 100))
+local TimeLabel = Library:CreateLabel(TabStats, "Time server: 00:00:00")
 
 local ServerIdLabel = Library:CreateLabel(TabStats, "Server ID: ...")
-ServerIdLabel:SetColor(Color3.fromRGB(230, 190, 140))
 
-local PlayerCountLabel = Library:CreateLabel(TabStats, "Nguoi choi: 0/0")
-PlayerCountLabel:SetColor(Color3.fromRGB(190, 175, 155))
+local PlayerCountLabel = Library:CreateLabel(TabStats, "Players: 0/0")
 
-local PlayerNameLabel = Library:CreateLabel(TabStats, "Ten: " .. Player.Name)
-PlayerNameLabel:SetColor(Color3.fromRGB(190, 175, 155))
+local PlayerNameLabel = Library:CreateLabel(TabStats, "Name: " .. Player.Name)
 
 local UserIdLabel = Library:CreateLabel(TabStats, "User ID: " .. Player.UserId)
-UserIdLabel:SetColor(Color3.fromRGB(190, 175, 155))
 
 Library:CreateLabel(TabStats, "── PERFORMANCE ──")
 
@@ -2205,6 +2205,26 @@ RunService.Heartbeat:Connect(function(dt)
     flyBV.VectorVelocity = curVel:Lerp(targetVel, math.min(dt * 12, 1))
 end)
 
+-- ═══════════════════════════════════════════════════════
+-- ★ HEARTBEAT — GHIM MOB ĐỨNG YÊN TUYỆT ĐỐI
+-- ═══════════════════════════════════════════════════════
+RunService.Heartbeat:Connect(function()
+    if not (AutoFarm and BM_On and AnchorReached and BM_LockPos) then return end
+
+    local wantPos = Vector3.new(BM_LockPos.X, BM_LockPos.Y - 25, BM_LockPos.Z)
+
+    for mob in pairs(BroughtMobData) do
+        if mob.Parent then
+            local mRoot = mob:FindFirstChild("HumanoidRootPart")
+            if mRoot then
+                mRoot.CFrame = CFrame.new(wantPos)
+                mRoot.AssemblyLinearVelocity  = Vector3.zero
+                mRoot.AssemblyAngularVelocity = Vector3.zero
+            end
+        end
+    end
+end)
+
 -- ============================================================
 -- CLEANUP khi tắt farm
 -- ============================================================
@@ -2453,6 +2473,7 @@ task.spawn(function()
                 currentTarget = nil
                 ComboPhase    = "melee"
                 ComboTarget   = nil
+                BM_LockPos    = nil   -- ★ reset
                 local root = GetPlayerParts()
                 if root and root.Anchored then root.Anchored = false end
             end
@@ -2469,7 +2490,7 @@ task.spawn(function()
                 -- ══════════════════════════════════════════════
                 local searchName
                 if FarmMode == "Nearest" then
-                    searchName = nil   -- ★ tìm bất kỳ mob nào
+                    searchName = nil
                 else
                     pcall(AutoAcceptQuest)
                     searchName = CurrentMobName
@@ -2483,7 +2504,6 @@ task.spawn(function()
                     if not NearestMobName then
                         needSwitch = true
                     else
-                        -- check mob cũ còn sống và còn gần không
                         local enemies = workspace:FindFirstChild("Enemies")
                         local oldMob
                         if enemies then
@@ -2492,7 +2512,6 @@ task.spawn(function()
                                     local mh = m:FindFirstChild("Humanoid")
                                     local mr = m:FindFirstChild("HumanoidRootPart")
                                     if mh and mr and mh.Health > 0 then
-                                        -- còn sống và còn trong tầm 200 studs → giữ
                                         if (mr.Position - root.Position).Magnitude < 200 then
                                             oldMob = m
                                         end
@@ -2503,7 +2522,7 @@ task.spawn(function()
                         end
 
                         if not oldMob then
-                            needSwitch = true  -- mob cũ chết hoặc quá xa → đổi
+                            needSwitch = true
                         end
                     end
 
@@ -2515,14 +2534,12 @@ task.spawn(function()
                 -- Không có mob
                 if not target then
                     if FarmMode == "Nearest" then
-                        -- ★ Nearest mode không có mob → đứng yên
                         farmMoving    = false
                         farmTargetPos = nil
                         if flyBV then flyBV.VectorVelocity = Vector3.zero end
                         return
                     end
 
-                    -- Quest mode: bay tới spawn quest
                     if QuestCFrame then
                         local spawnPos = QuestCFrame.Position + Vector3.new(0, PLAYER_FLY_Y, 0)
                         local d = (root.Position - spawnPos).Magnitude
@@ -2548,9 +2565,9 @@ task.spawn(function()
                         if oh and oh.Health > 0 then oldAlive = true end
                     end
 
-                    -- cùng loại + mob cũ còn sống → không reset anchor
                     if not (oldAlive and currentTarget and currentTarget.Name == target.Name) then
                         AnchorReached = false
+                        BM_LockPos    = nil   -- ★ reset lock pos khi đổi target
                     end
                     currentTarget = target
                 end
@@ -2563,7 +2580,6 @@ task.spawn(function()
                 -- ===== DI CHUYỂN =====
                 if BM_On then
                     if not AnchorReached then
-                        -- ★ Dùng 3D dist
                         local dist3D = (root.Position - mRoot.Position).Magnitude
 
                         if dist3D > 30 then
@@ -2574,26 +2590,30 @@ task.spawn(function()
                                 farmTargetPos = goal
                             end
                         else
-                            -- ★ Tới gần anchor → lock Y cao hơn mob 25
+                            -- ★ Tới gần anchor → set lock pos CỐ ĐỊNH
                             AnchorReached = true
                             farmMoving    = false
                             farmTargetPos = nil
                             if flyBV then flyBV.VectorVelocity = Vector3.zero end
 
-                            local px, pz = root.Position.X, root.Position.Z
-                            local wantY  = mRoot.Position.Y + 25
-                            root.CFrame  = CFrame.new(px, wantY, pz)
+                            -- Lock vị trí player tại đây
+                            BM_LockPos = Vector3.new(
+                                root.Position.X,
+                                mRoot.Position.Y + 25,
+                                root.Position.Z
+                            )
+                            root.CFrame = CFrame.new(BM_LockPos)
                         end
                     else
-                        -- ★ Đã lock: giữ Y cao hơn anchor 25
+                        -- ★ Đã lock: giữ STATIC tại BM_LockPos, không theo mob
                         farmMoving    = false
                         farmTargetPos = nil
                         if flyBV then flyBV.VectorVelocity = Vector3.zero end
 
-                        local py    = root.Position.Y
-                        local wantY = mRoot.Position.Y + 25
-                        if math.abs(py - wantY) > 3 then
-                            root.CFrame = CFrame.new(root.Position.X, wantY, root.Position.Z)
+                        if BM_LockPos then
+                            if (root.Position - BM_LockPos).Magnitude > 1 then
+                                root.CFrame = CFrame.new(BM_LockPos)
+                            end
                         end
                     end
                 elseif horizDist > STOP_RANGE then
@@ -2614,11 +2634,9 @@ task.spawn(function()
 
                 -- ===== ĐÁNH =====
                 if horizDist <= ATTACK_RANGE then
-                    -- Gom tất cả mob cùng loại trong tầm
                     local targets = {target}
                     local enemies = workspace:FindFirstChild("Enemies")
                     if enemies then
-                        -- ★ dùng đúng tên theo mode
                         local atkName = (FarmMode == "Nearest") and NearestMobName or CurrentMobName
                         for _, m in ipairs(enemies:GetChildren()) do
                             if m.Name == atkName and m ~= target then
@@ -2642,7 +2660,7 @@ task.spawn(function()
 end)
 
 -- ============================================================
--- BRING MOB V2 bún — SimulationRadius + CFrame direct
+-- BRING MOB V2 — SimulationRadius + CFrame direct
 -- ============================================================
 RestoreMob = function(mob)
     PART_CACHE[mob] = nil
@@ -2747,9 +2765,13 @@ task.spawn(function()
             end
         end)
 
-        local destY   = root.Position.Y - 25
-        local FarmPos = CFrame.new(root.Position.X, destY, root.Position.Z)
-        local kept    = {}
+        -- ★ Dùng BM_LockPos thay vì player pos
+if not BM_LockPos then
+    BM_LockPos = Vector3.new(root.Position.X, root.Position.Y, root.Position.Z)
+end
+local destY   = BM_LockPos.Y - 25
+local FarmPos = CFrame.new(BM_LockPos.X, destY, BM_LockPos.Z)
+local kept    = {}
 
         local bringName = (FarmMode == "Nearest") and NearestMobName or CurrentMobName
 
@@ -3214,7 +3236,7 @@ pcall(function()
         Library.CurrentTab = Library.Tabs[1]
         
         TweenService:Create(Library.Tabs[1].Button, TweenInfo.new(0.2), {
-            BackgroundColor3 = Color3.fromRGB(200, 150, 100),
+            BackgroundColor3 = CurrentThemeColor,               -- ★ đổi
             BackgroundTransparency = 0.2,
             TextColor3 = Color3.fromRGB(255, 250, 240)
         }):Play()
