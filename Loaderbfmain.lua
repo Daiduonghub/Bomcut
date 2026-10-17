@@ -3218,7 +3218,7 @@ local FirstThemeInit = true
 TabUI.Frame.Visible = true
 task.wait()   -- chờ 1 frame
 
-Library:CreateDropdown(TabUI, "Select Color", _themeNames, Settings.Theme, function(v)
+local ThemeDropdown = Library:CreateDropdown(TabUI, "Select Color", _themeNames, Settings.Theme, function(v)
     Settings.Theme = v   -- ★ Lưu
     local newColor = THEME_PRESETS[v]
     if not newColor then return end
@@ -3285,7 +3285,10 @@ end
 
 -- Reset button
 Library:CreateButton(TabUI, "Reset to Bronze", function()
-    ApplyTheme(THEME_PRESETS["Bronze (Default)"])
+    local bronzeName = "Bronze (Default)"
+    ApplyTheme(THEME_PRESETS[bronzeName])
+    Settings.Theme = bronzeName         -- Lưu lại setting luôn
+    ThemeDropdown:Set(bronzeName)       -- ★ Ép Dropdown hiển thị chữ Bronze
     Library:Notify("KairosHub", "Theme reset to Bronze", 2)
 end)
 
