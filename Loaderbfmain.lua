@@ -305,7 +305,7 @@ MaximizeIcon.Name = "MaximizeIcon"
 MaximizeIcon.Size = UDim2.new(0, 16, 0, 16)
 MaximizeIcon.Position = UDim2.new(0.5, -8, 0.5, -8)
 MaximizeIcon.BackgroundTransparency = 1
-MaximizeIcon.Image = "rbxassetid://10709798950"
+MaximizeIcon.Image = "rbxassetid://6023426915"
 MaximizeIcon.ImageColor3 = Color3.fromRGB(200, 230, 255)
 MaximizeIcon.Parent = MaximizeBtn
 table.insert(ThemeRegistry.AccentImages, MaximizeIcon)
@@ -1521,7 +1521,7 @@ MaximizeBtn.MouseButton1Click:Connect(function()
         -- Переключение иконок
         MaximizeIcon.Visible = false
         MinimizeIcon.Visible = true
-        Library:Notify("KairosHub", "Da phong to UI", 2)
+        Library:Notify("KairosHub", "UI has been scaled up", 2)
     else
         TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
             Size = OriginalSize,
@@ -1530,7 +1530,7 @@ MaximizeBtn.MouseButton1Click:Connect(function()
         -- Переключение иконок
         MaximizeIcon.Visible = true
         MinimizeIcon.Visible = false
-        Library:Notify("KairosHub", "Da thu nho UI", 2)
+        Library:Notify("KairosHub", "It has been shrunk.", 2)
     end
 end)
 
@@ -3223,7 +3223,7 @@ function ApplyTheme(c)
 end
 
 -- Reset button
-Library:CreateButton(TabUI, "🔄 Reset to Bronze", function()
+Library:CreateButton(TabUI, "Reset to Bronze", function()
     ApplyTheme(THEME_PRESETS["Bronze (Default)"])
     Library:Notify("KairosHub", "Theme reset to Bronze", 2)
 end)
