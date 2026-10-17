@@ -8,6 +8,29 @@ local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local LP = Players.LocalPlayer
+
+-- ═══ KILL OLD LOOPS + PERSISTENCE ═══
+getgenv().KairosRunning = false
+task.wait(0.2)
+getgenv().KairosRunning = true
+
+if not getgenv().KairosSettings then
+    getgenv().KairosSettings = {
+        AutoFarm     = false,
+        BringMob     = false,
+        FastAtk      = false,
+        BossFarmOn   = false,
+        AtkSpeed     = 0.03,
+        TweenSpeed   = 120,
+        FarmMode     = "Quest",
+        FarmWeapon   = "Melee",        -- ★ default Melee
+        MobCount     = 2,
+        SelectedBoss = "None",
+        Theme        = "Bronze (Default)"
+    }
+end
+local Settings = getgenv().KairosSettings
+
 -- ══════════════════════════════════════════════════════════
 -- THEME SYSTEM
 -- ══════════════════════════════════════════════════════════
@@ -36,25 +59,17 @@ THEME_PRESETS = {
     ["Midnight"]          = Color3.fromRGB(100, 100, 180),
 }
 
-CurrentThemeColor = THEME_PRESETS["Bronze (Default)"]
+CurrentThemeColor = THEME_PRESETS[Settings.Theme] or THEME_PRESETS["Bronze (Default)"]
 MainStrokeTween    = nil   -- ★ ref để cancel
 LogoDotTween       = nil   -- ★ ref để cancel
 
 -- Registry elements
 ThemeRegistry = {
-    Strokes       = {},
-    AccentFrames  = {},
-    AccentButtons = {},
-    AccentImages  = {},
-    AccentTexts   = {},
-    Gradients     = {},
-    Toggles       = {},
-    TabButtons    = {},
-    Sliders       = {},
-    Notifs        = {},
-    SoftTexts     = {},   -- ★ THÊM — text form label (light version)
+    Strokes = {}, AccentFrames = {}, AccentButtons = {}, AccentImages = {},
+    AccentTexts = {}, Gradients = {}, Toggles = {}, TabButtons = {},
+    Sliders = {}, Notifs = {}, SoftTexts = {},
+    Dropdowns = {},   -- ★ THÊM — cần cho fix dropdown đổi màu
 }
-
 local function ThemeLight()
     local c = CurrentThemeColor
     return Color3.new(c.R + (1-c.R)*0.45, c.G + (1-c.G)*0.45, c.B + (1-c.B)*0.45)
@@ -122,6 +137,9 @@ function ApplyTheme(newColor)
     for _, n in ipairs(ThemeRegistry.Notifs) do
         if n.Stroke and n.Stroke.Parent then n.Stroke.Color = newColor end
         if n.Accent and n.Accent.Parent then n.Accent.BackgroundColor3 = newColor end
+        -- ★ Update tất cả dropdown options khi đổi theme  
+    for _, updateFn in ipairs(ThemeRegistry.Dropdowns) do
+    updateFn(newColor)
     end
 end
 
@@ -178,7 +196,7 @@ table.insert(ThemeRegistry.Strokes, MainStroke)
 
 -- ★ Stroke xoay gradient — shimmer effect
 task.spawn(function()
-    while MainFrame.Parent do
+    while getgenv().KairosRunning and MainFrame.Parent do
         local base  = CurrentThemeColor
         local light = ThemeLight()
         if MainStrokeTween then MainStrokeTween:Cancel() end
@@ -224,7 +242,7 @@ LogoCorner.CornerRadius = UDim.new(1, 0)
 LogoCorner.Parent = LogoDot
 
 task.spawn(function()
-    while LogoDot.Parent do
+    while getgenv().KairosRunning and LogoDot.Parent do
         if LogoDotTween then LogoDotTween:Cancel() end
         LogoDotTween = TweenService:Create(LogoDot, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundColor3 = ThemeLight()})
         LogoDotTween:Play()
@@ -374,7 +392,7 @@ Library.CurrentTab = nil
 --- ============================================================
 -- GLOBAL VARS (KHAI BÁO TRƯỚC ĐỂ TOGGLE KHÔNG LỖI)
 -- ============================================================
-AutoFarm = false
+AutoFarm = Settings.AutoFarm or false
 CurrentQuestName = nil
 QuestCooldown = 0
 currentTarget = nil
@@ -383,23 +401,24 @@ StopActiveTween = function() end
 CleanupFly = function() end
 AddHighlight = function() end
 RemoveHighlight = function() end
-FA_On = false
-FA_Delay = 0.03
-BM_On = false
-BM_Max = 2
-AnchorReached = false  -- ★ đã tới anchor mob chưa
-BM_LockPos    = nil    -- ★ vị trí khóa (Vector3) — set 1 lần, không đổi
+FA_On = Settings.FastAtk or false
+FA_Delay = Settings.AtkSpeed or 0.03
+BM_On = Settings.BringMob or false
+BM_Max = Settings.MobCount or 2
+AnchorReached = false
+BM_LockPos    = nil
+FarmLockedMobs = {}
 BroughtMobData  = {}
 RestoreMob      = function() end
-ForceRestoreAllMobs = function() end   -- ★ stub, gán thực sau
--- ★ Combo state
+ForceRestoreAllMobs = function() end
+
 ComboPhase  = "melee"
 ComboTarget = nil
 ComboStart  = 0
--- ★ Farm Nearest mode
-FarmMode       = "Quest"   -- "Quest" | "Nearest"
-NearestMobName = nil       -- tên con mob nearest hiện tại (dùng cho BringMob)
-FarmWeapon = nil  -- category: "Melee" / "Sword" / "Gun" / nil
+
+FarmMode       = Settings.FarmMode or "Quest"
+NearestMobName = nil
+FarmWeapon     = Settings.FarmWeapon or "Melee"   -- ★ Fallback Melee (xem giải thích dưới)
 
 local WeaponDB = {
     Melee = {
@@ -1103,7 +1122,7 @@ function Library:CreateSlider(tab, name, min, max, default, callback)
 
     -- Animation pulse
     task.spawn(function()
-        while Dot.Parent do
+        while getgenv().KairosRunning and Dot.Parent do
             TweenService:Create(DotStroke, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Transparency = 0.6}):Play()
             TweenService:Create(DotGlow,   TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {ImageTransparency = 0.6}):Play()
             task.wait(1.2)
@@ -1216,7 +1235,6 @@ function Library:CreateDropdown(tab, name, options, default, callback)
     LPad.PaddingBottom = UDim.new(0, 4)
     LPad.Parent = ListFrame
 
-    -- ★ ĐĂNG KÝ THEME — chèn ngay đây
     table.insert(ThemeRegistry.AccentTexts, SelectedLbl)
     table.insert(ThemeRegistry.AccentTexts, Arrow)
     table.insert(ThemeRegistry.Strokes, LStroke)
@@ -1231,9 +1249,26 @@ function Library:CreateDropdown(tab, name, options, default, callback)
         if callback then callback(v) end
     end
 
-    -- ══════════════════════════════════════════════
-    -- Option buttons (dùng chung cho cả lần tạo gốc + SetOptions)
-    -- ══════════════════════════════════════════════
+    -- ★ HÀM FIX MÀU DROPDOWN
+    local function updateDropdownTheme(newColor)
+        LStroke.Color = newColor
+        SelectedLbl.TextColor3 = newColor
+        Arrow.TextColor3 = newColor
+        ListFrame.ScrollBarImageColor3 = newColor
+        for _, ob in ipairs(optionButtons) do
+            if ob.Value == currentValue then
+                ob.Btn.BackgroundColor3 = newColor
+                ob.Btn.BackgroundTransparency = 0.2
+                ob.Btn.TextColor3 = Color3.fromRGB(255, 250, 240)
+            else
+                ob.Btn.BackgroundColor3 = Color3.fromRGB(32, 26, 22)
+                ob.Btn.BackgroundTransparency = 0.5
+                ob.Btn.TextColor3 = Color3.fromRGB(225, 210, 190)
+            end
+        end
+    end
+    table.insert(ThemeRegistry.Dropdowns, updateDropdownTheme)
+
     local function makeOptionButton(opt)
         local OptBtn = Instance.new("TextButton")
         OptBtn.Size = UDim2.new(1, 0, 0, 28)
@@ -1270,88 +1305,44 @@ function Library:CreateDropdown(tab, name, options, default, callback)
         end)
 
         OptBtn.MouseButton1Click:Connect(function()
-            for _, ob in ipairs(optionButtons) do
-                TweenService:Create(ob.Btn, TweenInfo.new(0.15), {
-                    BackgroundColor3     = Color3.fromRGB(32, 26, 22),
-                    BackgroundTransparency = 0.5,
-                    TextColor3           = Color3.fromRGB(225, 210, 190)
-                }):Play()
-            end
-            TweenService:Create(OptBtn, TweenInfo.new(0.15), {
-                BackgroundColor3     = CurrentThemeColor,
-                BackgroundTransparency = 0.2,
-                TextColor3           = Color3.fromRGB(255, 250, 240)
-            }):Play()
-
             setValue(opt)
-
+            updateDropdownTheme(CurrentThemeColor)  -- ★ Update màu ngay
             isOpen = false
-            TweenService:Create(ListFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-                Size = UDim2.new(1, 0, 0, 0)
-            }):Play()
-            task.delay(0.2, function()
-                ListFrame.Visible = false
-            end)
+            TweenService:Create(ListFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Size = UDim2.new(1, 0, 0, 0)}):Play()
+            task.delay(0.2, function() ListFrame.Visible = false end)
             TweenService:Create(Arrow, TweenInfo.new(0.2), {Rotation = 0}):Play()
         end)
     end
 
-    for _, opt in ipairs(options) do
-        makeOptionButton(opt)
-    end
+    for _, opt in ipairs(options) do makeOptionButton(opt) end
+    updateDropdownTheme(CurrentThemeColor)  -- ★ Set màu ban đầu
 
-    -- Highlight default option
-    for _, ob in ipairs(optionButtons) do
-        if ob.Value == currentValue then
-            ob.Btn.BackgroundColor3 = CurrentThemeColor
-            ob.Btn.BackgroundTransparency = 0.2
-            ob.Btn.TextColor3 = Color3.fromRGB(255, 250, 240)
-        end
-    end
-
-    -- Toggle open/close
     DButton.MouseButton1Click:Connect(function()
         isOpen = not isOpen
-
         if isOpen then
             ListFrame.Visible = true
             local listHeight = math.min(#optionButtons * 30 + 12, 150)
-            TweenService:Create(ListFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                Size = UDim2.new(1, 0, 0, listHeight)
-            }):Play()
+            TweenService:Create(ListFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, 0, 0, listHeight)}):Play()
             TweenService:Create(Arrow, TweenInfo.new(0.2), {Rotation = 180}):Play()
         else
-            TweenService:Create(ListFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-                Size = UDim2.new(1, 0, 0, 0)
-            }):Play()
+            TweenService:Create(ListFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(1, 0, 0, 0)}):Play()
             TweenService:Create(Arrow, TweenInfo.new(0.2), {Rotation = 0}):Play()
-            task.delay(0.2, function()
-                ListFrame.Visible = false
-            end)
+            task.delay(0.2, function() ListFrame.Visible = false end)
         end
     end)
 
-    -- Hover
-    DButton.MouseEnter:Connect(function()
-        TweenService:Create(DropFrame, TweenInfo.new(0.15), {BackgroundTransparency = 0.2}):Play()
-    end)
-    DButton.MouseLeave:Connect(function()
-        TweenService:Create(DropFrame, TweenInfo.new(0.15), {BackgroundTransparency = 0.4}):Play()
-    end)
+    DButton.MouseEnter:Connect(function() TweenService:Create(DropFrame, TweenInfo.new(0.15), {BackgroundTransparency = 0.2}):Play() end)
+    DButton.MouseLeave:Connect(function() TweenService:Create(DropFrame, TweenInfo.new(0.15), {BackgroundTransparency = 0.4}):Play() end)
 
     return {
         Frame = DropFrame,
-        Set   = setValue,
-        Get   = function() return currentValue end,
+        Set = setValue,
+        Get = function() return currentValue end,
         SetOptions = function(newOptions)
-            for _, ob in ipairs(optionButtons) do
-                ob.Btn:Destroy()
-            end
+            for _, ob in ipairs(optionButtons) do ob.Btn:Destroy() end
             optionButtons = {}
-
-            for _, opt in ipairs(newOptions) do
-                makeOptionButton(opt)
-            end
+            for _, opt in ipairs(newOptions) do makeOptionButton(opt) end
+            updateDropdownTheme(CurrentThemeColor)
         end
     }
 end
@@ -1544,7 +1535,8 @@ local TabUI = Library:CreateTab("UI / Theme")
 
 local FirstFarmModeInit = true
 
-Library:CreateDropdown(TabFarm, "Farm Mode", {"Quest", "Nearest"}, "Quest", function(v)
+Library:CreateDropdown(TabFarm, "Farm Mode", {"Quest", "Nearest"}, Settings.FarmMode or "Quest", function(v)
+    Settings.FarmMode = v
     FarmMode = v
 
     if FirstFarmModeInit then
@@ -1552,16 +1544,15 @@ Library:CreateDropdown(TabFarm, "Farm Mode", {"Quest", "Nearest"}, "Quest", func
         return
     end
 
-    -- ★ reset state khi đổi mode
     NearestMobName = nil
     currentTarget  = nil
     AnchorReached  = false
     ForceRestoreAllMobs()
 
     if v == "Nearest" then
-        Library:Notify("KairosHub", "Farm Mode: NEAREST (bỏ qua quest)", 3)
+        Library:Notify("KairosHub", "Farm Mode: NEAREST", 3)
     else
-        Library:Notify("KairosHub", "Farm Mode: QUEST (theo level)", 3)
+        Library:Notify("KairosHub", "Farm Mode: QUEST", 3)
     end
 end)
 
@@ -1569,7 +1560,8 @@ end)
 -- Thêm biến này TRƯỚC CreateToggle
 local FirstToggleInit = true
 
-Library:CreateToggle(TabFarm, "Auto Farm Level", false, function(v)
+Library:CreateToggle(TabFarm, "Auto Farm Level", Settings.AutoFarm or false, function(v)
+    Settings.AutoFarm = v
     AutoFarm = v
 
     if FirstToggleInit then
@@ -1582,19 +1574,20 @@ Library:CreateToggle(TabFarm, "Auto Farm Level", false, function(v)
         QuestCooldown    = 0
         currentTarget    = nil
         AnchorReached    = false
-        NearestMobName   = nil   -- ★
+        NearestMobName   = nil
+        FarmLockedMobs   = {}
         AddHighlight()
         Library:Notify("KairosHub", "Auto Farm: ON", 2)
     else
         currentTarget  = nil
         AnchorReached  = false
         BM_LockPos     = nil
-        NearestMobName = nil   -- ★
+        FarmLockedMobs = {}
+        NearestMobName = nil
         if StopActiveTween then StopActiveTween() end
         ForceRestoreAllMobs()
         CleanupFly()
 
-        -- ★ Reset vị trí player về ground (nếu đang ở Y+25)
         pcall(function()
             local char = LP.Character
             if char then
@@ -1646,23 +1639,31 @@ for _, b in ipairs(_sorted) do
     table.insert(_bossOpts, string.format("%s [Lv.%d]", b.Name, b.Level))
 end
 
-Library:CreateDropdown(TabFarm, "Select Boss", _bossOpts, "None", function(v)
+Library:CreateDropdown(TabFarm, "Select Boss", _bossOpts, (function()
+    if Settings.SelectedBoss == "None" or not Settings.SelectedBoss then return "None" end
+    for _, opt in ipairs(_bossOpts) do
+        if opt:match("^(.-)%s*%[Lv") == Settings.SelectedBoss then return opt end
+    end
+    return "None"
+end)(), function(v)
     if v == "None" then
         SelectedBoss = "None"
     else
         SelectedBoss = v:match("^(.-)%s*%[Lv") or v
     end
+    Settings.SelectedBoss = SelectedBoss
     BossTarget      = nil
     _lastWaitNotify = 0
     _bossWaitStart  = 0
-    _lastBossSearch = 0    -- ★ force search lại ngay
+    _lastBossSearch = 0
 end)
 
-Library:CreateToggle(TabFarm, "Auto Farm Boss", false, function(v)
+Library:CreateToggle(TabFarm, "Auto Farm Boss", Settings.BossFarmOn or false, function(v)
+    Settings.BossFarmOn = v
     BossFarmOn = v
     _lastWaitNotify = 0
     _bossWaitStart  = 0
-    _lastBossSearch = 0    -- ★ force search lại ngay
+    _lastBossSearch = 0
 
     if FirstBossToggleInit then
         FirstBossToggleInit = false
@@ -1683,25 +1684,30 @@ Library:CreateToggle(TabFarm, "Auto Farm Boss", false, function(v)
     end
 end)
 
-Library:CreateDropdown(TabSettings, "Farm Weapon", {"None", "Melee", "Sword", "Gun"}, "None", function(v)
-    FarmWeapon = (v == "None") and nil or v   -- lưu category
+Library:CreateDropdown(TabSettings, "Farm Weapon", {"None", "Melee", "Sword", "Gun"}, Settings.FarmWeapon or "None", function(v)
+    Settings.FarmWeapon = v
+    FarmWeapon = (v == "None") and nil or v
 end)
 
-Library:CreateToggle(TabSettings, "FastAtk", false, function(v)
+Library:CreateToggle(TabSettings, "FastAtk", Settings.FastAtk or false, function(v)
+    Settings.FastAtk = v
     FA_On = v
 end)
 
-Library:CreateSlider(TabSettings, "AtkSpeed", 0.01, 0.2, 0.03, function(v)
+Library:CreateSlider(TabSettings, "AtkSpeed", 0.01, 0.2, Settings.AtkSpeed or 0.03, function(v)
+    Settings.AtkSpeed = v
     FA_Delay = v
 end)
 
-Library:CreateTextBox(TabSettings, "Tween speed", 120, function(v)
+Library:CreateTextBox(TabSettings, "Tween speed", Settings.TweenSpeed or 120, function(v)
+    Settings.TweenSpeed = v
     TweenSpeed = math.clamp(math.floor(v), 30, 500)
 end)
 
 local FirstBringToggleInit = true
 
-Library:CreateToggle(TabSettings, "BringMob", false, function(v)
+Library:CreateToggle(TabSettings, "BringMob", Settings.BringMob or false, function(v)
+    Settings.BringMob = v
     BM_On = v
     AnchorReached = false
 
@@ -1713,11 +1719,10 @@ Library:CreateToggle(TabSettings, "BringMob", false, function(v)
     if v then
         Library:Notify("KairosHub", "BringMob ON", 2)
     else
-        AnchorReached = false
-        BM_LockPos    = nil
+        AnchorReached  = false
+        BM_LockPos     = nil
         ForceRestoreAllMobs()
 
-        -- ★ Reset player position khi tắt bring
         pcall(function()
             local char = LP.Character
             if char then
@@ -1740,8 +1745,9 @@ Library:CreateToggle(TabSettings, "BringMob", false, function(v)
     end
 end)
 
-Library:CreateTextBox(TabSettings, "Mob count (1-5)", 2, function(v)
-    BM_Max = math.clamp(math.floor(v), 1, 5)
+Library:CreateTextBox(TabSettings, "Mob count (1-5)", Settings.MobCount or 2, function(v)
+    Settings.MobCount = math.clamp(math.floor(v), 1, 5)
+    BM_Max = Settings.MobCount
 end)
 
 -- ---------- TAB STATS & SERVER ----------
@@ -1796,7 +1802,7 @@ end)
 
 -- Loop update mỗi 1 giây
 task.spawn(function()
-    while TabStats.Frame.Parent do
+    while getgenv().KairosRunning and TabStats.Frame.Parent do
         local elapsed = (tick() - JoinTime) + InitialOffset
         TimeLabel:Set("Time server: " .. FormatTime(elapsed))
         task.wait(1)
@@ -1810,7 +1816,7 @@ pcall(function()
 end)
 
 task.spawn(function()
-    while TabStats.Frame.Parent do
+    while getgenv().KairosRunning and TabStats.Frame.Parent do
         local current = #Players:GetPlayers()
         local max = Players.MaxPlayers
         PlayerCountLabel:Set("Players: " .. current .. "/" .. max)
@@ -1824,7 +1830,7 @@ task.spawn(function()
     RunService.RenderStepped:Connect(function()
         frames = frames + 1
     end)
-    while TabStats.Frame.Parent do
+    while getgenv().KairosRunning and TabStats.Frame.Parent do
         local now = tick()
         local elapsed = now - lastTime
         if elapsed > 0 then
@@ -1838,7 +1844,7 @@ task.spawn(function()
 end)
 
 task.spawn(function()
-    while TabStats.Frame.Parent do
+    while getgenv().KairosRunning and TabStats.Frame.Parent do
         local ping = math.floor(Player:GetNetworkPing() * 1000)
         PingLabel:Set("Ping: " .. ping .. " ms")
         task.wait(2)
@@ -1846,7 +1852,7 @@ task.spawn(function()
 end)
 
 task.spawn(function()
-    while TabStats.Frame.Parent do
+    while getgenv().KairosRunning and TabStats.Frame.Parent do
         local mem = math.floor(game:GetService("Stats"):GetTotalMemoryUsageMb())
         MemoryLabel:Set("Memory: " .. mem .. " MB")
         task.wait(3)
@@ -1936,13 +1942,12 @@ local DETECT_RANGE  = 300
 local MIN_Y = -50     -- -50 thay vì 20, để bay vào Magma/Sky vẫn OK     -- không bay thấp hơn mức này (tránh rớt biển)
 local HitHash       = "168716de"
 
--- Slot cố định — cluster gọn thay vì hình tròn
 local SLOT_OFFSETS = {
-    Vector3.new( 0,  0,  0),
-    Vector3.new( 3,  0,  3),
-    Vector3.new(-3,  0,  3),
-    Vector3.new( 3,  0, -3),
-    Vector3.new(-3,  0, -3),
+    Vector3.new( 0, 0,  0),   -- slot 1 (con lock)
+    Vector3.new( 2, 0,  0),   -- slot 2
+    Vector3.new(-2, 0,  0),   -- slot 3
+    Vector3.new( 0, 0,  2),   -- slot 4
+    Vector3.new( 0, 0, -2),   -- slot 5
 }
 
 -- ============================================================
@@ -2225,18 +2230,47 @@ end)
 -- ★ HEARTBEAT — GHIM MOB ĐỨNG YÊN TUYỆT ĐỐI
 -- ═══════════════════════════════════════════════════════
 RunService.Heartbeat:Connect(function()
-    if not (AutoFarm and BM_On and AnchorReached and BM_LockPos) then return end
+    if not getgenv().KairosRunning then return end
 
-    local wantPos = Vector3.new(BM_LockPos.X, BM_LockPos.Y - 25, BM_LockPos.Z)
-
-    for mob in pairs(BroughtMobData) do
-        if mob.Parent then
-            local mRoot = mob:FindFirstChild("HumanoidRootPart")
-            if mRoot then
-                mRoot.CFrame = CFrame.new(wantPos)
-                mRoot.AssemblyLinearVelocity  = Vector3.zero
-                mRoot.AssemblyAngularVelocity = Vector3.zero
+    -- ═══ CASE 1: BringMob — ghim về BM_LockPos ═══
+    if AutoFarm and BM_On and AnchorReached and BM_LockPos then
+        local wantPos = Vector3.new(BM_LockPos.X, BM_LockPos.Y - 25, BM_LockPos.Z)
+        for mob in pairs(BroughtMobData) do
+            if mob.Parent then
+                local mRoot = mob:FindFirstChild("HumanoidRootPart")
+                if mRoot then
+                    mRoot.CFrame = CFrame.new(wantPos)
+                    mRoot.AssemblyLinearVelocity  = Vector3.zero
+                    mRoot.AssemblyAngularVelocity = Vector3.zero
+                end
             end
+        end
+        return
+    end
+
+    -- ═══ CASE 2: Farm thường — freeze mob đang bị đánh ═══
+    if AutoFarm and not BM_On then
+        local now = tick()
+        local toRemove = nil
+        for mob, data in pairs(FarmLockedMobs) do
+            if not mob.Parent or now > data.Expire then
+                if not toRemove then toRemove = {} end
+                table.insert(toRemove, mob)
+            else
+                local mHum  = mob:FindFirstChild("Humanoid")
+                local mRoot = mob:FindFirstChild("HumanoidRootPart")
+                if mHum and mRoot and mHum.Health > 0 then
+                    mRoot.CFrame = data.CFrame
+                    mRoot.AssemblyLinearVelocity  = Vector3.zero
+                    mRoot.AssemblyAngularVelocity = Vector3.zero
+                else
+                    if not toRemove then toRemove = {} end
+                    table.insert(toRemove, mob)
+                end
+            end
+        end
+        if toRemove then
+            for _, m in ipairs(toRemove) do FarmLockedMobs[m] = nil end
         end
     end
 end)
@@ -2398,6 +2432,21 @@ end
 local function DoAttack(targets)
     if not targets or #targets == 0 then return end
 
+    -- ★ Freeze target mob (không phải BringMob / Boss)
+    if not BM_On and not BossFarmOn then
+        local now = tick()
+        for _, m in ipairs(targets) do
+            local mRoot = m:FindFirstChild("HumanoidRootPart")
+            if mRoot then
+                if not FarmLockedMobs[m] then
+                    FarmLockedMobs[m] = {CFrame = mRoot.CFrame, Expire = now + 2}
+                else
+                    FarmLockedMobs[m].Expire = now + 2   -- refresh
+                end
+            end
+        end
+    end
+
     local firstTarget = targets[1]
 
     if firstTarget ~= ComboTarget then
@@ -2472,7 +2521,7 @@ end
 -- MAIN FARM LOOP
 -- ============================================================
 task.spawn(function()
-    while true do
+    while getgenv().KairosRunning do
         task.wait(0.01)
 
         -- cleanup cache mob chết mỗi 5s
@@ -2736,7 +2785,7 @@ end
 
 -- Luồng riêng chuyên để duy trì SimulationRadius (chạy thưa ra để không nghẽn mạng)
 task.spawn(function()
-    while true do
+    while getgenv().KairosRunning do
         pcall(function()
             sethiddenproperty(LP, "SimulationRadius", math.huge)
             sethiddenproperty(LP, "MaxSimulationRadius", math.huge)
@@ -2826,8 +2875,14 @@ local kept    = {}
 
             kept[mob] = true
 
-            -- ★ Update CFrame mỗi loop (nhẹ)
-            mRoot.CFrame = FarmPos
+            -- ★ Offset 2 studs — tách nhẹ để hit nhiều con
+            local offset = SLOT_OFFSETS[i] or Vector3.new(0, 0, 0)
+            local mobPos = CFrame.new(
+                FarmPos.X + offset.X,
+                FarmPos.Y,
+                FarmPos.Z + offset.Z
+)
+mRoot.CFrame = mobPos
 
             -- ★ NẶNG — chỉ chạy 1 lần duy nhất / mob
             if not BroughtMobData[mob] then
@@ -2996,7 +3051,7 @@ end
 
 -- ★ STREAM REQUEST — ép server gửi khu vực boss về client
 task.spawn(function()
-    while true do
+    while getgenv().KairosRunning do
         task.wait(1)
 
         if BossFarmOn
@@ -3017,7 +3072,7 @@ end)
 
 -- ★ BOSS FARM LOOP
 task.spawn(function()
-    while true do
+    while getgenv().KairosRunning do
         task.wait(0.1)
 
         if not BossFarmOn or SelectedBoss == "None" or not BossDB[SelectedBoss] then
@@ -3158,7 +3213,12 @@ table.sort(_themeNames)
 
 local FirstThemeInit = true
 
-Library:CreateDropdown(TabUI, "Select Color", _themeNames, "Bronze (Default)", function(v)
+-- ★ Force layout update cho TabUI
+TabUI.Frame.Visible = true
+task.wait()   -- chờ 1 frame
+
+Library:CreateDropdown(TabUI, "Select Color", _themeNames, Settings.Theme, function(v)
+    Settings.Theme = v   -- ★ Lưu
     local newColor = THEME_PRESETS[v]
     if not newColor then return end
     ApplyTheme(newColor)
