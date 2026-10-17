@@ -137,6 +137,7 @@ function ApplyTheme(newColor)
     for _, n in ipairs(ThemeRegistry.Notifs) do
         if n.Stroke and n.Stroke.Parent then n.Stroke.Color = newColor end
         if n.Accent and n.Accent.Parent then n.Accent.BackgroundColor3 = newColor end
+    end
         -- ★ Update tất cả dropdown options khi đổi theme  
     for _, updateFn in ipairs(ThemeRegistry.Dropdowns) do
     updateFn(newColor)
