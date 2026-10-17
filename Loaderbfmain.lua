@@ -14,7 +14,7 @@ getgenv().KairosRunning = false
 task.wait(0.2)
 getgenv().KairosRunning = true
 
-if not getgenv().KairosSettings then
+if not getgenv().KairosSettings or type(getgenv().KairosSettings.Theme) ~= "string" then
     getgenv().KairosSettings = {
         AutoFarm     = false,
         BringMob     = false,
@@ -1141,8 +1141,27 @@ end
 -- HAM TAO DROPDOWN (LIST CHON, KEO DUOC)
 -- ============================================================
 function Library:CreateDropdown(tab, name, options, default, callback)
-    options = options or {}
-    default = default or (options[1] or "")
+    -- 1. Làm sạch options: chỉ nhận string, loại bỏ table/nil
+    local cleanOptions = {}
+    if type(options) == "table" then
+        for _, opt in ipairs(options) do
+            if type(opt) == "string" then
+                table.insert(cleanOptions, opt)
+            end
+        end
+    end
+    if #cleanOptions == 0 then cleanOptions = {"None"} end
+
+    -- 2. Làm sạch default: nếu không phải string hoặc không nằm trong options thì lấy cái đầu
+    local finalDefault = cleanOptions[1]
+    if type(default) == "string" then
+        for _, opt in ipairs(cleanOptions) do
+            if opt == default then
+                finalDefault = default
+                break
+            end
+        end
+    end
 
     local DropFrame = Instance.new("Frame")
     DropFrame.Size = UDim2.new(1, -12, 0, 40)
@@ -1161,7 +1180,7 @@ function Library:CreateDropdown(tab, name, options, default, callback)
     DLabel.Size = UDim2.new(0.5, 0, 1, 0)
     DLabel.Position = UDim2.new(0, 14, 0, 0)
     DLabel.BackgroundTransparency = 1
-    DLabel.Text = name
+    DLabel.Text = tostring(name)
     DLabel.TextColor3 = Color3.fromRGB(225, 210, 190)
     DLabel.TextSize = 13
     DLabel.Font = Enum.Font.GothamMedium
@@ -1174,7 +1193,7 @@ function Library:CreateDropdown(tab, name, options, default, callback)
     SelectedLbl.Size = UDim2.new(0.45, -30, 1, 0)
     SelectedLbl.Position = UDim2.new(0.5, 0, 0, 0)
     SelectedLbl.BackgroundTransparency = 1
-    SelectedLbl.Text = tostring(default)
+    SelectedLbl.Text = finalDefault
     SelectedLbl.TextColor3 = CurrentThemeColor
     SelectedLbl.TextSize = 13
     SelectedLbl.Font = Enum.Font.GothamBold
@@ -1241,16 +1260,15 @@ function Library:CreateDropdown(tab, name, options, default, callback)
     table.insert(ThemeRegistry.Strokes, LStroke)
 
     local isOpen = false
-    local currentValue = default
+    local currentValue = finalDefault
     local optionButtons = {}
 
     local function setValue(v)
-        currentValue = v
-        SelectedLbl.Text = tostring(v)
-        if callback then callback(v) end
+        currentValue = tostring(v)
+        SelectedLbl.Text = currentValue
+        if callback then callback(currentValue) end
     end
 
-    -- ★ HÀM FIX MÀU DROPDOWN
     local function updateDropdownTheme(newColor)
         LStroke.Color = newColor
         SelectedLbl.TextColor3 = newColor
@@ -1292,7 +1310,7 @@ function Library:CreateDropdown(tab, name, options, default, callback)
         OPad.PaddingLeft = UDim.new(0, 10)
         OPad.Parent = OptBtn
 
-        table.insert(optionButtons, {Btn = OptBtn, Value = opt})
+        table.insert(optionButtons, {Btn = OptBtn, Value = tostring(opt)})
 
         OptBtn.MouseEnter:Connect(function()
             if currentValue ~= opt then
@@ -1307,7 +1325,7 @@ function Library:CreateDropdown(tab, name, options, default, callback)
 
         OptBtn.MouseButton1Click:Connect(function()
             setValue(opt)
-            updateDropdownTheme(CurrentThemeColor)  -- ★ Update màu ngay
+            updateDropdownTheme(CurrentThemeColor)
             isOpen = false
             TweenService:Create(ListFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Size = UDim2.new(1, 0, 0, 0)}):Play()
             task.delay(0.2, function() ListFrame.Visible = false end)
@@ -1315,8 +1333,8 @@ function Library:CreateDropdown(tab, name, options, default, callback)
         end)
     end
 
-    for _, opt in ipairs(options) do makeOptionButton(opt) end
-    updateDropdownTheme(CurrentThemeColor)  -- ★ Set màu ban đầu
+    for _, opt in ipairs(cleanOptions) do makeOptionButton(opt) end
+    updateDropdownTheme(CurrentThemeColor)
 
     DButton.MouseButton1Click:Connect(function()
         isOpen = not isOpen
