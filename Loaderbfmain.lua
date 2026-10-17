@@ -14,6 +14,7 @@ getgenv().KairosRunning = false
 task.wait(0.2)
 getgenv().KairosRunning = true
 
+-- ★ FIX: Xóa sạch settings cũ nếu nó bị lỗi (không phải string)
 if not getgenv().KairosSettings or type(getgenv().KairosSettings.Theme) ~= "string" then
     getgenv().KairosSettings = {
         AutoFarm     = false,
@@ -23,12 +24,17 @@ if not getgenv().KairosSettings or type(getgenv().KairosSettings.Theme) ~= "stri
         AtkSpeed     = 0.03,
         TweenSpeed   = 120,
         FarmMode     = "Quest",
-        FarmWeapon   = "Melee",        -- ★ default Melee
+        FarmWeapon   = "Melee",
         MobCount     = 2,
         SelectedBoss = "None",
         Theme        = "Bronze (Default)"
     }
 end
+-- ★ FIX: Đảm bảo Theme luôn là chuỗi hợp lệ
+if type(getgenv().KairosSettings.Theme) ~= "string" then
+    getgenv().KairosSettings.Theme = "Bronze (Default)"
+end
+
 local Settings = getgenv().KairosSettings
 
 -- ══════════════════════════════════════════════════════════
@@ -1141,7 +1147,7 @@ end
 -- HAM TAO DROPDOWN (LIST CHON, KEO DUOC)
 -- ============================================================
 function Library:CreateDropdown(tab, name, options, default, callback)
-    -- 1. Làm sạch options: chỉ nhận string, loại bỏ table/nil
+    -- 1. Làm sạch options
     local cleanOptions = {}
     if type(options) == "table" then
         for _, opt in ipairs(options) do
@@ -1152,7 +1158,7 @@ function Library:CreateDropdown(tab, name, options, default, callback)
     end
     if #cleanOptions == 0 then cleanOptions = {"None"} end
 
-    -- 2. Làm sạch default: nếu không phải string hoặc không nằm trong options thì lấy cái đầu
+    -- 2. Làm sạch default
     local finalDefault = cleanOptions[1]
     if type(default) == "string" then
         for _, opt in ipairs(cleanOptions) do
@@ -1161,6 +1167,11 @@ function Library:CreateDropdown(tab, name, options, default, callback)
                 break
             end
         end
+    end
+    
+    -- ★ BẢO VỆ TUYỆT ĐỐI: Ép finalDefault thành string
+    if type(finalDefault) ~= "string" then
+        finalDefault = cleanOptions[1] or "None"
     end
 
     local DropFrame = Instance.new("Frame")
@@ -1193,7 +1204,7 @@ function Library:CreateDropdown(tab, name, options, default, callback)
     SelectedLbl.Size = UDim2.new(0.45, -30, 1, 0)
     SelectedLbl.Position = UDim2.new(0.5, 0, 0, 0)
     SelectedLbl.BackgroundTransparency = 1
-    SelectedLbl.Text = finalDefault
+    SelectedLbl.Text = tostring(finalDefault) -- ★ Ép string ở đây
     SelectedLbl.TextColor3 = CurrentThemeColor
     SelectedLbl.TextSize = 13
     SelectedLbl.Font = Enum.Font.GothamBold
