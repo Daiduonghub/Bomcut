@@ -2711,20 +2711,29 @@ task.spawn(function()
                             end
                         end
                     end
-                elseif horizDist > STOP_RANGE then
-                    local goal = mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0)
-                    if goal.Y < MIN_Y then
-                        goal = Vector3.new(goal.X, MIN_Y, goal.Z)
-                    end
-                    if not farmMoving then
-                        FlyTo(goal)
-                    else
-                        farmTargetPos = goal
-                    end
                 else
-                    farmMoving    = false
-                    farmTargetPos = nil
-                    if flyBV then flyBV.VectorVelocity = Vector3.zero end
+                    -- ★★★ FIX: BAY TỚI ĐẦU QUÁI VÀ GHIM CỨNG ★★★
+                    if horizDist > 3 then 
+                        -- Bay tới khi khoảng cách ngang còn 3 studs
+                        local goal = mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0)
+                        if goal.Y < MIN_Y then
+                            goal = Vector3.new(goal.X, MIN_Y, goal.Z)
+                        end
+                        if not farmMoving then
+                            FlyTo(goal)
+                        else
+                            farmTargetPos = goal
+                        end
+                    else
+                        -- Đã tới ngay trên đầu quái, ghim cứng vị trí
+                        farmMoving    = false
+                        farmTargetPos = nil
+                        if flyBV then flyBV.VectorVelocity = Vector3.zero end
+                        
+                        local exactPos = mRoot.Position + Vector3.new(0, PLAYER_FLY_Y, 0)
+                        root.CFrame = CFrame.new(exactPos)
+                        root.AssemblyLinearVelocity = Vector3.zero
+                    end
                 end
 
                 -- ===== ĐÁNH =====
