@@ -77,6 +77,10 @@ local Lib = {}
 function Lib:CreateWindow(cfg)
 	cfg = cfg or {}
 
+	-- ID asset cho floating button — thay bằng ID của He
+	local IconOff = cfg.IconOff or "rbxassetid://0"
+	local IconOn  = cfg.IconOn  or "rbxassetid://0"
+
 	local gui = new("ScreenGui", {
 		Name = "BlueWhiteUI",
 		ResetOnSpawn = false,
@@ -108,7 +112,6 @@ function Lib:CreateWindow(cfg)
 		ZIndex = 2,
 	})
 	corner(bar, 10)
-	-- làm phẳng 2 góc dưới của title bar
 	new("Frame", {
 		Parent = bar,
 		Position = UDim2.new(0, 0, 1, -12),
@@ -118,7 +121,6 @@ function Lib:CreateWindow(cfg)
 		ZIndex = 2,
 	})
 
-	-- // Accent square nhỏ cạnh title
 	local accentSquare = new("Frame", {
 		Parent = bar,
 		Position = UDim2.new(0, 14, 0.5, 0),
@@ -130,7 +132,7 @@ function Lib:CreateWindow(cfg)
 	})
 	corner(accentSquare, 3)
 
-	local title = new("TextLabel", {
+	new("TextLabel", {
 		Parent = bar,
 		Position = UDim2.new(0, 32, 0, 0),
 		Size = UDim2.new(1, -100, 1, 0),
@@ -143,7 +145,7 @@ function Lib:CreateWindow(cfg)
 		ZIndex = 3,
 	})
 
-	local ver = new("TextLabel", {
+	new("TextLabel", {
 		Parent = bar,
 		Position = UDim2.new(1, -80, 0, 0),
 		Size = UDim2.new(0, 40, 1, 0),
@@ -156,7 +158,7 @@ function Lib:CreateWindow(cfg)
 		ZIndex = 3,
 	})
 
-	-- // Nút vuông nhỏ bật/tắt UI
+	-- // Nút vuông nhỏ (thu nhỏ) trên title bar
 	local hideBtn = new("TextButton", {
 		Parent = bar,
 		AnchorPoint = Vector2.new(1, 0.5),
@@ -196,9 +198,7 @@ function Lib:CreateWindow(cfg)
 		SortOrder = Enum.SortOrder.LayoutOrder,
 	})
 
-	--=====================================================
-	-- DRAG
-	--=====================================================
+	-- DRAG main
 	local dragging, dragStart, startPos
 	bar.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1
@@ -225,9 +225,7 @@ function Lib:CreateWindow(cfg)
 		end
 	end)
 
-	--=====================================================
 	-- ELEMENT FACTORIES
-	--=====================================================
 	local function createSection(parent, name)
 		local holder = new("Frame", {
 			Parent = parent,
@@ -471,9 +469,7 @@ function Lib:CreateWindow(cfg)
 		}
 	end
 
-	--=====================================================
 	-- WINDOW API
-	--=====================================================
 	local Window = {}
 	local tabOrder = 0
 	local pages = {}
@@ -482,7 +478,6 @@ function Lib:CreateWindow(cfg)
 		tabOrder += 1
 		local myOrder = tabOrder
 
-		-- // page
 		local page = new("ScrollingFrame", {
 			Parent = main,
 			Position = UDim2.new(0, 148, 0, 54),
@@ -508,7 +503,6 @@ function Lib:CreateWindow(cfg)
 			PaddingRight = UDim.new(0, 6),
 		})
 
-		-- // tab button
 		local tabBtn = new("TextButton", {
 			Parent = sidebar,
 			Size = UDim2.new(1, 0, 0, 34),
@@ -550,7 +544,6 @@ function Lib:CreateWindow(cfg)
 
 		table.insert(pages, { page = page, btn = tabBtn, stroke = tabStroke })
 
-		-- // tab API
 		local Tab = {}
 		local elOrder = 0
 		local function nextOrder() elOrder += 1 return elOrder end
@@ -560,21 +553,18 @@ function Lib:CreateWindow(cfg)
 			o.Instance.LayoutOrder = nextOrder()
 			return o
 		end
-
 		function Tab:CreateToggle(c)
 			c = c or {}
 			local o = createToggle(page, c)
 			o.Instance.LayoutOrder = nextOrder()
 			return o
 		end
-
 		function Tab:CreateButton(c)
 			c = c or {}
 			local o = createButton(page, c)
 			o.Instance.LayoutOrder = nextOrder()
 			return o
 		end
-
 		function Tab:CreateSlider(c)
 			c = c or {}
 			local o = createSlider(page, c)
@@ -583,15 +573,103 @@ function Lib:CreateWindow(cfg)
 		end
 
 		if tabOrder == 1 then select() end
-
 		return Tab
 	end
 
+	--=====================================================
+	-- FLOATING ICON TOGGLE BUTTON (viền trắng quanh ảnh tròn)
+	--=====================================================
+	local floatBtn = new("TextButton", {
+		Parent = gui,
+		Name = "FloatToggle",
+		AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, -24, 1, -24),
+		Size = UDim2.fromOffset(56, 56),
+		BackgroundColor3 = Theme.White,
+		BorderSizePixel = 0,
+		Text = "",
+		AutoButtonColor = false,
+		ZIndex = 10,
+	})
+	corner(floatBtn, 28)
+	stroke(floatBtn, Theme.Stroke, 1)
+
+	local floatScale = new("UIScale", { Parent = floatBtn, Scale = 1 })
+
+	local floatImg = new("ImageLabel", {
+		Parent = floatBtn,
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(36, 36),   -- 10px viền trắng mỗi bên
+		BackgroundTransparency = 1,
+		Image = IconOff,
+		ImageColor3 = Theme.White,
+		ScaleType = Enum.ScaleType.Crop,
+		ZIndex = 11,
+	})
+	corner(floatImg, 18)
+
+	local function setVisible(v)
+		v = v and true or false
+		main.Visible = v
+		floatImg.Image = v and IconOn or IconOff
+	end
+
+	-- hover scale
+	floatBtn.MouseEnter:Connect(function()
+		if not fDragging then tween(floatScale, 0.15, { Scale = 1.1 }) end
+	end)
+	floatBtn.MouseLeave:Connect(function()
+		tween(floatScale, 0.15, { Scale = 1 })
+	end)
+
+	-- drag + click
+	local fDragging, fMoved, fStartPos, fPos
+	floatBtn.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+			fDragging = true
+			fMoved = false
+			fStartPos = input.Position
+			fPos = floatBtn.Position
+			tween(floatScale, 0.1, { Scale = 1 })
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(input)
+		if fDragging and (input.UserInputType == Enum.UserInputType.MouseMovement
+		or input.UserInputType == Enum.UserInputType.Touch) then
+			local d = input.Position - fStartPos
+			if d.Magnitude > 4 then fMoved = true end
+			floatBtn.Position = UDim2.new(
+				fPos.X.Scale, fPos.X.Offset + d.X,
+				fPos.Y.Scale, fPos.Y.Offset + d.Y
+			)
+		end
+	end)
+	floatBtn.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+			if fDragging and not fMoved then
+				setVisible(not main.Visible)
+			end
+			fDragging = false
+		end
+	end)
+
+	-- nút nhỏ trên title bar + RightShift đều dùng setVisible
+	hideBtn.MouseButton1Click:Connect(function() setVisible(not main.Visible) end)
+	UserInputService.InputBegan:Connect(function(input, gpe)
+		if gpe then return end
+		if input.KeyCode == Enum.KeyCode.RightShift then
+			setVisible(not main.Visible)
+		end
+	end)
+
 	function Window:Toggle(v)
 		if v == nil then
-			main.Visible = not main.Visible
+			setVisible(not main.Visible)
 		else
-			main.Visible = v and true or false
+			setVisible(v)
 		end
 	end
 
@@ -599,14 +677,8 @@ function Lib:CreateWindow(cfg)
 		gui:Destroy()
 	end
 
-	-- // Nút vuông nhỏ + keybind
-	hideBtn.MouseButton1Click:Connect(function() Window:Toggle() end)
-	UserInputService.InputBegan:Connect(function(input, gpe)
-		if gpe then return end
-		if input.KeyCode == Enum.KeyCode.RightShift then
-			Window:Toggle()
-		end
-	end)
+	-- init trạng thái ban đầu
+	setVisible(true)
 
 	return Window
 end
@@ -616,7 +688,7 @@ end
 --=========================================================
 local ESP = {
 	Enabled = false,
-	MaxDistance = 1000,
+	MaxDistance = 100000,   -- ← đổi từ 1000
 	Cache = {},
 	Conns = {},
 }
@@ -704,6 +776,9 @@ end
 
 function ESP:SetMaxDistance(d)
 	self.MaxDistance = d
+	for _, bb in pairs(self.Cache) do
+		if bb and bb.Parent then bb.MaxDistance = d end
+	end
 end
 
 -- // update loop
@@ -728,20 +803,25 @@ RunService.RenderStepped:Connect(function(dt)
 		local tag  = bb:FindFirstChild("Tag")
 
 		if root and lpRoot and hum and hum.Health > 0 and tag then
-			local dist = (root.Position - lpRoot.Position).Magnitude
-			bb.MaxDistance = ESP.MaxDistance
-			bb.Enabled = dist <= ESP.MaxDistance
-			tag.Text = string.format("%s  ·  %dm", plr.DisplayName, math.floor(dist + 0.5))
-		else
-			bb.Enabled = false
-		end
+	local dist = (root.Position - lpRoot.Position).Magnitude
+	bb.MaxDistance = ESP.MaxDistance
+	bb.Enabled = true                              -- ← luôn hiện, không gate
+	tag.Text = string.format("%s  ·  %dm", plr.DisplayName, math.floor(dist + 0.5))
+else
+	bb.Enabled = false
+end
 	end
 end)
 
 --=========================================================
 -- DEMO
 --=========================================================
-local Win = Lib:CreateWindow({ Title = "BlueWhite UI", Size = UDim2.fromOffset(520, 360) })
+local Win = Lib:CreateWindow({
+	Title   = "BlueWhite UI",
+	Size    = UDim2.fromOffset(520, 360),
+	IconOff = "rbxassetid://0",   -- ← thay bằng ID icon khi UI tắt
+	IconOn  = "rbxassetid://0",   -- ← thay bằng ID icon khi UI bật
+})
 
 -- // Tab 1
 local MainTab = Win:CreateTab("Main")
@@ -776,7 +856,7 @@ espToggle = VisualTab:CreateToggle({
 })
 VisualTab:CreateSlider({
 	Name = "Max Distance (studs)",
-	Min = 100, Max = 5000, Default = 1000, Step = 50,
+	Min = 100, Max = 200000, Default = 100000, Step = 1000,   -- ← đổi
 	Callback = function(v) ESP:SetMaxDistance(v) end,
 })
 
