@@ -1275,10 +1275,14 @@ function Library:CreateDropdown(tab, name, options, default, callback)
     local optionButtons = {}
 
     local function setValue(v)
+    if type(v) == "table" or typeof(v) == "Color3" then
+        currentValue = "Bronze (Default)"
+    else
         currentValue = tostring(v)
-        SelectedLbl.Text = currentValue
-        if callback then callback(currentValue) end
     end
+    SelectedLbl.Text = currentValue
+    if callback then callback(currentValue) end
+end
 
     local function updateDropdownTheme(newColor)
         LStroke.Color = newColor
@@ -1894,13 +1898,22 @@ end)
 -- ============================================================
 
 local RS = game:GetService("ReplicatedStorage")
+local RegisterAttack, RegisterHit, CommF_ -- ★ Thêm dòng này
 
 repeat task.wait() until game:IsLoaded() and LP.Character
 
-local Net          = RS:WaitForChild("Modules"):WaitForChild("Net")
-local RegisterAttack = Net:WaitForChild("RE/RegisterAttack")
-local RegisterHit    = Net:WaitForChild("RE/RegisterHit")
-local CommF_       = RS:WaitForChild("Remotes"):WaitForChild("CommF_")
+-- ★ FIX: Bọc vào task.spawn để không treo UI khi chơi game khác
+task.spawn(function()
+    local ok, err = pcall(function()
+        local Net          = RS:WaitForChild("Modules"):WaitForChild("Net")
+        RegisterAttack = Net:WaitForChild("RE/RegisterAttack")
+        RegisterHit    = Net:WaitForChild("RE/RegisterHit")
+        CommF_       = RS:WaitForChild("Remotes"):WaitForChild("CommF_")
+    end)
+    if not ok then
+        warn("[KairosHub] Không tìm thấy Modules của Blox Fruits (đang chơi game khác?)")
+    end
+end)
 
 -- ============================================================
 -- QUEST DATABASE — ALL SEA (First + Second)
@@ -2460,6 +2473,7 @@ end
 -- ATTACK HELPER — burst spam, dùng chung farm level + boss
 -- ============================================================
 local function DoAttack(targets)
+    if not RegisterAttack or not RegisterHit then return end -- ★ Thêm dòng này
     if not targets or #targets == 0 then return end
 
     -- ★ Freeze target mob (không phải BringMob / Boss)
