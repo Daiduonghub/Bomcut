@@ -1911,7 +1911,7 @@ task.spawn(function()
         CommF_       = RS:WaitForChild("Remotes"):WaitForChild("CommF_")
     end)
     if not ok then
-        warn("[KairosHub] Không tìm thấy Modules của Blox Fruits (đang chơi game khác?)")
+        print("[KairosHub] Not find Modules`S Blox Fruits (you play not play game blox fruits?)")
     end
 end)
 
