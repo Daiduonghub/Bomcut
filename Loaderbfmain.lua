@@ -19,7 +19,7 @@ if not getgenv().KairosSettings or type(getgenv().KairosSettings.Theme) ~= "stri
     getgenv().KairosSettings = {
         AutoFarm     = false,
         BringMob     = false,
-        FastAtk      = false,
+        AtkSpeed     = "Normal",
         BossFarmOn   = false,
         AtkSpeed     = 0.03,
         TweenSpeed   = 120,
@@ -409,7 +409,12 @@ CleanupFly = function() end
 AddHighlight = function() end
 RemoveHighlight = function() end
 FA_On = Settings.FastAtk or false
-FA_Delay = Settings.AtkSpeed or 0.03
+local SpeedMap = {
+    Slow   = 0.2,
+    Normal = 0.1,
+    Fast   = 0.05
+}
+FA_Delay = SpeedMap[Settings.AtkSpeed] or 0.1
 BM_On = Settings.BringMob or false
 BM_Max = Settings.MobCount or 2
 AnchorReached = false
@@ -1723,14 +1728,14 @@ Library:CreateDropdown(TabSettings, "Farm Weapon", {"None", "Melee", "Sword", "G
     FarmWeapon = (v == "None") and nil or v
 end)
 
-Library:CreateToggle(TabSettings, "FastAtk", Settings.FastAtk or false, function(v)
+Library:CreateToggle(TabSettings, "FastAttack", Settings.FastAtk or false, function(v)
     Settings.FastAtk = v
     FA_On = v
 end)
 
-Library:CreateSlider(TabSettings, "AtkSpeed", 0.01, 0.2, Settings.AtkSpeed or 0.03, function(v)
+Library:CreateDropdown(TabSettings, "Attack Speed", {"Slow", "Normal", "Fast"}, Settings.AtkSpeed or "Normal", function(v)
     Settings.AtkSpeed = v
-    FA_Delay = v
+    FA_Delay = SpeedMap[v] or 0.1
 end)
 
 Library:CreateTextBox(TabSettings, "Tween speed", Settings.TweenSpeed or 120, function(v)
@@ -1987,10 +1992,10 @@ local HitHash       = "168716de"
 
 local SLOT_OFFSETS = {
     Vector3.new( 0, 0,  0),   -- slot 1 (con lock)
-    Vector3.new( 2, 0,  0),   -- slot 2
-    Vector3.new(-2, 0,  0),   -- slot 3
-    Vector3.new( 0, 0,  2),   -- slot 4
-    Vector3.new( 0, 0, -2),   -- slot 5
+    Vector3.new( 0, 0,  3),   -- slot 2 (sau lưng 3 studs)
+    Vector3.new( 0, 0, -3),   -- slot 3 (trước mặt 3 studs)
+    Vector3.new( 0, 0,  6),   -- slot 4 (sau lưng 6 studs)
+    Vector3.new( 0, 0, -6),   -- slot 5 (trước mặt 6 studs)
 }
 
 -- ============================================================
@@ -2047,7 +2052,8 @@ local function GetAttackParts(mob)
         return cached
     end
 
-    local names = {"Head", "UpperTorso", "LowerTorso", "LeftHand", "RightHand"}
+    -- ★ Chỉ lấy 2 bộ phận để giảm tải mạng
+    local names = {"Head", "HumanoidRootPart"}
     local parts = {}
     for _, n in ipairs(names) do
         local p = mob:FindFirstChild(n)
@@ -2362,41 +2368,28 @@ end
 -- ============================================================
 local function EquipFarmWeapon()
     if not FarmWeapon or FarmWeapon == "None" then return end
-
     local char = LP.Character
     if not char then return end
-
-    -- Tìm weapon tương ứng với category (Melee/Sword/Gun)
     local weaponName = FindWeaponByCategory(FarmWeapon)
-    if not weaponName then return end   -- không có weapon nào trong backpack
-
-    -- Đã equip đúng weapon → thôi
+    if not weaponName then return end
     if char:FindFirstChild(weaponName) then return end
-
-    -- Tìm tool trong Backpack
     local bp = LP:FindFirstChild("Backpack")
     if not bp then return end
-
     local tool = bp:FindFirstChild(weaponName)
     if not tool then return end
 
-    -- BƯỚC 1: chuyển tool vào Character
     local hum = char:FindFirstChild("Humanoid")
-    if hum then
-        pcall(function() hum:EquipTool(tool) end)
-    end
+    if hum then pcall(function() hum:EquipTool(tool) end) end
 
-    -- BƯỚC 2: đợi tool chuyển xong
-    task.wait(0.15)
-
-    -- BƯỚC 3: fire EquipEvent
-    local toolInChar = char:FindFirstChild(weaponName)
-    if toolInChar then
-        local eqEvent = toolInChar:FindFirstChild("EquipEvent")
-        if eqEvent then
-            pcall(function() eqEvent:FireServer(true) end)
+    -- ★ Đưa task.wait vào task.spawn để không block luồng chính
+    task.spawn(function()
+        task.wait(0.15)
+        local toolInChar = char:FindFirstChild(weaponName)
+        if toolInChar then
+            local eqEvent = toolInChar:FindFirstChild("EquipEvent")
+            if eqEvent then pcall(function() eqEvent:FireServer(true) end) end
         end
-    end
+    end)
 end
 
 -- ============================================================
@@ -2473,10 +2466,9 @@ end
 -- ATTACK HELPER — burst spam, dùng chung farm level + boss
 -- ============================================================
 local function DoAttack(targets)
-    if not RegisterAttack or not RegisterHit then return end -- ★ Thêm dòng này
+    if not RegisterAttack or not RegisterHit then return end
     if not targets or #targets == 0 then return end
 
-    -- ★ Freeze target mob (không phải BringMob / Boss)
     if not BM_On and not BossFarmOn then
         local now = tick()
         for _, m in ipairs(targets) do
@@ -2485,14 +2477,13 @@ local function DoAttack(targets)
                 if not FarmLockedMobs[m] then
                     FarmLockedMobs[m] = {CFrame = mRoot.CFrame, Expire = now + 2}
                 else
-                    FarmLockedMobs[m].Expire = now + 2   -- refresh
+                    FarmLockedMobs[m].Expire = now + 2
                 end
             end
         end
     end
 
     local firstTarget = targets[1]
-
     if firstTarget ~= ComboTarget then
         ComboTarget = firstTarget
         ComboPhase  = "melee"
@@ -2505,13 +2496,11 @@ local function DoAttack(targets)
 
     if FarmWeapon == "Gun" then
         if ComboPhase == "melee" then
-            -- ★ MELEE BURST
             local char = LP.Character
             local hum  = char and char:FindFirstChild("Humanoid")
             if hum then pcall(function() hum:UnequipTools() end) end
 
             RegisterAttack:FireServer(0.1, 5)
-
             for _, m in ipairs(targets) do
                 local parts = GetAttackParts(m)
                 for _, p in ipairs(parts) do
@@ -2520,7 +2509,6 @@ local function DoAttack(targets)
                 end
             end
         else
-            -- ★ GUN PHASE — equip gun + tap
             EquipFarmWeapon()
             local camera = workspace.CurrentCamera
             if not camera then return end
@@ -2533,29 +2521,13 @@ local function DoAttack(targets)
             end
         end
     else
-        -- ★ MELEE / SWORD BURST
         EquipFarmWeapon()
-
         RegisterAttack:FireServer(0.1, 5)
-
         for _, m in ipairs(targets) do
             local parts = GetAttackParts(m)
             for _, p in ipairs(parts) do
                 RegisterHit:FireServer(p, {}, HitHash)
                 RegisterHit:FireServer(p, {})
-            end
-        end
-
-        -- FastAtk: spam thêm 3 lượt ngay lập tức
-        if FA_On then
-            for _ = 1, 3 do
-                for _, m in ipairs(targets) do
-                    local parts = GetAttackParts(m)
-                    for _, p in ipairs(parts) do
-                        RegisterHit:FireServer(p, {}, HitHash)
-                        RegisterHit:FireServer(p, {})
-                    end
-                end
             end
         end
     end
@@ -2565,6 +2537,7 @@ end
 -- MAIN FARM LOOP
 -- ============================================================
 task.spawn(function()
+    local lastAttackTime = 0 -- ★ Biến chặn spam desync
     while getgenv().KairosRunning do
         task.wait(0.01)
 
@@ -2766,7 +2739,11 @@ task.spawn(function()
                         end
                     end
 
-                    DoAttack(targets)
+                    -- ★ ÁP DỤNG TIMER: Kiểm soát tốc độ đánh theo Dropdown
+                    if tick() - lastAttackTime >= FA_Delay then
+                        lastAttackTime = tick()
+                        DoAttack(targets)
+                    end
                 end
             end)
 
